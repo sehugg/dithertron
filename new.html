@@ -1,0 +1,390 @@
+<html>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.7/cropper.min.js"></script>
+    <script src="node_modules/pica/dist/pica.min.js"></script>
+    <script src="node_modules/rgbquant/src/rgbquant.js"></script>
+    <script src="../../jquery/jquery-3.4.1.min.js"></script>
+    <!-- Wrap the image or canvas element with a block element (container) -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.13.0/css/all.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://fengyuanchen.github.io/cropperjs/css/cropper.css">
+    <style type="text/css" media="screen">
+/* Ensure the size of the image fit the container perfectly */
+img {
+display: block;
+/* This rule is very important, please don't ignore this */
+max-width: 100%;
+}
+</style>
+<div class="container">
+    <div class="row">
+        <div class="col-md-6">
+            <!--
+            <img id="srcimage" src="node_modules/rgbquant/demo/img/chopsuey.jpg">
+            -->
+            <img id="srcimage" src="../images/vangogh.jpg">
+        </div>
+        <div class="col-md-6">
+            <canvas id="destcanvas" width="320" height="200" style="transform: scaleY(1.2) scale(1.2); float:right; margin-top:100px">
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <span id="cmdline"></span>
+            Diffuse: <input type="range" id="diffuseSlider" min="0" max="100" oninput="dithcanv.diffuse=this.value/100.0;updateImage()"/>
+        </div>
+    </div>
+    
+<canvas id="resizecanvas" width="320" height="200" style="display:none">
+</div>
+
+<script>
+    function rnd(n) { return Math.floor(Math.random()*n); }
+    function sqr(x) { return x*x; }
+
+    var DITHER_HV = [[1, 0, 0.5], [0, 1, 0.5]];
+    var DITHER_DIAG = [[1, 1, 1.0]];
+    var DITHER_FLOYD = [[1, 0, 7/16], [-1, 1, 3/16], [0, 1, 5/16], [1, 1, 1/16]];
+
+    class DitheringCanvas {
+        pal; // Uint32Array
+        img; // Uint32Array
+        ref; // Uint32Array
+        alt; // Uint32Array
+        err; // Uint16Array (n*3)
+        width; // integer
+        palerrtab; // Uint32Array (n*n)
+        tmp;
+        tmp2;
+        totalerror;
+        besterror;
+        diffuse = 0.5;
+        ditherfn = DITHER_FLOYD;
+
+        constructor(img, width, pal) {
+            this.pal = new Uint32Array(pal);
+            this.palerrtab = createPaletteErrorLookup(this.pal);
+            this.width = width;
+            this.img = new Uint32Array(img);
+            this.ref = new Uint32Array(img);
+            this.alt = new Uint32Array(img);
+            this.err = new Int16Array(img.length * 3);
+            this.tmp = new Uint8ClampedArray(4);
+            this.tmp2 = new Uint32Array(this.tmp.buffer);
+            this.totalerror = 0;
+            this.besterror = 999999999;
+        }
+        init() {
+        }
+        update(offset) {
+            var errofs = offset*3;
+            var rgbref = this.ref[offset];
+            // add cumulative error to pixel, clamp @ 0-255
+            this.tmp[0] = (rgbref & 0xff) + this.err[errofs];
+            this.tmp[1] = ((rgbref>>8) & 0xff) + this.err[errofs+1];
+            this.tmp[2] = ((rgbref>>16) & 0xff) + this.err[errofs+2];
+            // store the error-modified color
+            this.alt[offset] = this.tmp2[0];
+            // find closest palette color
+            var palidx = this.getClosest(this.tmp2[0], this.getValidColors(offset));
+            var rgbimg = this.pal[palidx];
+            // compute error and distribute to neighbors
+            var err = getRGBAError(rgbref, rgbimg);
+            for (var i=0; i<3; i++) {
+                var k = (this.err[errofs+i] + err[i]) * this.diffuse;
+                this.ditherfn.forEach((df) => {
+                    this.err[errofs + i + (df[0] + df[1]*this.width)*3] += k * df[2];
+                });
+                this.err[errofs+i] = 0; // reset this pixel's error
+            }
+            // set new pixel rgb
+            this.img[offset] = rgbimg;
+            //this.img[offset] = this.tmp2[0] | 0xff000000;
+            // return error mag
+            // TODO: perceptual error?
+            var cumerr = Math.sqrt(sqr(err[0]) + sqr(err[1]) + sqr(err[2]));
+            this.totalerror += cumerr;
+            return cumerr;
+        }
+        getValidColors(offset) {
+            return this.allColors;
+        }
+        getClosest(rgb, inds) {
+            var best = 9999999;
+            var bestidx = -1;
+            for (var i=0; i<inds.length; i++) {
+                var score = getRGBAErrorMag(rgb, this.pal[inds[i]]);
+                if (score < best) {
+                    best = score;
+                    bestidx = i;
+                }
+            }
+            return inds[bestidx];
+        }
+    }
+    class VDPMode2_Canvas extends DitheringCanvas {
+        params = new Uint8Array(40*200);
+        newparams = new Uint8Array(40*200);
+        temperature = 1;
+        allColors = [0,2,3,4,5,6,7,8,9,10,11,12,13,14,15]; // TODO
+        init() {
+            for (var i=0; i<this.params.length; i++) {
+                this.guessParam(i);
+            }
+        }
+        guessParam(p) {
+            var offset = p*8;
+            var colors = this.allColors;
+            var histo = new Uint32Array(16);
+            for (var i=0; i<8; i++) {
+                var ind1 = this.getClosest(this.alt[offset+i], colors);
+                histo[ind1]++;
+                var ind2 = this.getClosest(this.ref[offset+i], colors.filter((c) => c != ind1));
+                histo[ind2]++;
+            }
+            var choices = getChoices(histo);
+            var ind1 = choices[0].ind;
+            var ind2 = choices[1].ind;
+            if (ind1 > ind2) {
+                var tmp = ind1;
+                ind1 = ind2;
+                ind2 = tmp;
+            }
+            this.params[p] = ind1 + (ind2 << 4);
+            //if (offset < 100) console.log(p, choices);
+        }
+        getValidColors(offset) {
+            var i = Math.floor(offset / 8);
+            var c1 = this.params[i] & 0xf;
+            var c2 = (this.params[i]>>4) & 0xf;
+            return [c1, c2];
+        }
+        commit() {
+            // skip params @ random
+            for (var i=0; i<this.params.length; i+=rnd(2)+1) {
+                this.guessParam(i);
+            }
+        }
+        iterate() {
+            this.totalerror = 0;
+            for (var i=0; i<this.img.length; i++) {
+                this.update(i);
+            }
+            this.commit();
+            console.log(this.totalerror);
+        }
+    }
+    function createPaletteErrorLookup(pal) {
+        var n = pal.length;
+        var nn = n * n;
+        var lookup = [];
+        for (var i=0; i<nn; i++) {
+            lookup[i] = getRGBAError(pal[i % n], pal[Math.floor(i/n)]);
+        }
+        return lookup;
+    }
+    function getRGBAError(rgbref, rgbimg) {
+        var err = [0,0,0];
+        for (var i=0; i<3; i++) {
+            var d = (rgbref & 0xff) - (rgbimg & 0xff);
+            err[i] = d;
+            rgbref >>= 8;
+            rgbimg >>= 8;
+        }
+        return err;
+    }
+    getRGBAErrorMag = getRGBAErrorPerceptual;
+    function getRGBAErrorAbsolute(rgbref, rgbimg) {
+        var mag = 0;
+        for (var i=0; i<3; i++) {
+            var d = (rgbref & 0xff) - (rgbimg & 0xff);
+            mag += sqr(d);
+            rgbref >>= 8;
+            rgbimg >>= 8;
+        }
+        return Math.sqrt(mag);
+    }
+    function getRGBAErrorHue(rgbref, rgbimg) {
+        var r1 = ((rgbref>>0) & 0xff);
+        var g1 = ((rgbref>>8) & 0xff);
+        var b1 = ((rgbref>>16) & 0xff);
+        var r2 = ((rgbimg>>0) & 0xff);
+        var g2 = ((rgbimg>>8) & 0xff);
+        var b2 = ((rgbimg>>16) & 0xff);
+        //var mag1 = Math.sqrt(sqr(r1-r2) + sqr(g1-g2) + sqr(b1-b2));
+        var avg1 = (r1+g1+b1)/3+1;
+        var avg2 = (r2+g2+b2)/3+1;
+        r1 /= avg1;
+        g1 /= avg1;
+        b1 /= avg1;
+        r2 /= avg2;
+        g2 /= avg2;
+        b2 /= avg2;
+        var mag2 = Math.sqrt(sqr(r1-r2) + sqr(g1-g2) + sqr(b1-b2));
+        return mag2;
+    }
+    function getRGBAErrorPerceptual(rgbref, rgbimg) {
+        var r1 = ((rgbref>>0) & 0xff);
+        var g1 = ((rgbref>>8) & 0xff);
+        var b1 = ((rgbref>>16) & 0xff);
+        var r2 = ((rgbimg>>0) & 0xff);
+        var g2 = ((rgbimg>>8) & 0xff);
+        var b2 = ((rgbimg>>16) & 0xff);
+        var rmean = (r1 + r2) / 2;
+        var r = r1 - r2;
+        var g = g1 - g2;
+        var b = b1 - b2;
+        return Math.sqrt((((512+rmean)*r*r)/256) + 4*g*g + (((767-rmean)*b*b)/256));
+    }
+    function getRGBAErrorMax(rgbref, rgbimg) {
+        var r1 = ((rgbref>>0) & 0xff);
+        var g1 = ((rgbref>>8) & 0xff);
+        var b1 = ((rgbref>>16) & 0xff);
+        var r2 = ((rgbimg>>0) & 0xff);
+        var g2 = ((rgbimg>>8) & 0xff);
+        var b2 = ((rgbimg>>16) & 0xff);
+        return Math.max(Math.abs(r1-r2), Math.abs(g1-g2), Math.abs(b1-b2));
+    }
+    function getRGBAErrorArr(a,b) {
+        var err = [0,0,0];
+        for (var i=0; i<3; i++) {
+            err[i] = ((a & 0xff) - (b & 0xff));
+            a >>= 8;
+            b >>= 8;
+        }
+        return err;
+    }
+    // byte order reversed in this app
+    function RGBA(r,g,b) {
+        return ((r&0xff)<<16) | ((g&0xff)<<8) | ((b&0xff)<<0) | 0xff000000;
+    }
+    const VIC_NTSC_RGB = [
+        0x000000,
+        0xFFFFFF,
+        RGBA(163,64,69),
+        RGBA(125,235,228),
+        RGBA(174,70,186),
+        RGBA(94,202,84),
+        RGBA(60,57,200),
+        RGBA(255,255,111),
+        RGBA(174,96,47),
+        RGBA(110,73,0),
+        RGBA(232,122,128),
+        RGBA(92,92,92),
+        RGBA(143,143,143),
+        RGBA(179,255,167),
+        RGBA(129,126,255),
+        RGBA(199,199,199)
+    ];
+    const TMS9918_RGB = [
+        RGBA(0,0,0),
+        RGBA(0,0,0),
+        RGBA(33,200,66),
+        RGBA(94,220,120),
+        RGBA(84,85,237),
+        RGBA(125,118,252),
+        RGBA(212,82,77),
+        RGBA(66,235,245),
+        RGBA(252,85,84),
+        RGBA(255,121,120),
+        RGBA(212,193,84),
+        RGBA(230,206,128),
+        RGBA(33,176,59),
+        RGBA(201,91,186),
+        RGBA(204,204,204),
+        RGBA(255,255,255)
+    ]
+    const AP2HIRES_RGB = [
+        RGBA(0, 0, 0),
+        RGBA(255, 68, 253),
+        RGBA(20, 245, 60),
+        RGBA(20, 207, 253),
+        RGBA(255, 106, 60),
+        RGBA(255, 255, 255)
+    ];
+    function getHistogram(inds) {
+        var histo = new Uint8Array(256);
+        inds.forEach((x) => histo[x]++);
+        return getChoices(histo);
+    }
+    function getChoices(histo) {
+        var choices = [];
+        for (var i=0; i<histo.length; i++) {
+            if (histo[i]) choices.push({count:histo[i], ind:i});
+        }
+        choices.sort((a,b) => b.count - a.count);
+        return choices;
+    }
+    function rgb2tuple(arr) {
+        return arr.map((x) => [(x>>16) & 0xff, (x>>8) & 0xff, (x>>0) & 0xff]);
+    }
+    function drawPixels(quant, dest, inds) {
+        //console.log(quant, dest, inds);
+        var ctx = dest.getContext('2d');
+        var imageData = ctx.createImageData(dest.width, dest.height);
+        var datau32 = new Uint32Array(imageData.data.buffer);
+        for (var i=0; i<inds.length; i++) {
+            datau32[i] = quant.idxi32[inds[i]];
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+    function drawRGBA(dest, arr) {
+        var ctx = dest.getContext('2d');
+        var imageData = ctx.createImageData(dest.width, dest.height);
+        var datau32 = new Uint32Array(imageData.data.buffer);
+        datau32.set(arr);
+        ctx.putImageData(imageData, 0, 0);
+    }
+    function getCanvasImageData(canvas) {
+        return new Uint32Array(canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer);
+    }
+    function convertImage() {
+        pica().resize(cropper.getCroppedCanvas(), resize, {
+            /*
+            unsharpAmount: 50,
+            unsharpRadius: 0.5,
+            unsharpThreshold: 2
+            */
+        }).then(() => {
+            dithcanv = null;
+            updateImage();
+        });
+    }
+    var dithcanv = null;
+    function updateImage() {
+        const quant = new RgbQuant(quantopts);
+        //quant.sample(resize);
+        //quant.palette(false, true);
+        if (dithcanv == null) {
+            dithcanv = new VDPMode2_Canvas(getCanvasImageData(resize), dest.width, quant.idxi32);
+            dithcanv.init();
+        }
+        dithcanv.iterate();
+        //dithcanv.iterate();
+        drawRGBA(dest, dithcanv.img);
+    }
+    const quantopts = {
+        palette:rgb2tuple(TMS9918_RGB),
+        //reindex:true,
+        //colors:16,
+    };
+    const image = document.getElementById('srcimage');
+    const resize = document.getElementById('resizecanvas');
+    const dest = document.getElementById('destcanvas');
+    const cmdline = document.getElementById('cmdline');
+    const cropper = new Cropper(image, {
+      //aspectRatio: 16 / 9,
+      crop(event) {
+          convertImage();
+      },
+    });
+    $("#dithKern").on('change', () => convertImage());
+    $("#dithSerp").on('change', () => convertImage());
+    dest.onmousemove = (e) => {
+        updateImage();
+        dithcanv.temperature += 2;
+    }
+</script>
+    
+</body>
+</html>
