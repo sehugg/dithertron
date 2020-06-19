@@ -22,7 +22,7 @@ max-width: 100%;
             <!--
             <img id="srcimage" src="node_modules/rgbquant/demo/img/chopsuey.jpg">
             -->
-            <img id="srcimage" src="../images/greentruck.JPG">
+            <img id="srcimage" src="../images/seurat.jpg">
         </div>
         <div class="col-md-6">
             <canvas id="destcanvas" width="160" height="200" style="transform: scaleX(2) scaleY(1); float:right; margin-top:100px">
@@ -230,18 +230,20 @@ max-width: 100%;
         }
     }
     class VICII_Canvas extends VDPMode2_Canvas {
+        w=4;
+        h=8;
         init() {
             this.bgcolor = 0;
-            this.params = new Uint16Array(this.width/8 * this.height/8);
+            this.params = new Uint16Array(this.width/this.w * this.height/this.h);
             this.allColors = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
             for (var i=0; i<this.params.length; i++) {
                 this.guessParam(i);
             }
         }
         getValidColors(offset) {
-            var ncols = this.width / 8;
-            var col = Math.floor(offset / 8) % ncols;
-            var row = Math.floor(offset / (this.width*8));
+            var ncols = this.width / this.w;
+            var col = Math.floor(offset / this.w) % ncols;
+            var row = Math.floor(offset / (this.width*this.h));
             var i = col + row*ncols;
             var c1 = this.params[i] & 0xf;
             var c2 = (this.params[i] >> 4) & 0xf;
@@ -249,10 +251,10 @@ max-width: 100%;
             return [this.bgcolor, c1, c2, c3];
         }
         guessParam(p) {
-            var ncols = this.width / 8;
+            var ncols = this.width / this.w;
             var col = p % ncols;
             var row = Math.floor(p / ncols);
-            var offset = col*8 + row*this.width*8;
+            var offset = col*this.w + row*this.width*this.h;
             var colors = this.allColors;
             // rank all colors
             var histo = new Uint32Array(16);
@@ -278,6 +280,16 @@ max-width: 100%;
             */
             this.params[p] = ind1 + (ind2<<4) + (ind3<<8);
             //if (offset < 100) console.log(p, choices);
+        }
+    }
+    class VICII_320_Canvas extends VICII_Canvas {
+        w=8;
+        init() {
+            super.init();
+        }
+        getValidColors(offset) {
+            // just take fg/bg
+            return super.getValidColors(offset).slice(1,3);
         }
     }
     function createPaletteErrorLookup(pal) {
@@ -482,8 +494,9 @@ max-width: 100%;
         //quant.palette(false, true);
         if (dithcanv == null) {
             dithcanv = new VICII_Canvas(getCanvasImageData(resize), dest.width, quant.idxi32);
-            //dithcanv = new ZXSpectrum_Canvas(getCanvasImageData(resize), dest.width, quant.idxi32);
+            //dithcanv.bgcolor = dithcanv.getClosest(quant.idxi32[0], quantopts.palette);
             dithcanv.init();
+            console.log('bg', dithcanv.bgcolor);
         }
         dithcanv.iterate();
         //dithcanv.iterate();
