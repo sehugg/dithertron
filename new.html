@@ -22,10 +22,10 @@ max-width: 100%;
             <!--
             <img id="srcimage" src="node_modules/rgbquant/demo/img/chopsuey.jpg">
             -->
-            <img id="srcimage" src="../images/benbenn.jpg">
+            <img id="srcimage" src="../images/greentruck.JPG">
         </div>
         <div class="col-md-6">
-            <canvas id="destcanvas" width="320" height="200" style="transform: scaleY(1.2) scale(1.2); float:right; margin-top:100px">
+            <canvas id="destcanvas" width="160" height="200" style="transform: scaleX(2) scaleY(1); float:right; margin-top:100px">
         </div>
     </div>
     <div class="row">
@@ -34,7 +34,7 @@ max-width: 100%;
             Diffuse: <input type="range" id="diffuseSlider" min="0" max="100" oninput="dithcanv.diffuse=this.value/100.0;updateImage()"/>
         </div>
     </div>
-<canvas id="resizecanvas" width="320" height="200" style="display:none">
+<canvas id="resizecanvas" width="160" height="200" style="display:none">
 </div>
 
 <script>
@@ -51,6 +51,7 @@ max-width: 100%;
     var DITHER_SIERRA2 = [[1, 0, 4/16], [2, 0, 3/16], [-2, 1, 1/16], [-1, 1, 2/16], [0, 1, 3/16], [1, 1, 2/16], [2, 1, 1/16]];
     var DITHER_VDIAMOND = [[0, 1, 6/16], [-1, 1, 3/16], [1, 1, 3/16], [-2, 2, 1/16], [0, 2, 2/16], [2, 2, 1/16]];
     var DITHER_SIERRALITE = [[1, 0, 2/4], [-1, 1, 1/4], [0, 1, 1/4]];
+    var DITHER_STUCKI =  [[1, 0, 8/42], [2, 0, 4/42], [-2, 1, 2/42], [1, -1, 4/42], [0, 1, 8/42], [1, 1, 4/42], [2, 1, 2/42], [-2, 2, 1/42], [-1, 2, 2/42], [0, 2, 4/42], [1, 2, 2/42], [2, 2, 1/42]];
 
     class DitheringCanvas {
         pal; // Uint32Array
@@ -64,7 +65,7 @@ max-width: 100%;
         tmp2;
         totalerror;
         besterror;
-        diffuse = 0.5;
+        diffuse = 0.8;
         ditherfn = DITHER_FLOYD;
 
         constructor(img, width, pal) {
@@ -127,6 +128,14 @@ max-width: 100%;
                 }
             }
             return inds[bestidx];
+        }
+        addHisto(histo, rgb, inds) {
+            var choices = [];
+            for (var i=0; i<inds.length; i++) {
+                var score = getRGBAErrorMag(rgb, this.pal[inds[i]]);
+                histo[inds[i]] -= score;
+            }
+            return choices;
         }
     }
     class VDPMode2_Canvas extends DitheringCanvas {
@@ -243,25 +252,34 @@ max-width: 100%;
             var ncols = this.width / 8;
             var col = p % ncols;
             var row = Math.floor(p / ncols);
-            var offset = col*8 + row*(this.width*8);
+            var offset = col*8 + row*this.width*8;
             var colors = this.allColors;
+            // rank all colors
             var histo = new Uint32Array(16);
             for (var i=0; i<64; i++) {
-                var ind1 = this.getClosest(this.alt[offset+i], colors);
-                histo[ind1]++;
-                var ind2 = this.getClosest(this.ref[offset+i], colors.filter((c) => c != ind1));
-                histo[ind2]++;
+                // get current color (or reference for 1st time)
+                var refrgb = this.img[offset+i];
+                var ind1 = this.getClosest(refrgb, colors);
+                histo[ind1] += 2;
+                // get error color
+                var rgbcomp = this.alt[offset+i];
+                var ind2 = this.getClosest(rgbcomp, colors);
+                histo[ind2] += 1;
                 if ((i&7)==7) offset += this.width-8;
             }
             var choices = getChoices(histo);
             var ind1 = choices[0].ind;
             var ind2 = choices[1] && choices[1].ind;
             var ind3 = choices[2] && choices[2].ind;
+            /*
+            ind1 = 3;
+            ind2 = 4;
+            ind3 = 7;
+            */
             this.params[p] = ind1 + (ind2<<4) + (ind3<<8);
             //if (offset < 100) console.log(p, choices);
         }
     }
-
     function createPaletteErrorLookup(pal) {
         var n = pal.length;
         var nn = n * n;
