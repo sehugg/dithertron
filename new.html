@@ -4,16 +4,26 @@
     <script src="node_modules/pica/dist/pica.min.js"></script>
     <script src="node_modules/rgbquant/src/rgbquant.js"></script>
     <script src="node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="node_modules/bootstrap-slider/dist/bootstrap-slider.min.js"></script>
     <!-- Wrap the image or canvas element with a block element (container) -->
     <link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" crossorigin="anonymous">
     <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" crossorigin="anonymous">
     <link rel="stylesheet" href="node_modules/cropperjs/dist/cropper.min.css">
+    <link rel="stylesheet" href="node_modules/bootstrap-slider/dist/css/bootstrap-slider.min.css">
     <style type="text/css" media="screen">
-/* Ensure the size of the image fit the container perfectly */
-img {
-display: block;
-/* This rule is very important, please don't ignore this */
-max-width: 100%;
+body {
+    background:#ddd;
+}
+img.crop {
+    display: block;
+    max-width: 100%;
+}
+.emuvideo {
+    display: block;
+    width: 40%;
+    margin: auto;
+    background: #000;
+    pointer-events:auto;
 }
 </style>
 <div class="container">
@@ -22,21 +32,37 @@ max-width: 100%;
             <!--
             <img id="srcimage" src="node_modules/rgbquant/demo/img/chopsuey.jpg">
             -->
-            <img id="srcimage" src="../images/lobsterpot.jpg">
+            <img class="crop" id="srcimage" src="../images/benbenn.jpg">
         </div>
         <div class="col-md-6">
-            <canvas id="destcanvas" width="320" height="200" style="transform: scaleX(1.2) scaleY(1.2); float:right; margin-top:100px">
+            <canvas id="destcanvas" class="emuvideo"
+                width="160" height="200" style="transform: scaleX(2.0) scaleY(1.0);"></canvas>
+            <div class="ml-5 mt-3">
+                <p>Diffuse:
+                    <input type="range" id="diffuseSlider"
+                        data-provide="slider"
+                        data-slider-min="0"
+                        data-slider-max="100"
+                        data-slider-value="80"
+                        /></p>
+                <p>Noise:
+                    <input type="range" id="noiseSlider"
+                        data-provide="slider"
+                        data-slider-min="0"
+                        data-slider-max="10"
+                        data-slider-value="0"
+                        /></p>
+                <p>
+                    <input type="button" id="resetButton" value="Reset"></p>
+            </div>
         </div>
     </div>
     <div class="row">
         <div class="col-md-6">
             <span id="cmdline"></span>
-            <p>Diffuse: <input type="range" id="diffuseSlider" min="0" max="100" oninput="updateImage()"/></p>
-            <p>Noise: <input type="range" id="noiseSlider" min="0" max="1000" oninput="updateImage()"/></p>
-            <p><input type="button" onclick="dithcanv=null;updateImage()" value="Reset"></p>
         </div>
     </div>
-<canvas id="resizecanvas" width="320" height="200" style="display:none">
+<canvas id="resizecanvas" width="160" height="200" style="display:none">
 </div>
 
 <script>
@@ -61,11 +87,14 @@ max-width: 100%;
         ref; // Uint32Array
         alt; // Uint32Array
         err; // Uint16Array (n*3)
+        indexed; // Uint8Array
         width; // integer
         tmp;
         tmp2;
         totalerror;
         besterror;
+        changes;
+        ghisto;
         noise = 20;
         diffuse = 0.8;
         ditherfn = DITHER_FLOYD;
@@ -80,11 +109,15 @@ max-width: 100%;
             this.reset();
         }
         reset() {
+            this.indexed = new Uint8Array(this.ref.length);
+            this.indexed.fill(0xff);
+            this.ghisto = new Uint32Array(this.pal.length);
             this.img = new Uint32Array(this.ref);
             this.alt = new Uint32Array(this.ref);
             this.err = new Int16Array(this.ref.length * 3);
             this.totalerror = 0;
             this.besterror = 999999999;
+            this.changes = 0;
         }
         init() {
         }
@@ -110,6 +143,11 @@ max-width: 100%;
                 this.err[errofs+i] = 0; // reset this pixel's error
             }
             // set new pixel rgb
+            if (this.indexed[offset] != palidx) {
+                this.indexed[offset] = palidx;
+                this.ghisto[palidx]++;
+                this.changes++;
+            }
             this.img[offset] = rgbimg;
             //this.img[offset] = this.tmp2[0] | 0xff000000;
             // return error mag
@@ -125,7 +163,8 @@ max-width: 100%;
             var best = 9999999;
             var bestidx = -1;
             for (var i=0; i<inds.length; i++) {
-                var score = getRGBAErrorMag(rgb, this.pal[inds[i]]);
+                var col = this.pal[inds[i]];
+                var score = getRGBAErrorMag(rgb, col);
                 if (score < best) {
                     best = score;
                     bestidx = inds[i];
@@ -159,7 +198,8 @@ max-width: 100%;
             for (var i=0; i<8; i++) {
                 var ind1 = this.getClosest(this.img[offset+i], colors);
                 histo[ind1] += 100;
-                var ind2 = this.getClosest(this.ref[offset+i], colors.filter((c) => c != ind1));
+                // TODO: or ref?
+                var ind2 = this.getClosest(this.alt[offset+i], colors.filter((c) => c != ind1));
                 histo[ind2] += 1 + this.noise;
             }
             var choices = getChoices(histo);
@@ -187,6 +227,7 @@ max-width: 100%;
         }
         iterate() {
             this.totalerror = 0;
+            this.changes = 0;
             for (var i=0; i<this.img.length; i++) {
                 this.update(i);
             }
@@ -204,7 +245,6 @@ max-width: 100%;
             this.allColors = [0,1,2,3,4,5,6,7,9,10,11,12,13,14,15];
             for (var i=0; i<this.params.length; i++) {
                 this.guessParam(i);
-
             }
         }
         getValidColors(offset) {
@@ -240,15 +280,17 @@ max-width: 100%;
             //if (offset < 100) console.log(p, choices);
         }
     }
-    class VICII_Canvas extends VDPMode2_Canvas {
+    class VICII_Multi_Canvas extends VDPMode2_Canvas {
         w=4;
         h=8;
         init() {
             this.bgcolor = 0;
+            this.ghisto.fill(0);
             this.params = new Uint16Array(this.width/this.w * this.height/this.h);
-            this.allColors = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+            this.allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
             for (var i=0; i<this.params.length; i++) {
                 this.guessParam(i);
+                this.bgcolor = getChoices(this.ghisto)[0].ind;
             }
         }
         getValidColors(offset) {
@@ -266,7 +308,7 @@ max-width: 100%;
             var col = p % ncols;
             var row = Math.floor(p / ncols);
             var offset = col*this.w + row*this.width*this.h;
-            var colors = this.allColors;
+            var colors = this.allColors.filter((ind) => ind != this.bgcolor);
             // rank all colors
             var histo = new Uint32Array(16);
             for (var i=0; i<64; i++) {
@@ -284,6 +326,7 @@ max-width: 100%;
             var ind1 = choices[0].ind;
             var ind2 = choices[1] && choices[1].ind;
             var ind3 = choices[2] && choices[2].ind;
+            this.ghisto[ind1]++;
             /*
             ind1 = 3;
             ind2 = 4;
@@ -293,11 +336,10 @@ max-width: 100%;
             //if (offset < 100) console.log(p, choices);
         }
     }
-    class VICII_320_Canvas extends VICII_Canvas {
+    class VICII_320_Canvas extends VICII_Multi_Canvas {
         w=8;
         init() {
             super.init();
-            this.allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
         }
         getValidColors(offset) {
             // just take fg/bg
@@ -496,16 +538,20 @@ max-width: 100%;
         //quant.sample(resize);
         //quant.palette(false, true);
         if (dithcanv == null) {
-            dithcanv = new VICII_320_Canvas(getCanvasImageData(resize), dest.width, quant.idxi32);
-            dithcanv.noise = document.getElementById('noiseSlider').value / 1;
+            dithcanv = new VICII_Multi_Canvas(getCanvasImageData(resize), dest.width, quant.idxi32);
+            dithcanv.noise = 1 << document.getElementById('noiseSlider').value;
             dithcanv.diffuse = document.getElementById('diffuseSlider').value / 100;
             dithcanv.init();
         }
-        dithcanv.noise = document.getElementById('noiseSlider').value / 1;
+        //dithcanv.noise = 1 << document.getElementById('noiseSlider').value;
         dithcanv.diffuse = document.getElementById('diffuseSlider').value / 100;
         dithcanv.iterate();
-        console.log(dithcanv.totalerror);
+        console.log(dithcanv.changes, dithcanv.totalerror, dithcanv.bgcolor);
         drawRGBA(dest, dithcanv.img);
+    }
+    function resetImage() {
+        dithcanv = null;
+        updateImage();
     }
     const quantopts = {
         palette:rgb2tuple(VIC_NTSC_RGB),
@@ -522,11 +568,20 @@ max-width: 100%;
           convertImage();
       },
     });
-    $("#dithKern").on('change', () => convertImage());
-    $("#dithSerp").on('change', () => convertImage());
+    function timerUpdate() {
+        setTimeout(timerUpdate, 100);
+        if (dithcanv == null || dithcanv.changes > 0) {
+            updateImage();
+            dithcanv.noise >>= 1;
+        }
+    }
+    timerUpdate();
     dest.onmousedown = (e) => {
         updateImage();
     }
+    $("#diffuseSlider").on('change', updateImage);
+    $("#noiseSlider").on('change', resetImage);
+    $("#resetButton").on('click', resetImage);
 </script>
     
 </body>
