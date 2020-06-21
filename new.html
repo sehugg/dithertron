@@ -20,7 +20,7 @@ img.crop {
 }
 .emuvideo {
     display: block;
-    width: 40%;
+    width: 80%;
     margin: auto;
     background: #000;
     pointer-events:auto;
@@ -32,12 +32,13 @@ img.crop {
             <!--
             <img id="srcimage" src="node_modules/rgbquant/demo/img/chopsuey.jpg">
             -->
-            <img class="crop" id="srcimage" src="../images/benbenn.jpg">
+            <img class="crop" id="srcimage" src="../images/myersflat.jpg">
         </div>
         <div class="col-md-6">
             <canvas id="destcanvas" class="emuvideo"
-                width="160" height="200" style="transform: scaleX(2.0) scaleY(1.0);"></canvas>
+                width="160" height="200" style="transform: scaleX(1.0) scaleY(1.0);"></canvas>
             <div class="ml-5 mt-3">
+                <p id="swatches"></p>
                 <p>Diffuse:
                     <input type="range" id="diffuseSlider"
                         data-provide="slider"
@@ -49,11 +50,11 @@ img.crop {
                     <input type="range" id="noiseSlider"
                         data-provide="slider"
                         data-slider-min="0"
-                        data-slider-max="10"
+                        data-slider-max="15"
                         data-slider-value="0"
                         /></p>
                 <p>
-                    <input type="button" id="resetButton" value="Reset"></p>
+                <input type="button" id="resetButton" value="Reset"></p>
             </div>
         </div>
     </div>
@@ -100,6 +101,8 @@ img.crop {
         ditherfn = DITHER_FLOYD;
 
         constructor(img, width, pal) {
+            for (var i=0; i<pal.length; i++)
+                pal[i] |= 0xff000000;
             this.pal = new Uint32Array(pal);
             this.width = width;
             this.height = Math.floor(img.length / width);
@@ -110,7 +113,6 @@ img.crop {
         }
         reset() {
             this.indexed = new Uint8Array(this.ref.length);
-            this.indexed.fill(0xff);
             this.ghisto = new Uint32Array(this.pal.length);
             this.img = new Uint32Array(this.ref);
             this.alt = new Uint32Array(this.ref);
@@ -137,6 +139,7 @@ img.crop {
             var err = getRGBADiff(rgbref, rgbimg);
             for (var i=0; i<3; i++) {
                 var k = (this.err[errofs+i] + err[i]) * this.diffuse;
+                // TODO: don't wrap off right edge?
                 this.ditherfn.forEach((df) => {
                     this.err[errofs + i + (df[0] + df[1]*this.width)*3] += k * df[2];
                 });
@@ -145,7 +148,6 @@ img.crop {
             // set new pixel rgb
             if (this.indexed[offset] != palidx) {
                 this.indexed[offset] = palidx;
-                this.ghisto[palidx]++;
                 this.changes++;
             }
             this.img[offset] = rgbimg;
@@ -180,26 +182,40 @@ img.crop {
             }
             return choices;
         }
+        iterate() {
+            this.totalerror = 0;
+            this.changes = 0;
+            for (var i=0; i<this.img.length; i++) {
+                this.update(i);
+            }
+            this.commit();
+            //console.log(this.totalerror);
+        }
+        commit() {
+            //
+        }
+        getValidColors(offset) {
+            return Array.from(this.pal.keys());
+        }
     }
     class VDPMode2_Canvas extends DitheringCanvas {
         w=8;
         h=8;
+        allColors = [0,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
         init() {
-            this.params = new Uint8Array(40*200);
-            this.allColors = [0,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+            this.params = new Uint8Array(this.width*this.height/this.w);
             for (var i=0; i<this.params.length; i++) {
                 this.guessParam(i);
             }
         }
         guessParam(p) {
-            var offset = p*8;
+            var offset = p * this.w;
             var colors = this.allColors;
             var histo = new Uint32Array(16);
-            for (var i=0; i<8; i++) {
-                var ind1 = this.getClosest(this.img[offset+i], colors);
+            for (var i=0; i<this.w; i++) {
+                var ind1 = this.indexed[offset+i]|0;
                 histo[ind1] += 100;
-                // TODO: or ref?
-                var ind2 = this.getClosest(this.alt[offset+i], colors.filter((c) => c != ind1));
+                var ind2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != ind1));
                 histo[ind2] += 1 + this.noise;
             }
             var choices = getChoices(histo);
@@ -214,35 +230,51 @@ img.crop {
             //if (offset < 100) console.log(p, choices);
         }
         getValidColors(offset) {
-            var i = Math.floor(offset / 8);
+            var i = Math.floor(offset / this.w);
             var c1 = this.params[i] & 0xf;
             var c2 = (this.params[i]>>4) & 0xf;
             return [c1, c2];
         }
         commit() {
-            // skip params @ random
+            // skip params @ random (50%)
             for (var i=0; i<this.params.length; i+=rnd(2)+1) {
                 this.guessParam(i);
             }
         }
-        iterate() {
-            this.totalerror = 0;
-            this.changes = 0;
-            for (var i=0; i<this.img.length; i++) {
-                this.update(i);
+    }
+    class Apple2_Canvas extends VDPMode2_Canvas {
+        w=7;
+        allColors = [0,1,2,3,4,5];
+        guessParam(p) {
+            var offset = p * this.w;
+            var colors = this.allColors;
+            var histo = new Uint32Array(16);
+            for (var i=0; i<this.w; i++) {
+                var ind1 = this.indexed[offset+i]|0;
+                histo[ind1] += 100;
+                var ind2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != ind1));
+                histo[ind2] += 1 + this.noise;
             }
-            this.commit();
-            //console.log(this.totalerror);
+            var hibit = histo[3]+histo[4] > histo[1]+histo[2];
+            this.params[p] = hibit;
+        }
+        getValidColors(offset) {
+            var i = Math.floor(offset / this.w);
+            var c1 = this.params[i];
+            if (c1 & 1)
+                return [0, 1, 2, 5];
+            else
+                return [0, 3, 4, 5];
         }
     }
     class ZXSpectrum_Canvas extends VDPMode2_Canvas {
         w=8;
         h=8;
+        allColors = [0,1,2,3,4,5,6,7,9,10,11,12,13,14,15];
         init() {
             this.ncols = this.width / this.w;
             this.nrows = this.height / this.h;
             this.params = new Uint8Array(this.ncols * this.nrows);
-            this.allColors = [0,1,2,3,4,5,6,7,9,10,11,12,13,14,15];
             for (var i=0; i<this.params.length; i++) {
                 this.guessParam(i);
             }
@@ -261,12 +293,15 @@ img.crop {
             var offset = col*this.w + row*(this.width*this.h);
             var colors = this.allColors;
             var histo = new Uint32Array(16);
-            for (var i=0; i<64; i++) {
-                var ind1 = this.getClosest(this.img[offset+i], colors);
-                histo[ind1] += 100;
-                var ind2 = this.getClosest(this.ref[offset+i], colors.filter((c) => c != ind1));
-                histo[ind2] += 1 + this.noise;
-                if ((i&7)==7) offset += this.width-8; // TODO: this.w
+            // pixel overlap in 8x8 window
+            for (var y=-3; y<this.h+3; y++) {
+                var o = offset + y*this.width;
+                for (var x=-3; x<this.w+3; x++) {
+                    var ind1 = this.indexed[o+x]|0;
+                    histo[ind1] += 100;
+                    var ind2 = this.getClosest(this.alt[o]|0, colors.filter((c) => c != ind1));
+                    histo[ind2] += 1 + this.noise;
+                }
             }
             var choices = getChoices(histo);
             var ind1 = choices[0].ind;
@@ -277,17 +312,16 @@ img.crop {
                 ind2 = tmp;
             }
             this.params[p] = ind1 + (ind2 << 4);
-            //if (offset < 100) console.log(p, choices);
         }
     }
     class VICII_Multi_Canvas extends VDPMode2_Canvas {
         w=4;
         h=8;
+        allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
         init() {
             this.bgcolor = 0;
             this.ghisto.fill(0);
             this.params = new Uint16Array(this.width/this.w * this.height/this.h);
-            this.allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
             for (var i=0; i<this.params.length; i++) {
                 this.guessParam(i);
                 this.bgcolor = getChoices(this.ghisto)[0].ind;
@@ -311,16 +345,20 @@ img.crop {
             var colors = this.allColors.filter((ind) => ind != this.bgcolor);
             // rank all colors
             var histo = new Uint32Array(16);
-            for (var i=0; i<64; i++) {
-                // get current color (or reference for 1st time)
-                var refrgb = this.img[offset+i];
-                var ind1 = this.getClosest(refrgb, colors);
-                histo[ind1] += 100;
-                // get error color (TODO: why alt not img like 2-color kernels?)
-                var rgbcomp = this.alt[offset+i];
-                var ind2 = this.getClosest(rgbcomp, colors);
-                histo[ind2] += 1 + this.noise;
-                if ((i&7)==7) offset += this.width-8;
+            var w = this.w;
+            var h = this.h;
+            for (var y=-3; y<this.h+3; y++) {
+                var o = offset + y*this.width;
+                for (var x=-3; x<this.w+3; x++) {
+                    // get current color (or reference for 1st time)
+                    var ind1 = this.indexed[o+x]|0;
+                    if (ind1 != this.bgcolor)
+                        histo[ind1] += 100;
+                    // get error color (TODO: why alt not img like 2-color kernels?)
+                    var rgbcomp = this.alt[o+x]|0;
+                    var ind2 = this.getClosest(rgbcomp, colors);
+                    histo[ind2] += 1 + this.noise;
+                }
             }
             var choices = getChoices(histo);
             var ind1 = choices[0].ind;
@@ -333,19 +371,59 @@ img.crop {
             ind3 = 7;
             */
             this.params[p] = ind1 + (ind2<<4) + (ind3<<8);
-            //if (offset < 100) console.log(p, choices);
         }
     }
-    class VICII_320_Canvas extends VICII_Multi_Canvas {
-        w=8;
+    class NES_Canvas extends VDPMode2_Canvas {
+        w=16;
+        h=16;
+        allColors = [0,1,2,3,4];
         init() {
-            super.init();
+            this.params = new Uint16Array(this.width/this.w * this.height/this.h);
+            for (var i=0; i<this.params.length; i++) {
+                this.guessParam(i);
+            }
         }
         getValidColors(offset) {
-            // just take fg/bg
-            return super.getValidColors(offset).slice(1,3);
+            var ncols = this.width / this.w;
+            var col = Math.floor(offset / this.w) % ncols;
+            var row = Math.floor(offset / (this.width*this.h));
+            var i = col + row*ncols;
+            var c1 = this.params[i] & 0x3;
+            // param specified which color to leave out
+            switch (c1) {
+                case 0: return [0, 2, 3, 4];
+                case 1: return [0, 1, 3, 4];
+                case 2: return [0, 1, 2, 4];
+                case 3: return [0, 1, 2, 3];
+                default: throw "error";
+            }
+        }
+        guessParam(p) {
+            var ncols = this.width / this.w;
+            var col = p % ncols;
+            var row = Math.floor(p / ncols);
+            var offset = col*this.w + row*this.width*this.h;
+            var colors = [1, 2, 3, 4];
+            // rank all colors
+            var histo = new Uint32Array(16);
+            for (var y=-3; y<this.h+3; y++) {
+                var o = offset + y*this.width;
+                for (var x=-3; x<this.w+3; x++) {
+                    // get current color (or reference for 1st time)
+                    var ind1 = this.indexed[o+x] | 0;
+                    histo[ind1] += 100;
+                    // get error color (TODO: why ref works better?)
+                    var rgbcomp = this.alt[o+x] | 0;
+                    var ind2 = this.getClosest(rgbcomp, colors);
+                    histo[ind2] += 1 + this.noise;
+                }
+            }
+            var choices = getChoices(histo);
+            // leave out this color, least frequent
+            this.params[p] = choices[choices.length-1].ind - 1;
         }
     }
+    //
     function getRGBADiff(rgbref, rgbimg) {
         var err = [0,0,0];
         for (var i=0; i<3; i++) {
@@ -356,7 +434,7 @@ img.crop {
         }
         return err;
     }
-    getRGBAErrorMag = getRGBAErrorPerceptual;
+    var getRGBAErrorMag = getRGBAErrorPerceptual;
     function getRGBAErrorAbsolute(rgbref, rgbimg) {
         var mag = 0;
         for (var i=0; i<3; i++) {
@@ -367,6 +445,7 @@ img.crop {
         }
         return Math.sqrt(mag);
     }
+    // TODO???
     function getRGBAErrorHue(rgbref, rgbimg) {
         var r1 = ((rgbref>>0) & 0xff);
         var g1 = ((rgbref>>8) & 0xff);
@@ -374,15 +453,17 @@ img.crop {
         var r2 = ((rgbimg>>0) & 0xff);
         var g2 = ((rgbimg>>8) & 0xff);
         var b2 = ((rgbimg>>16) & 0xff);
-        //var mag1 = Math.sqrt(sqr(r1-r2) + sqr(g1-g2) + sqr(b1-b2));
-        var avg1 = (r1+g1+b1)/3+1;
-        var avg2 = (r2+g2+b2)/3+1;
+        var b = 256;
+        var avg1 = (r1+g1+b1)/3 + b;
+        var avg2 = (r2+g2+b2)/3 + b;
         r1 /= avg1;
         g1 /= avg1;
         b1 /= avg1;
         r2 /= avg2;
         g2 /= avg2;
         b2 /= avg2;
+        //var mag2 = Math.sqrt(sqr(r1-r2)*9 + sqr(g1-g2)*25 + sqr(b1-b2)*4);
+        //var mag2 = Math.sqrt(sqr(r1-r2)*3 + sqr(g1-g2)*5 + sqr(b1-b2)*3);
         var mag2 = Math.sqrt(sqr(r1-r2) + sqr(g1-g2) + sqr(b1-b2));
         return mag2;
     }
@@ -419,7 +500,7 @@ img.crop {
     }
     // byte order reversed in this app
     function RGBA(r,g,b) {
-        return ((r&0xff)<<16) | ((g&0xff)<<8) | ((b&0xff)<<0) | 0xff000000;
+        return ((r&0xff)<<0) | ((g&0xff)<<8) | ((b&0xff)<<16) | 0xff000000;
     }
     const VIC_NTSC_RGB = [
         0x000000,
@@ -459,13 +540,13 @@ img.crop {
     ];
     const ZXSPECTRUM_RGB = [
         0x000000,
-        0x0000d7,
-        0xd70000,
-        0xd700d7,
-        0x00d700,
-        0x00d7d7,
-        0xd7d700,
-        0xd7d7d7,
+        0x0000cc,
+        0xcc0000,
+        0xcc00cc,
+        0x00cc00,
+        0x00cccc,
+        0xcccc00,
+        0xcccccc,
         0x000000,
         0x0000ff,
         0xff0000,
@@ -475,6 +556,12 @@ img.crop {
         0xffff00,
         0xffffff,
     ];
+    const NES_RGB = [
+        0x525252, 0xB40000, 0xA00000, 0xB1003D, 0x740069, 0x00005B, 0x00005F, 0x001840, 0x002F10, 0x084A08, 0x006700, 0x124200, 0x6D2800, 0x000000, 0x000000, 0x000000,
+        0xC4D5E7, 0xFF4000, 0xDC0E22, 0xFF476B, 0xD7009F, 0x680AD7, 0x0019BC, 0x0054B1, 0x006A5B, 0x008C03, 0x00AB00, 0x2C8800, 0xA47200, 0x000000, 0x000000, 0x000000,
+        0xF8F8F8, 0xFFAB3C, 0xFF7981, 0xFF5BC5, 0xFF48F2, 0xDF49FF, 0x476DFF, 0x00B4F7, 0x00E0FF, 0x00E375, 0x03F42B, 0x78B82E, 0xE5E218, 0x787878, 0x000000, 0x000000,
+        0xFFFFFF, 0xFFF2BE, 0xF8B8B8, 0xF8B8D8, 0xFFB6FF, 0xFFC3FF, 0xC7D1FF, 0x9ADAFF, 0x88EDF8, 0x83FFDD, 0xB8F8B8, 0xF5F8AC, 0xFFFFB0, 0xF8D8F8, 0x000000, 0x000000
+    ];
     const AP2HIRES_RGB = [
         RGBA(0, 0, 0),
         RGBA(255, 68, 253),
@@ -483,6 +570,90 @@ img.crop {
         RGBA(255, 106, 60),
         RGBA(255, 255, 255)
     ];
+    const CMYK_RGB = [
+        RGBA(0, 0, 0),
+        RGBA(255, 128, 64),
+        RGBA(64, 255, 128),
+        RGBA(128, 64, 255),
+        RGBA(255, 255, 255)
+    ];
+    const ASTROCADE_RGB = [0,2368548,4737096,7171437,9539985,11974326,14342874,16777215,12255269,14680137,16716142,16725394,16734903,16744155,16753663,16762879,11534409,13959277,16318866,16721334,16730842,16740095,16749311,16758783,10420330,12779662,15138995,16718039,16727291,16736767,16745983,16755199,8847495,11206827,13631696,15994612,16724735,16733951,16743423,16752639,6946975,9306307,11731175,14092287,16461055,16732415,16741631,16751103,4784304,7143637,9568505,11929087,14297599,16731647,16741119,16750335,2425019,4784352,7209215,9570047,12004095,14372863,16741375,16750847,191,2359523,4718847,7146495,9515263,11949311,14318079,16752127,187,224,2294015,4658431,7092735,9461247,11895551,14264063,176,213,249,2367999,4736511,7105279,9539327,11908095,159,195,3303,209151,2577919,4946431,7380735,9749247,135,171,7888,17140,681983,3050495,5484543,7853311,106,3470,12723,22231,31483,1548031,3916799,6285311,73,8557,17810,27318,36570,373759,2742271,5176575,4389,13641,23150,32402,41911,51163,2026495,4456447,9472,18724,27976,37485,46737,56246,1834970,4194303,14080,23296,32803,42055,51564,60816,2031541,4456409,18176,27648,36864,46116,55624,392556,2752401,5177269,21760,30976,40192,49667,58919,1572683,3932016,6291348,24320,33536,43008,52224,716810,3079982,5504851,7864183,25856,35328,44544,250368,2619136,4980503,7405371,9764703,26624,35840,45312,2413824,4782336,7143173,9568041,11927374,26112,35584,2338560,4707328,7141376,9502464,11927326,14286659,24832,2393344,4762112,7196160,9564928,11992832,14352155,16711487,2447360,4815872,7250176,9618688,12052992,14417664,16776990,16777027,4803328,7172096,9606144,11974912,14343424,16776965,16777001,16777038,6962176,9330688,11764992,14133504,16502272,16773655,16777019,16777055,8858112,11226880,13660928,16029440,16759818,16769070,16777043,16777079,10426112,12794624,15163392,16745475,16754727,16764235,16773488,16777108,11534848,13969152,16337664,16740388,16749640,16759148,16768401,16777141,12255232,14684928,16725795,16735047,16744556,16753808,16763317,16772569];
+
+    const SYSTEMS = [
+        {
+            id:'c64.160',
+            name:'C64 Multi',
+            width:160,
+            height:200,
+            scaleX:0.936*2,
+            conv:VICII_Multi_Canvas,
+            pal:VIC_NTSC_RGB,
+            errfn:getRGBAErrorPerceptual,
+        },
+        {
+            id:'c64.320',
+            name:'C64 Hires',
+            width:320,
+            height:200,
+            scaleX:0.936,
+            conv:ZXSpectrum_Canvas,
+            pal:VIC_NTSC_RGB,
+            errfn:getRGBAErrorHue,
+        },
+        {
+            id:'vdp',
+            name:'VDP Mode 2',
+            width:256,
+            height:192,
+            conv:VDPMode2_Canvas,
+            pal:TMS9918_RGB,
+            errfn:getRGBAErrorHue,
+        },
+        {
+            id:'zx',
+            name:'ZX Spectrum',
+            width:256,
+            height:192,
+            conv:ZXSpectrum_Canvas,
+            pal:ZXSPECTRUM_RGB,
+            errfn:getRGBAErrorHue,
+        },
+        {
+            id:'apple2',
+            name:'Apple ][ Hires',
+            width:140,
+            height:192,
+            scaleX:2,
+            conv:Apple2_Canvas,
+            pal:AP2HIRES_RGB,
+            errfn:getRGBAErrorHue,
+        },
+        {
+            id:'nes',
+            name:'NES',
+            width:256,
+            height:240,
+            scaleX:8/7,
+            conv:NES_Canvas,
+            pal:NES_RGB,
+            reduce:5, // background + 4 colors
+            errfn:getRGBAErrorHue,
+        },
+        {
+            id:'astrocade',
+            name:'Bally Astrocade',
+            width:160,
+            height:102,
+            scaleX:1,
+            conv:DitheringCanvas,
+            pal:ASTROCADE_RGB,
+            reduce:4,
+            errfn:getRGBAErrorHue,
+        },
+    ];
+    var SYSTEM_LOOKUP = {};
+    SYSTEMS.forEach((sys) => SYSTEM_LOOKUP[sys.id||sys.name] = sys);
+
     function getHistogram(inds) {
         var histo = new Uint8Array(256);
         inds.forEach((x) => histo[x]++);
@@ -497,17 +668,7 @@ img.crop {
         return choices;
     }
     function rgb2tuple(arr) {
-        return arr.map((x) => [(x>>16) & 0xff, (x>>8) & 0xff, (x>>0) & 0xff]);
-    }
-    function drawPixels(quant, dest, inds) {
-        //console.log(quant, dest, inds);
-        var ctx = dest.getContext('2d');
-        var imageData = ctx.createImageData(dest.width, dest.height);
-        var datau32 = new Uint32Array(imageData.data.buffer);
-        for (var i=0; i<inds.length; i++) {
-            datau32[i] = quant.idxi32[inds[i]];
-        }
-        ctx.putImageData(imageData, 0, 0);
+        return arr.map((x) => [(x>>0) & 0xff, (x>>8) & 0xff, (x>>16) & 0xff]);
     }
     function drawRGBA(dest, arr) {
         var ctx = dest.getContext('2d');
@@ -520,6 +681,7 @@ img.crop {
         return new Uint32Array(canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer);
     }
     function convertImage() {
+        dithcanv = null;
         pica().resize(cropper.getCroppedCanvas(), resize, {
             /*
             unsharpAmount: 50,
@@ -528,36 +690,42 @@ img.crop {
             */
         }).then(() => {
             dithcanv = null;
-            updateImage();
+            resizeImageData = getCanvasImageData(resize);
+            iterateImage();
         });
     }
+    //
+    var sysparams;
+    var resizeImageData;
     var dithcanv = null;
-    function updateImage() {
-        const quant = new RgbQuant(quantopts);
-        // TODO: bgcolor
-        //quant.sample(resize);
-        //quant.palette(false, true);
+    function iterateImage() {
         if (dithcanv == null) {
-            dithcanv = new VICII_Multi_Canvas(getCanvasImageData(resize), dest.width, quant.idxi32);
+            var quantopts = {
+                palette:rgb2tuple(sysparams.pal),
+                colors:sysparams.reduce || sysparams.pal.length,
+                reIndex:true,
+                minHueCols:256,
+            };
+            const quant = new RgbQuant(quantopts);
+            var pal = sysparams.pal;
+            if (sysparams.reduce) {
+                quant.sample(resize);
+                quant.palette(false, true);
+                pal = quant.idxi32; // TODO: reverse?
+            }
+            dithcanv = new sysparams.conv(resizeImageData, dest.width, pal);
             dithcanv.noise = 1 << document.getElementById('noiseSlider').value;
             dithcanv.diffuse = document.getElementById('diffuseSlider').value / 100;
             dithcanv.init();
         }
-        //dithcanv.noise = 1 << document.getElementById('noiseSlider').value;
-        dithcanv.diffuse = document.getElementById('diffuseSlider').value / 100;
         dithcanv.iterate();
         console.log(dithcanv.changes, dithcanv.totalerror, dithcanv.bgcolor);
         drawRGBA(dest, dithcanv.img);
     }
     function resetImage() {
         dithcanv = null;
-        updateImage();
+        iterateImage();
     }
-    const quantopts = {
-        palette:rgb2tuple(VIC_NTSC_RGB),
-        reIndex:true,
-        colors:16,
-    };
     const image = document.getElementById('srcimage');
     const resize = document.getElementById('resizecanvas');
     const dest = document.getElementById('destcanvas');
@@ -568,18 +736,34 @@ img.crop {
           convertImage();
       },
     });
+    //
+    function setSystem(sys) {
+        sysparams = sys;
+        resize.width = dest.width = sys.width;
+        resize.height = dest.height = sys.height;
+        dest.style = 'transform: scaleY('+(1/sys.scaleX)+')';
+        getRGBAErrorMag = sys.errfn || getRGBAErrorPerceptual;
+    }
+    //
+    setSystem(SYSTEM_LOOKUP['nes']);
+    //
+    // TODO: need worker, or stop it piling up events
     function timerUpdate() {
-        setTimeout(timerUpdate, 100);
+        setTimeout(timerUpdate, 200);
+        if (resizeImageData == null) return; // not resized yet
         if (dithcanv == null || dithcanv.changes > 0) {
-            updateImage();
-            dithcanv.noise >>= 1;
+            iterateImage();
+            dithcanv.noise >>= 1; // divide by 2
         }
     }
     timerUpdate();
+    /*
     dest.onmousedown = (e) => {
-        updateImage();
+        iterateImage();
     }
-    $("#diffuseSlider").on('change', updateImage);
+    */
+    //
+    $("#diffuseSlider").on('change', resetImage);
     $("#noiseSlider").on('change', resetImage);
     $("#resetButton").on('click', resetImage);
 </script>
