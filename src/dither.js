@@ -686,7 +686,7 @@ const SYSTEMS = [
         conv:DitheringCanvas,
         pal:VCS_RGB,
         reduce:2,
-        errfn:getRGBAErrorPerceptual,
+        errfn:getRGBAErrorHue,
     },
     {
         id:'vcs.color',
@@ -696,6 +696,7 @@ const SYSTEMS = [
         scaleX:6,
         conv:VCS_Canvas,
         pal:VCS_RGB,
+        reduce:16,
         errfn:getRGBAErrorHue,
     },
     {
