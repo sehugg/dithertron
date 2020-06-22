@@ -14,7 +14,7 @@
 
 <style type="text/css" media="screen">
 body {
-    background:#ddd;
+    background:#999;
 }
 img.crop {
     display: block;
@@ -42,7 +42,7 @@ img.crop {
             </div>
         </div>
         <div class="col-md-6">
-            <div class="alert">
+            <div class="alert alert-info">
                 Convert to: <select id="targetFormatSelect"></select>
                 <br>
                 <small><span id="targetFormatInfo"></span></small>
@@ -51,31 +51,33 @@ img.crop {
     </div>
     <div class="row">
         <div class="col-md-6">
-            <!--
-            <img id="srcimage" src="node_modules/rgbquant/demo/img/chopsuey.jpg">
-            -->
             <img class="crop" id="srcimage" src="./images/seurat.jpg">
         </div>
         <div class="col-md-6">
-            <canvas id="destcanvas" class="emuvideo"></canvas>
-            <div class="alert ml-5 mt-3">
-                <p>Step 3: Adjust settings.</p>
-                <p>Diffuse:
+            <div>
+                <canvas id="destcanvas" class="emuvideo"></canvas>
+            </div>
+            <div id="paletteSwatches" class="mt-3 d-flex justify-content-center flex-wrap">
+            </div>
+            <div class="alert alert-secondary mt-3">
+                <p id="diffuseSection">
+                    <span class="mr-3">Dither:</span>
                     <input type="range" id="diffuseSlider"
                         data-provide="slider"
                         data-slider-min="0"
                         data-slider-max="100"
                         data-slider-value="80"
                         /></p>
-                <p id="noiseSection">Noise:
+                <p id="noiseSection">
+                    <span class="mr-3">Noise:</span>
                     <input type="range" id="noiseSlider"
                         data-provide="slider"
                         data-slider-min="0"
                         data-slider-max="15"
-                        data-slider-value="0"
+                        data-slider-value="12"
                         /></p>
                 <p>
-                <input type="button" id="resetButton" value="Reset"></p>
+                <!--<input type="button" id="resetButton" value="Reset"></p>-->
             </div>
         </div>
     </div>

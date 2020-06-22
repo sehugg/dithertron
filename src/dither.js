@@ -802,6 +802,17 @@ function showSystemInfo() {
     }
     $("#targetFormatInfo").text(s);
 }
+function updatePaletteSwatches() {
+    var swat = $("#paletteSwatches");
+    swat.empty();
+    if (dithcanv != null && dithcanv.pal.length < 64) {
+        dithcanv.pal.forEach((col,index) => {
+            var rgb = "rgb(" + (col&0xff) + "," + ((col>>8)&0xff) + "," + ((col>>16)&0xff) + ")";
+            var sq = $('<span style="width:2em">&nbsp;</span>').css("background-color",rgb);
+            swat.append(sq);
+        });
+    }
+}
 function iterateImage() {
     if (dithcanv == null) {
         var quantopts = {
@@ -826,6 +837,7 @@ function iterateImage() {
     dithcanv.iterate();
     //console.log(dithcanv.changes, dithcanv.totalerror, dithcanv.bgcolor);
     drawRGBA(dest, dithcanv.img);
+    updatePaletteSwatches();
 }
 function resetImage() {
     dithcanv = null;
