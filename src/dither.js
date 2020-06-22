@@ -577,7 +577,7 @@ function generateRGBPalette(rr,gg,bb) {
 
 const SYSTEMS = [
     {
-        id:'c64.160',
+        id:'c64.multi',
         name:'C64 Multi',
         width:160,
         height:200,
@@ -587,7 +587,7 @@ const SYSTEMS = [
         errfn:getRGBAErrorPerceptual,
     },
     {
-        id:'c64.320',
+        id:'c64.hires',
         name:'C64 Hires',
         width:320,
         height:200,
@@ -598,7 +598,7 @@ const SYSTEMS = [
     },
     {
         id:'vdp',
-        name:'VDP Mode 2',
+        name:'TMS9918A Mode 2',
         width:256,
         height:192,
         conv:VDPMode2_Canvas,
@@ -615,7 +615,7 @@ const SYSTEMS = [
         errfn:getRGBAErrorHue,
     },
     {
-        id:'apple2.140',
+        id:'apple2.dblhires',
         name:'Apple ][ Double-Hires',
         width:140,
         height:192,
@@ -625,7 +625,7 @@ const SYSTEMS = [
         errfn:getRGBAErrorPerceptual,
     },
     {
-        id:'apple2.280',
+        id:'apple2.hires',
         name:'Apple ][ Hires',
         width:140,
         height:192,
@@ -635,7 +635,7 @@ const SYSTEMS = [
         errfn:getRGBAErrorHue,
     },
     {
-        id:'apple2.40',
+        id:'apple2.lores',
         name:'Apple ][ Lores',
         width:40,
         height:48,
@@ -656,8 +656,8 @@ const SYSTEMS = [
         errfn:getRGBAErrorHue,
     },
     {
-        id:'nes5',
-        name:'NES',
+        id:'nes.5color',
+        name:'NES (5 color)',
         width:256,
         height:240,
         scaleX:8/7,
@@ -679,7 +679,7 @@ const SYSTEMS = [
     },
     {
         id:'vcs',
-        name:'Atari VCS',
+        name:'Atari VCS (Mono)',
         width:40,
         height:192,
         scaleX:6,
@@ -690,7 +690,7 @@ const SYSTEMS = [
     },
     {
         id:'vcs.color',
-        name:'Atari VCS',
+        name:'Atari VCS (Color)',
         width:40,
         height:192,
         scaleX:6,
@@ -699,7 +699,7 @@ const SYSTEMS = [
         errfn:getRGBAErrorHue,
     },
     {
-        id:'atari.160',
+        id:'atari8.e',
         name:'Atari Mode E',
         width:160,
         height:192,
@@ -710,7 +710,7 @@ const SYSTEMS = [
         errfn:getRGBAErrorHue,
     },
     {
-        id:'atari.80',
+        id:'atari8.f',
         name:'Atari Mode F',
         width:80,
         height:192,
@@ -722,7 +722,7 @@ const SYSTEMS = [
     },
     {
         id:'sms',
-        name:'SMS',
+        name:'Sega Master System',
         width:176, // only 488 unique tiles max, otherwise 256x240
         height:144,
         scaleX:8/7,
@@ -733,7 +733,7 @@ const SYSTEMS = [
     },
     {
         id:'williams',
-        name:'Williams',
+        name:'Williams Arcade Game',
         width:304,
         height:256,
         conv:DitheringCanvas,
@@ -771,6 +771,7 @@ function drawRGBA(dest, arr) {
 function getCanvasImageData(canvas) {
     return new Uint32Array(canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer);
 }
+//
 function convertImage() {
     dithcanv = null;
     pica().resize(cropper.getCroppedCanvas(), resize, {
@@ -789,6 +790,18 @@ function convertImage() {
 var sysparams;
 var resizeImageData;
 var dithcanv = null;
+function showSystemInfo() {
+    var sys = sysparams;
+    var s = sys.width + " x " + sys.height;
+    if (sys.reduce) s += ", " + sys.reduce + " out of " + sys.pal.length + " colors";
+    else if (sys.pal) s += ", " + sys.pal.length + " colors";
+    if (dithcanv && dithcanv.w && dithcanv.h) {
+        s += ", ";
+        s += dithcanv.getValidColors(0).length + " colors per ";
+        s += dithcanv.w + "x" + dithcanv.h + " block";
+    }
+    $("#targetFormatInfo").text(s);
+}
 function iterateImage() {
     if (dithcanv == null) {
         var quantopts = {
@@ -808,9 +821,10 @@ function iterateImage() {
         dithcanv.noise = 1 << document.getElementById('noiseSlider').value;
         dithcanv.diffuse = document.getElementById('diffuseSlider').value / 100;
         dithcanv.init();
+        showSystemInfo();
     }
     dithcanv.iterate();
-    console.log(dithcanv.changes, dithcanv.totalerror, dithcanv.bgcolor);
+    //console.log(dithcanv.changes, dithcanv.totalerror, dithcanv.bgcolor);
     drawRGBA(dest, dithcanv.img);
 }
 function resetImage() {
@@ -829,9 +843,15 @@ const cropper = new Cropper(image, {
         convertImage();
     },
 });
+function loadSourceImage(url) {
+    cropper.clear();
+    cropper.replace(url);
+}
 //
 function setTargetSystem(sys) {
+    dithcanv = null;
     sysparams = sys;
+    showSystemInfo();
     resize.width = dest.width = sys.width;
     resize.height = dest.height = sys.height;
     dest.style = 'transform: scaleX('+sys.scaleX+'); width:'+(90/sys.scaleX)+'%';
@@ -839,6 +859,7 @@ function setTargetSystem(sys) {
     getRGBAErrorMag = sys.errfn || getRGBAErrorPerceptual;
     var showNoise = sys.conv != DitheringCanvas;
     $("#noiseSection").css('display',showNoise?'block':'none');
+    cropper.replace(cropper.url);
 }
 //
 //
@@ -851,3 +872,12 @@ function timerUpdate() {
         dithcanv.noise >>= 1; // divide by 2
     }
 }
+//
+window.addEventListener('load', function() {
+    document.querySelector('input[type="file"]').addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            var url = URL.createObjectURL(this.files[0]);
+            loadSourceImage(url);
+        }
+    });
+});
