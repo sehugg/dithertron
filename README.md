@@ -11,7 +11,11 @@ Usage
 
 Install modules:
 ~~~~
-    npm i
+npm i
+~~~~
+Build:
+~~~~
+./node_modules/.bin/tsc
 ~~~~
 
 Then open `index.html` in browser.
@@ -28,3 +32,5 @@ TODO
 * Interlaced modes (VCS color)
 * Refresh retains mode settings
 * Set width and height
+* Safari
+* TypeScript

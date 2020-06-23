@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/jquery": "^3.5.0",
     "bootstrap": "^4.5.0",
     "bootstrap-slider": "^11.0.2",
     "cropper": "^4.1.0",
@@ -17,5 +18,7 @@
     "pica": "^5.3.0",
     "rgbquant": "^1.1.2"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "typescript": "^3.9.5"
+  }
 }

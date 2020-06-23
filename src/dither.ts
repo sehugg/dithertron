@@ -1,20 +1,26 @@
-function rnd(n) { return Math.floor(Math.random()*n); }
-function sqr(x) { return x*x; }
+function rnd(n:number) { return Math.floor(Math.random()*n); }
+function sqr(x:number) { return x*x; }
 
-var DITHER_FLOYD = [[1, 0, 7/16], [-1, 1, 3/16], [0, 1, 5/16], [1, 1, 1/16]];
-var DITHER_FALSEFLOYD = [[1, 0, 3/8], [0, 1, 3/8], [1, 1, 2/8]];
-var DITHER_ATKINSON = [[1, 0, 1/6], [2, 0, 1/6], [-1, 1, 1/6], [0, 1, 1/6], [1, 1, 1/6], [0, 2, 1/6]];
-var DITHER_SIERRA2 = [[1, 0, 4/16], [2, 0, 3/16], [-2, 1, 1/16], [-1, 1, 2/16], [0, 1, 3/16], [1, 1, 2/16], [2, 1, 1/16]];
-var DITHER_SIERRALITE = [[1, 0, 2/4], [-1, 1, 1/4], [0, 1, 1/4]];
-var DITHER_STUCKI =  [[1, 0, 8/42], [2, 0, 4/42], [-2, 1, 2/42], [1, -1, 4/42], [0, 1, 8/42], [1, 1, 4/42], [2, 1, 2/42], [-2, 2, 1/42], [-1, 2, 2/42], [0, 2, 4/42], [1, 2, 2/42], [2, 2, 1/42]];
-var DITHER_TWOD = [[1, 0, 0.5], [0, 1, 0.5]];
-var DITHER_RIGHT = [[1, 0, 1.0]];
-var DITHER_DOWN = [[0, 1, 1.0]];
-var DITHER_DOUBLE_DOWN = [[0, 1, 2/4], [0, 2, 1/4], [1, 2, 1/4]];
-var DITHER_DIAG = [[1, 1, 1.0]];
-var DITHER_VDIAMOND = [[0, 1, 6/16], [-1, 1, 3/16], [1, 1, 3/16], [-2, 2, 1/16], [0, 2, 2/16], [2, 2, 1/16]];
+const DITHER_FLOYD = [[1, 0, 7/16], [-1, 1, 3/16], [0, 1, 5/16], [1, 1, 1/16]];
+const DITHER_FALSEFLOYD = [[1, 0, 3/8], [0, 1, 3/8], [1, 1, 2/8]];
+const DITHER_ATKINSON = [[1, 0, 1/6], [2, 0, 1/6], [-1, 1, 1/6], [0, 1, 1/6], [1, 1, 1/6], [0, 2, 1/6]];
+const DITHER_SIERRA2 = [[1, 0, 4/16], [2, 0, 3/16], [-2, 1, 1/16], [-1, 1, 2/16], [0, 1, 3/16], [1, 1, 2/16], [2, 1, 1/16]];
+const DITHER_SIERRALITE = [[1, 0, 2/4], [-1, 1, 1/4], [0, 1, 1/4]];
+const DITHER_STUCKI =  [[1, 0, 8/42], [2, 0, 4/42], [-2, 1, 2/42], [1, -1, 4/42], [0, 1, 8/42], [1, 1, 4/42], [2, 1, 2/42], [-2, 2, 1/42], [-1, 2, 2/42], [0, 2, 4/42], [1, 2, 2/42], [2, 2, 1/42]];
+const DITHER_TWOD = [[1, 0, 0.5], [0, 1, 0.5]];
+const DITHER_RIGHT = [[1, 0, 1.0]];
+const DITHER_DOWN = [[0, 1, 1.0]];
+const DITHER_DOUBLE_DOWN = [[0, 1, 2/4], [0, 2, 1/4], [1, 2, 1/4]];
+const DITHER_DIAG = [[1, 1, 1.0]];
+const DITHER_VDIAMOND = [[0, 1, 6/16], [-1, 1, 3/16], [1, 1, 3/16], [-2, 2, 1/16], [0, 2, 2/16], [2, 2, 1/16]];
 
-const ALL_DITHER_SETTINGS = [
+//type DitherKernelEntry = [number,number,number];
+interface DitherSetting {
+    name: string;
+    kernel: number[][];
+}
+
+const ALL_DITHER_SETTINGS : DitherSetting[] = [
     {name:"Floyd-Steinberg", kernel:DITHER_FLOYD},
     {name:"False Floyd", kernel:DITHER_FALSEFLOYD},
     {name:"Atkinson", kernel:DITHER_ATKINSON},
@@ -30,13 +36,14 @@ const ALL_DITHER_SETTINGS = [
 ];
 
 class DitheringCanvas {
-    pal; // Uint32Array
-    img; // Uint32Array
-    ref; // Uint32Array
-    alt; // Uint32Array
-    err; // Uint16Array (n*3)
-    indexed; // Uint8Array
-    width; // integer
+    pal:Uint32Array;
+    img:Uint32Array;
+    ref:Uint32Array;
+    alt:Uint32Array;
+    err:Int16Array; // (n*3)
+    indexed:Uint8Array;
+    width:number; // integer
+    height:number;
     tmp;
     tmp2;
     totalerror;
@@ -47,6 +54,7 @@ class DitheringCanvas {
     diffuse = 0.8;
     ditherfn = DITHER_FLOYD;
     iterateCount = 0;
+    allColors : number[];
 
     constructor(img, width, pal) {
         for (var i=0; i<pal.length; i++)
@@ -106,9 +114,6 @@ class DitheringCanvas {
         this.totalerror += cumerr;
         return cumerr;
     }
-    getValidColors(offset) {
-        return this.allColors;
-    }
     getClosest(rgb, inds) {
         var best = 9999999;
         var bestidx = -1;
@@ -143,11 +148,15 @@ class DitheringCanvas {
     commit() {
         //
     }
-    getValidColors(offset) {
+    getValidColors(offset:number) : number[] {
         return Array.from(this.pal.keys());
     }
 }
-class ParamDitherCanvas extends DitheringCanvas {
+abstract class ParamDitherCanvas extends DitheringCanvas {
+    params : Uint32Array;
+    w : number;
+    h : number;
+    abstract guessParam(paramIndex: number) : void;
     init() {
         this.params = new Uint32Array(this.width*this.height/this.w);
         for (var i=0; i<this.params.length; i++) {
@@ -169,10 +178,10 @@ class VDPMode2_Canvas extends ParamDitherCanvas {
         var colors = this.allColors;
         var histo = new Uint32Array(16);
         for (var i=0; i<this.w; i++) {
-            var ind1 = this.indexed[offset+i]|0;
-            histo[ind1] += 100;
-            var ind2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != ind1));
-            histo[ind2] += 1 + this.noise;
+            var a = this.indexed[offset+i]|0;
+            histo[a] += 100;
+            var b = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != ind1));
+            histo[b] += 1 + this.noise;
         }
         var choices = getChoices(histo);
         var ind1 = choices[0].ind;
@@ -211,7 +220,7 @@ class Apple2_Canvas extends VDPMode2_Canvas {
             histo[ind2] += 1 + this.noise;
         }
         var hibit = histo[3]+histo[4] > histo[1]+histo[2];
-        this.params[p] = hibit;
+        this.params[p] = hibit ? 1 : 0;
     }
     getValidColors(offset) {
         var i = Math.floor(offset / this.w);
@@ -226,10 +235,12 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
     w=8;
     h=8;
     allColors = [0,1,2,3,4,5,6,7,9,10,11,12,13,14,15];
+    ncols : number;
+    nrows : number;
     init() {
         this.ncols = this.width / this.w;
         this.nrows = this.height / this.h;
-        this.params = new Uint8Array(this.ncols * this.nrows);
+        this.params = new Uint32Array(this.ncols * this.nrows);
         for (var i=0; i<this.params.length; i++) {
             this.guessParam(i);
         }
@@ -253,15 +264,15 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
         for (var y=-b; y<this.h+b; y++) {
             var o = offset + y*this.width;
             for (var x=-b; x<this.w+b; x++) {
-                var ind1 = this.indexed[o+x]|0;
-                histo[ind1] += 100;
-                var ind2 = this.getClosest(this.alt[o]|0, colors.filter((c) => c != ind1));
-                histo[ind2] += 1 + this.noise;
+                var a = this.indexed[o+x]|0;
+                histo[a] += 100;
+                var b = this.getClosest(this.alt[o]|0, colors.filter((c) => c != ind1));
+                histo[b] += 1 + this.noise;
             }
         }
         var choices = getChoices(histo);
         var ind1 = choices[0].ind;
-        var ind2 = choices[1].ind;
+        var ind2 = choices[1] && choices[1].ind;
         if (ind1 > ind2) {
             var tmp = ind1;
             ind1 = ind2;
@@ -274,10 +285,11 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     w=4;
     h=8;
     allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+    bgcolor : number;
     init() {
         this.bgcolor = 0;
         this.ghisto.fill(0);
-        this.params = new Uint16Array(this.width/this.w * this.height/this.h);
+        this.params = new Uint32Array(this.width/this.w * this.height/this.h);
         for (var i=0; i<this.params.length; i++) {
             this.guessParam(i);
             this.bgcolor = getChoices(this.ghisto)[0].ind;
@@ -308,13 +320,13 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
             var o = offset + y*this.width;
             for (var x=-b; x<w+b; x++) {
                 // get current color (or reference for 1st time)
-                var ind1 = this.indexed[o+x]|0;
-                if (ind1 != this.bgcolor)
-                    histo[ind1] += 100;
+                var a = this.indexed[o+x]|0;
+                if (a != this.bgcolor)
+                    histo[a] += 100;
                 // get error color (TODO: why alt not img like 2-color kernels?)
                 var rgbcomp = this.alt[o+x]|0;
-                var ind2 = this.getClosest(rgbcomp, colors);
-                histo[ind2] += 1 + this.noise;
+                var b = this.getClosest(rgbcomp, colors);
+                histo[b] += 1 + this.noise;
             }
         }
         var choices = getChoices(histo);
@@ -335,7 +347,7 @@ class NES_Canvas extends ParamDitherCanvas {
     h=16;
     allColors = [0,1,2,3,4];
     init() {
-        this.params = new Uint16Array(this.width/this.w * this.height/this.h);
+        this.params = new Uint32Array(this.width/this.w * this.height/this.h);
         for (var i=0; i<this.params.length; i++) {
             this.guessParam(i);
         }
@@ -368,12 +380,12 @@ class NES_Canvas extends ParamDitherCanvas {
             var o = offset + y*this.width;
             for (var x=-b; x<this.w+b; x++) {
                 // get current color (or reference for 1st time)
-                var ind1 = this.indexed[o+x] | 0;
-                histo[ind1] += 100;
+                var a = this.indexed[o+x] | 0;
+                histo[a] += 100;
                 // get error color (TODO: why ref works better?)
                 var rgbcomp = this.alt[o+x] | 0;
-                var ind2 = this.getClosest(rgbcomp, colors);
-                histo[ind2] += 1 + this.noise;
+                var b = this.getClosest(rgbcomp, colors);
+                histo[b] += 1 + this.noise;
             }
         }
         var choices = getChoices(histo);
@@ -590,7 +602,19 @@ function generateRGBPalette(rr,gg,bb) {
     return pal;
 }
 
-const SYSTEMS = [
+interface DithertronSystem {
+    id: string;
+    name: string;
+    width: number;
+    height: number;
+    scaleX?: number;
+    conv: new (...args: any[]) => DitheringCanvas;
+    pal: number[];
+    errfn: (rgb:number,rgb2:number) => number;
+    reduce?: number;
+}
+
+const SYSTEMS : DithertronSystem[] = [
     {
         id:'c64.multi',
         name:'C64 Multi',
@@ -737,6 +761,28 @@ const SYSTEMS = [
         errfn:getRGBAErrorHue,
     },
     {
+        id:'atari7800.160a',
+        name:'Atari 7800 (160A)',
+        width:160,
+        height:240,
+        scaleX:2,
+        conv:DitheringCanvas,
+        pal:VCS_RGB,
+        reduce:4,
+        errfn:getRGBAErrorHue,
+    },
+    {
+        id:'atari7800.160b',
+        name:'Atari 7800 (160B)',
+        width:160,
+        height:240,
+        scaleX:2,
+        conv:DitheringCanvas,
+        pal:VCS_RGB,
+        reduce:12,
+        errfn:getRGBAErrorHue,
+    },
+    {
         id:'sms',
         name:'Sega Master System',
         width:176, // only 488 unique tiles max, otherwise 256x240
@@ -809,6 +855,10 @@ function convertImage() {
 
 //
 
+declare var RgbQuant;
+declare var Cropper;
+declare var pica;
+
 var sysparams;
 var resizeImageData;
 var dithcanv = null;
@@ -837,6 +887,13 @@ function updatePaletteSwatches() {
         });
     }
 }
+var noiseSlider = document.getElementById('noiseSlider') as HTMLInputElement;
+var diffuseSlider = document.getElementById('diffuseSlider') as HTMLInputElement;
+const image = document.getElementById('srcimage') as HTMLImageElement;
+const resize = document.getElementById('resizecanvas') as HTMLCanvasElement;
+const dest = document.getElementById('destcanvas') as HTMLCanvasElement;
+//const cmdline = document.getElementById('cmdline');
+
 function iterateImage() {
     if (dithcanv == null) {
         var quantopts = {
@@ -853,8 +910,8 @@ function iterateImage() {
             pal = quant.idxi32; // TODO: reverse?
         }
         dithcanv = new sysparams.conv(resizeImageData, dest.width, pal);
-        dithcanv.noise = 1 << document.getElementById('noiseSlider').value;
-        dithcanv.diffuse = document.getElementById('diffuseSlider').value / 100;
+        dithcanv.noise = 1 << parseInt(noiseSlider.value);
+        dithcanv.diffuse = parseInt(diffuseSlider.value) / 100;
         dithcanv.ditherfn = ditherFunction;
         dithcanv.init();
         showSystemInfo();
@@ -868,10 +925,6 @@ function resetImage() {
     dithcanv = null;
     iterateImage();
 }
-const image = document.getElementById('srcimage');
-const resize = document.getElementById('resizecanvas');
-const dest = document.getElementById('destcanvas');
-const cmdline = document.getElementById('cmdline');
 // https://github.com/fengyuanchen/cropperjs/blob/master/README.md
 const cropper = new Cropper(image, {
     viewMode:1,
@@ -891,7 +944,8 @@ function setTargetSystem(sys) {
     showSystemInfo();
     resize.width = dest.width = sys.width;
     resize.height = dest.height = sys.height;
-    dest.style = 'transform: scaleX('+sys.scaleX+'); width:'+(90/sys.scaleX)+'%';
+    dest.style.transform = 'scaleX('+(sys.scaleX||1)+')';
+    dest.style.width = (90/(sys.scaleX||1))+'%';
     //dest.style = 'width:80%;height:'+(80/(sys.scaleX||1))+'%';
     getRGBAErrorMag = sys.errfn || getRGBAErrorPerceptual;
     var showNoise = sys.conv != DitheringCanvas;
