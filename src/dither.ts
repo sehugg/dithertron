@@ -49,16 +49,14 @@ class DitheringCanvas {
     indexed:Uint8Array;
     width:number; // integer
     height:number;
-    tmp;
-    tmp2;
-    totalerror;
-    besterror;
-    changes;
-    ghisto;
-    noise = 20;
-    diffuse = 0.8;
+    tmp:Uint8ClampedArray;
+    tmp2:Uint32Array;
+    changes : number;
+    ghisto : Uint32Array;
+    noise : number = 0;
+    diffuse : number = 0.8;
     ditherfn = DITHER_FLOYD;
-    iterateCount = 0;
+    iterateCount : number = 0;
     allColors : number[];
 
     constructor(img, width, pal) {
@@ -78,8 +76,6 @@ class DitheringCanvas {
         this.img = new Uint32Array(this.ref);
         this.alt = new Uint32Array(this.ref);
         this.err = new Int16Array(this.ref.length * 3);
-        this.totalerror = 0;
-        this.besterror = 999999999;
         this.changes = 0;
     }
     init() {
@@ -113,11 +109,6 @@ class DitheringCanvas {
         }
         this.img[offset] = rgbimg;
         //this.img[offset] = this.tmp2[0] | 0xff000000;
-        // return error mag
-        // TODO: perceptual error?
-        var cumerr = Math.sqrt(sqr(err[0]) + sqr(err[1]) + sqr(err[2]));
-        this.totalerror += cumerr;
-        return cumerr;
     }
     getClosest(rgb, inds) {
         return getClosestRGB(rgb, inds, this.pal, getRGBAErrorMag);
@@ -131,14 +122,12 @@ class DitheringCanvas {
         return choices;
     }
     iterate() {
-        this.totalerror = 0;
         this.changes = 0;
         for (var i=0; i<this.img.length; i++) {
             this.update(i);
         }
         this.commit();
         this.iterateCount++;
-        //console.log(this.totalerror);
     }
     commit() {
         //
@@ -175,7 +164,7 @@ class VDPMode2_Canvas extends ParamDitherCanvas {
         for (var i=0; i<this.w; i++) {
             var c1 = this.indexed[offset+i]|0;
             histo[c1] += 100;
-            var c2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != ind1));
+            var c2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != c1));
             histo[c2] += 1 + this.noise;
         }
         var choices = getChoices(histo);
@@ -255,13 +244,13 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
         var colors = this.allColors;
         var histo = new Uint32Array(16);
         // pixel overlap in 8x8 window
-        var b = 2; // border
+        var b = 1; // border
         for (var y=-b; y<this.h+b; y++) {
             var o = offset + y*this.width;
             for (var x=-b; x<this.w+b; x++) {
                 var c1 = this.indexed[o+x]|0;
                 histo[c1] += 100;
-                var c2 = this.getClosest(this.alt[o]|0, colors.filter((c) => c != ind1));
+                var c2 = this.getClosest(this.alt[o]|0, colors.filter((c) => c != c1));
                 histo[c2] += 1 + this.noise;
             }
         }
@@ -642,7 +631,7 @@ const SYSTEMS : DithertronSystem[] = [
         scaleX:0.936,
         conv:ZXSpectrum_Canvas,
         pal:VIC_NTSC_RGB,
-        errfn:getRGBAErrorHue,
+        errfn:getRGBAErrorPerceptual,
     },
     {
         id:'vdp',
@@ -847,22 +836,32 @@ function getCanvasImageData(canvas) {
     return new Uint32Array(canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer);
 }
 //
-function applyBrightness(imageData:Uint32Array, bright:number, bias:number) {
+function applyBrightness(imageData:Uint32Array, bright:number, bias:number, sat:number) {
     bright *= 1;
     bias *= 1;
     var u8arr = new Uint8ClampedArray(imageData.buffer);
     for (var i=0; i<u8arr.length; i+=4) {
-        u8arr[i] = u8arr[i] * bright + bias;
-        u8arr[i+1] = u8arr[i+1] * bright + bias;
-        u8arr[i+2] = u8arr[i+2] * bright + bias;
+        var r = u8arr[i];
+        var g = u8arr[i+1];
+        var b = u8arr[i+2];
+        if (sat != 1.0) {
+            var gray = 0.2989*r + 0.5870*g + 0.1140*b; //weights from CCIR 601 spec
+            r = gray * (1-sat) + r * sat;
+            g = gray * (1-sat) + g * sat;
+            b = gray * (1-sat) + b * sat;
+        }
+        u8arr[i] = r * bright + bias;
+        u8arr[i+1] = g * bright + bias;
+        u8arr[i+2] = b * bright + bias;
     }
 }
 function reprocessImage() {
     dithcanv = null;
     resizeImageData = getCanvasImageData(resize);
-    let bright = (parseFloat(contrastSlider.value) - 50) / 100 + 1.0; // middle = 1.0
+    let bright = (parseFloat(contrastSlider.value) - 50) / 100 + 1.0; // middle = 1.0, range = 0.5-1.5
     let bias = (parseFloat(brightSlider.value) - bright * 50) * (128 / 50);
-    applyBrightness(resizeImageData, bright, bias);
+    let sat = (parseFloat(saturationSlider.value) - 50) / 50 + 1.0; // middle = 1.0, range = 0-2
+    applyBrightness(resizeImageData, bright, bias, sat);
     iterateImage();
 }
 function convertImage() {
@@ -913,6 +912,7 @@ function updatePaletteSwatches() {
 }
 var brightSlider = document.getElementById('brightSlider') as HTMLInputElement;
 var contrastSlider = document.getElementById('contrastSlider') as HTMLInputElement;
+var saturationSlider = document.getElementById('saturationSlider') as HTMLInputElement;
 var noiseSlider = document.getElementById('noiseSlider') as HTMLInputElement;
 var diffuseSlider = document.getElementById('diffuseSlider') as HTMLInputElement;
 const image = document.getElementById('srcimage') as HTMLImageElement;

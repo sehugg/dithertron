@@ -105,6 +105,15 @@ img.crop {
                         data-slider-value="50"
                         />
                 </p>
+                <p id="saturationSection">
+                    <span class="mr-3">Saturation:</span>
+                    <input type="range" id="saturationSlider"
+                        data-provide="slider"
+                        data-slider-min="0"
+                        data-slider-max="100"
+                        data-slider-value="50"
+                        />
+                </p>
                 <p id="diffuseSection">
                     <span class="mr-3">Dither:</span>
                     <input type="range" id="diffuseSlider"
@@ -120,8 +129,8 @@ img.crop {
                     <input type="range" id="noiseSlider"
                         data-provide="slider"
                         data-slider-min="0"
-                        data-slider-max="15"
-                        data-slider-value="12"
+                        data-slider-max="10"
+                        data-slider-value="5"
                         />
                 </p>
             </div>
@@ -167,6 +176,7 @@ $("#diffuseSlider").on('change', resetImage);
 $("#noiseSlider").on('change', resetImage);
 $("#brightSlider").on('change', reprocessImage);
 $("#contrastSlider").on('change', reprocessImage);
+$("#saturationSlider").on('change', reprocessImage);
 $("#resetButton").on('click', resetImage);
 
 SYSTEMS.forEach(sys => {
