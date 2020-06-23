@@ -781,8 +781,12 @@ function drawRGBA(dest, arr) {
     var ctx = dest.getContext('2d');
     var imageData = ctx.createImageData(dest.width, dest.height);
     var datau32 = new Uint32Array(imageData.data.buffer);
-    datau32.set(arr);
-    ctx.putImageData(imageData, 0, 0);
+    if (datau32.length == arr.length) {
+        datau32.set(arr);
+        ctx.putImageData(imageData, 0, 0);
+    } else {
+        // TODO: source array is too long when switching
+    }
 }
 function getCanvasImageData(canvas) {
     return new Uint32Array(canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer);

@@ -26,4 +26,5 @@ TODO
 * Search for optimal crop window
 * Check pixel-exact source images
 * Interlaced modes (VCS color)
-* Ctrl-R retains mode
+* Refresh retains mode settings
+* Set width and height
