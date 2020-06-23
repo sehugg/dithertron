@@ -87,9 +87,18 @@ img.crop {
             <div id="paletteSwatches" class="mt-3 d-flex justify-content-center flex-wrap">
             </div>
             <div class="alert alert-secondary mt-3">
-                <p id="tweakSection">
+                <p id="brightSection">
                     <span class="mr-3">Bright:</span>
                     <input type="range" id="brightSlider"
+                        data-provide="slider"
+                        data-slider-min="0"
+                        data-slider-max="100"
+                        data-slider-value="50"
+                        />
+                </p>
+                <p id="contrastSection">
+                    <span class="mr-3">Contrast:</span>
+                    <input type="range" id="contrastSlider"
                         data-provide="slider"
                         data-slider-min="0"
                         data-slider-max="100"
@@ -157,6 +166,7 @@ $("#examplesMenu").click((e) => {
 $("#diffuseSlider").on('change', resetImage);
 $("#noiseSlider").on('change', resetImage);
 $("#brightSlider").on('change', reprocessImage);
+$("#contrastSlider").on('change', reprocessImage);
 $("#resetButton").on('click', resetImage);
 
 SYSTEMS.forEach(sys => {

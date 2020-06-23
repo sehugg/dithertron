@@ -60,7 +60,6 @@ class DitheringCanvas {
     ditherfn = DITHER_FLOYD;
     iterateCount = 0;
     allColors : number[];
-    bright : number = 1.0;
 
     constructor(img, width, pal) {
         for (var i=0; i<pal.length; i++)
@@ -89,9 +88,9 @@ class DitheringCanvas {
         var errofs = offset*3;
         var rgbref = this.ref[offset];
         // add cumulative error to pixel, clamp @ 0-255
-        this.tmp[0] = (rgbref & 0xff) * this.bright + this.err[errofs];
-        this.tmp[1] = ((rgbref>>8) & 0xff) * this.bright + this.err[errofs+1];
-        this.tmp[2] = ((rgbref>>16) & 0xff) * this.bright + this.err[errofs+2];
+        this.tmp[0] = (rgbref & 0xff) + this.err[errofs];
+        this.tmp[1] = ((rgbref>>8) & 0xff) + this.err[errofs+1];
+        this.tmp[2] = ((rgbref>>16) & 0xff) + this.err[errofs+2];
         // store the error-modified color
         this.alt[offset] = this.tmp2[0];
         // find closest palette color
@@ -861,8 +860,9 @@ function applyBrightness(imageData:Uint32Array, bright:number, bias:number) {
 function reprocessImage() {
     dithcanv = null;
     resizeImageData = getCanvasImageData(resize);
-    let bright = parseFloat(brightSlider.value) / 100 + 0.5;
-    applyBrightness(resizeImageData, bright, 0);
+    let bright = (parseFloat(contrastSlider.value) - 50) / 100 + 1.0; // middle = 1.0
+    let bias = (parseFloat(brightSlider.value) - bright * 50) * (128 / 50);
+    applyBrightness(resizeImageData, bright, bias);
     iterateImage();
 }
 function convertImage() {
@@ -912,6 +912,7 @@ function updatePaletteSwatches() {
     }
 }
 var brightSlider = document.getElementById('brightSlider') as HTMLInputElement;
+var contrastSlider = document.getElementById('contrastSlider') as HTMLInputElement;
 var noiseSlider = document.getElementById('noiseSlider') as HTMLInputElement;
 var diffuseSlider = document.getElementById('diffuseSlider') as HTMLInputElement;
 const image = document.getElementById('srcimage') as HTMLImageElement;
