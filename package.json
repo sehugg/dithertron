@@ -1,5 +1,5 @@
 {
-  "name": "bitmapconverter",
+  "name": "dithertron",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
@@ -15,8 +15,7 @@
     "cropper": "^4.1.0",
     "font-awesome": "^4.7.0",
     "jquery": "^3.5.0",
-    "pica": "^5.3.0",
-    "rgbquant": "^1.1.2"
+    "pica": "^5.3.0"
   },
   "devDependencies": {
     "typescript": "^3.9.5"

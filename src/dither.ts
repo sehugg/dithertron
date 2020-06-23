@@ -1,5 +1,10 @@
 function rnd(n:number) { return Math.floor(Math.random()*n); }
 function sqr(x:number) { return x*x; }
+function range(start:number,end:number) : number[] {
+    var arr = [];
+    for (var i=start; i<end; i++) { arr.push(i); }
+    return arr;
+}
 
 const DITHER_FLOYD = [[1, 0, 7/16], [-1, 1, 3/16], [0, 1, 5/16], [1, 1, 1/16]];
 const DITHER_FALSEFLOYD = [[1, 0, 3/8], [0, 1, 3/8], [1, 1, 2/8]];
@@ -55,6 +60,7 @@ class DitheringCanvas {
     ditherfn = DITHER_FLOYD;
     iterateCount = 0;
     allColors : number[];
+    bright : number = 1.0;
 
     constructor(img, width, pal) {
         for (var i=0; i<pal.length; i++)
@@ -83,9 +89,9 @@ class DitheringCanvas {
         var errofs = offset*3;
         var rgbref = this.ref[offset];
         // add cumulative error to pixel, clamp @ 0-255
-        this.tmp[0] = (rgbref & 0xff) + this.err[errofs];
-        this.tmp[1] = ((rgbref>>8) & 0xff) + this.err[errofs+1];
-        this.tmp[2] = ((rgbref>>16) & 0xff) + this.err[errofs+2];
+        this.tmp[0] = (rgbref & 0xff) * this.bright + this.err[errofs];
+        this.tmp[1] = ((rgbref>>8) & 0xff) * this.bright + this.err[errofs+1];
+        this.tmp[2] = ((rgbref>>16) & 0xff) * this.bright + this.err[errofs+2];
         // store the error-modified color
         this.alt[offset] = this.tmp2[0];
         // find closest palette color
@@ -115,17 +121,7 @@ class DitheringCanvas {
         return cumerr;
     }
     getClosest(rgb, inds) {
-        var best = 9999999;
-        var bestidx = -1;
-        for (var i=0; i<inds.length; i++) {
-            var col = this.pal[inds[i]];
-            var score = getRGBAErrorMag(rgb, col);
-            if (score < best) {
-                best = score;
-                bestidx = inds[i];
-            }
-        }
-        return bestidx;
+        return getClosestRGB(rgb, inds, this.pal, getRGBAErrorMag);
     }
     addHisto(histo, rgb, inds) {
         var choices = [];
@@ -149,7 +145,7 @@ class DitheringCanvas {
         //
     }
     getValidColors(offset:number) : number[] {
-        return Array.from(this.pal.keys());
+        return range(0, this.pal.length);
     }
 }
 abstract class ParamDitherCanvas extends DitheringCanvas {
@@ -178,10 +174,10 @@ class VDPMode2_Canvas extends ParamDitherCanvas {
         var colors = this.allColors;
         var histo = new Uint32Array(16);
         for (var i=0; i<this.w; i++) {
-            var a = this.indexed[offset+i]|0;
-            histo[a] += 100;
-            var b = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != ind1));
-            histo[b] += 1 + this.noise;
+            var c1 = this.indexed[offset+i]|0;
+            histo[c1] += 100;
+            var c2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != ind1));
+            histo[c2] += 1 + this.noise;
         }
         var choices = getChoices(histo);
         var ind1 = choices[0].ind;
@@ -204,7 +200,7 @@ class VDPMode2_Canvas extends ParamDitherCanvas {
 }
 class VCS_Canvas extends VDPMode2_Canvas {
     w=40;
-    allColors = Array.from(new Array(128).keys());
+    allColors = range(0, 128);
 }
 class Apple2_Canvas extends VDPMode2_Canvas {
     w=7;
@@ -214,10 +210,10 @@ class Apple2_Canvas extends VDPMode2_Canvas {
         var colors = this.allColors;
         var histo = new Uint32Array(16);
         for (var i=0; i<this.w; i++) {
-            var ind1 = this.indexed[offset+i]|0;
-            histo[ind1] += 100;
-            var ind2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != ind1));
-            histo[ind2] += 1 + this.noise;
+            var c1 = this.indexed[offset+i]|0;
+            histo[c1] += 100;
+            var c2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != c1));
+            histo[c2] += 1 + this.noise;
         }
         var hibit = histo[3]+histo[4] > histo[1]+histo[2];
         this.params[p] = hibit ? 1 : 0;
@@ -264,10 +260,10 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
         for (var y=-b; y<this.h+b; y++) {
             var o = offset + y*this.width;
             for (var x=-b; x<this.w+b; x++) {
-                var a = this.indexed[o+x]|0;
-                histo[a] += 100;
-                var b = this.getClosest(this.alt[o]|0, colors.filter((c) => c != ind1));
-                histo[b] += 1 + this.noise;
+                var c1 = this.indexed[o+x]|0;
+                histo[c1] += 100;
+                var c2 = this.getClosest(this.alt[o]|0, colors.filter((c) => c != ind1));
+                histo[c2] += 1 + this.noise;
             }
         }
         var choices = getChoices(histo);
@@ -320,13 +316,13 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
             var o = offset + y*this.width;
             for (var x=-b; x<w+b; x++) {
                 // get current color (or reference for 1st time)
-                var a = this.indexed[o+x]|0;
-                if (a != this.bgcolor)
-                    histo[a] += 100;
+                var c1 = this.indexed[o+x]|0;
+                if (c1 != this.bgcolor)
+                    histo[c1] += 100;
                 // get error color (TODO: why alt not img like 2-color kernels?)
                 var rgbcomp = this.alt[o+x]|0;
-                var b = this.getClosest(rgbcomp, colors);
-                histo[b] += 1 + this.noise;
+                var c2 = this.getClosest(rgbcomp, colors);
+                histo[c2] += 1 + this.noise;
             }
         }
         var choices = getChoices(histo);
@@ -380,12 +376,12 @@ class NES_Canvas extends ParamDitherCanvas {
             var o = offset + y*this.width;
             for (var x=-b; x<this.w+b; x++) {
                 // get current color (or reference for 1st time)
-                var a = this.indexed[o+x] | 0;
-                histo[a] += 100;
+                var c1 = this.indexed[o+x] | 0;
+                histo[c1] += 100;
                 // get error color (TODO: why ref works better?)
                 var rgbcomp = this.alt[o+x] | 0;
-                var b = this.getClosest(rgbcomp, colors);
-                histo[b] += 1 + this.noise;
+                var c2 = this.getClosest(rgbcomp, colors);
+                histo[c2] += 1 + this.noise;
             }
         }
         var choices = getChoices(histo);
@@ -404,7 +400,8 @@ function getRGBADiff(rgbref, rgbimg) {
     }
     return err;
 }
-var getRGBAErrorMag = getRGBAErrorPerceptual;
+type RGBDistanceFunction = (a:number,b:number) => number;
+var getRGBAErrorMag : RGBDistanceFunction = getRGBAErrorPerceptual;
 function getRGBAErrorAbsolute(rgbref, rgbimg) {
     var mag = 0;
     for (var i=0; i<3; i++) {
@@ -467,6 +464,19 @@ function getRGBAErrorArr(a,b) {
         b >>= 8;
     }
     return err;
+}
+function getClosestRGB(rgb:number, inds:number[], pal:Uint32Array, distfn:RGBDistanceFunction) {
+    var best = 9999999;
+    var bestidx = -1;
+    for (var i=0; i<inds.length; i++) {
+        var col = pal[inds[i]];
+        var score = distfn(rgb, col);
+        if (score < best) {
+            best = score;
+            bestidx = inds[i];
+        }
+    }
+    return bestidx;
 }
 // byte order reversed in this app
 function RGBA(r,g,b) {
@@ -838,6 +848,23 @@ function getCanvasImageData(canvas) {
     return new Uint32Array(canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer);
 }
 //
+function applyBrightness(imageData:Uint32Array, bright:number, bias:number) {
+    bright *= 1;
+    bias *= 1;
+    var u8arr = new Uint8ClampedArray(imageData.buffer);
+    for (var i=0; i<u8arr.length; i+=4) {
+        u8arr[i] = u8arr[i] * bright + bias;
+        u8arr[i+1] = u8arr[i+1] * bright + bias;
+        u8arr[i+2] = u8arr[i+2] * bright + bias;
+    }
+}
+function reprocessImage() {
+    dithcanv = null;
+    resizeImageData = getCanvasImageData(resize);
+    let bright = parseFloat(brightSlider.value) / 100 + 0.5;
+    applyBrightness(resizeImageData, bright, 0);
+    iterateImage();
+}
 function convertImage() {
     dithcanv = null;
     pica().resize(cropper.getCroppedCanvas(), resize, {
@@ -847,20 +874,17 @@ function convertImage() {
         unsharpThreshold: 2
         */
     }).then(() => {
-        dithcanv = null;
-        resizeImageData = getCanvasImageData(resize);
-        iterateImage();
+        reprocessImage();
     });
 }
 
 //
 
-declare var RgbQuant;
 declare var Cropper;
 declare var pica;
 
 var sysparams;
-var resizeImageData;
+var resizeImageData : Uint32Array;
 var dithcanv = null;
 var ditherFunction = DITHER_FLOYD;
 
@@ -887,12 +911,44 @@ function updatePaletteSwatches() {
         });
     }
 }
+var brightSlider = document.getElementById('brightSlider') as HTMLInputElement;
 var noiseSlider = document.getElementById('noiseSlider') as HTMLInputElement;
 var diffuseSlider = document.getElementById('diffuseSlider') as HTMLInputElement;
 const image = document.getElementById('srcimage') as HTMLImageElement;
 const resize = document.getElementById('resizecanvas') as HTMLCanvasElement;
 const dest = document.getElementById('destcanvas') as HTMLCanvasElement;
 //const cmdline = document.getElementById('cmdline');
+
+function generatePalette(imageData: Uint32Array, colors: Uint32Array, count: number) : Uint32Array {
+    // reduce palette before we reduce the palette
+    if (colors.length >= count*2) {
+        colors = generatePalette(imageData, colors, count*2);
+    }
+    // find best colors
+    var inds = range(0, colors.length);
+    var histo = new Uint32Array(colors.length);
+    var distfn = getRGBAErrorPerceptual;
+    var err = new Int32Array(4);
+    var tmp = new Uint8ClampedArray(4);
+    var tmp2 = new Uint32Array(tmp.buffer);
+    for (var i=0; i<imageData.length; i+=rnd(4)) {
+        var rgbref = imageData[i];
+        err[0] += rgbref & 0xff;
+        err[1] += (rgbref >> 8) & 0xff;
+        err[2] += (rgbref >> 16) & 0xff;
+        tmp[0] = err[0];
+        tmp[1] = err[1];
+        tmp[2] = err[2];
+        var ind1 = getClosestRGB(tmp2[0], inds, colors, distfn);
+        histo[ind1]++;
+        var alt = colors[ind1];
+        err[0] -= alt & 0xff;
+        err[1] -= (alt >> 8) & 0xff;
+        err[2] -= (alt >> 16) & 0xff;
+    }
+    var choices = getChoices(histo);
+    return new Uint32Array(choices.slice(0, count).map((x) => colors[x.ind]));
+}
 
 function iterateImage() {
     if (dithcanv == null) {
@@ -901,17 +957,15 @@ function iterateImage() {
             colors:sysparams.reduce || sysparams.pal.length,
             reIndex:true,
             minHueCols:256,
+            boxSize:[32,32],
         };
-        const quant = new RgbQuant(quantopts);
         var pal = sysparams.pal;
         if (sysparams.reduce) {
-            quant.sample(resize);
-            quant.palette(false, true);
-            pal = quant.idxi32; // TODO: reverse?
+            pal = generatePalette(resizeImageData, pal, sysparams.reduce);
         }
         dithcanv = new sysparams.conv(resizeImageData, dest.width, pal);
-        dithcanv.noise = 1 << parseInt(noiseSlider.value);
-        dithcanv.diffuse = parseInt(diffuseSlider.value) / 100;
+        dithcanv.noise = 1 << parseFloat(noiseSlider.value);
+        dithcanv.diffuse = parseFloat(diffuseSlider.value) / 100;
         dithcanv.ditherfn = ditherFunction;
         dithcanv.init();
         showSystemInfo();
