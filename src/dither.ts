@@ -32,12 +32,12 @@ const ALL_DITHER_SETTINGS : DitherSetting[] = [
     {name:"Sierra 2", kernel:DITHER_SIERRA2},
     {name:"Sierra Lite", kernel:DITHER_SIERRALITE},
     {name:"Stucki", kernel:DITHER_STUCKI},
-    {name:"Diamond", kernel:DITHER_VDIAMOND},
     {name:"Two-D", kernel:DITHER_TWOD},
     {name:"Right", kernel:DITHER_RIGHT},
     {name:"Down", kernel:DITHER_DOWN},
     {name:"Double Down", kernel:DITHER_DOUBLE_DOWN},
     {name:"Diagonal", kernel:DITHER_DIAG},
+    {name:"Diamond", kernel:DITHER_VDIAMOND},
 ];
 
 class DitheringCanvas {
@@ -200,7 +200,7 @@ class Apple2_Canvas extends VDPMode2_Canvas {
         for (var i=0; i<this.w; i++) {
             var c1 = this.indexed[offset+i]|0;
             histo[c1] += 100;
-            var c2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != c1));
+            var c2 = this.getClosest(this.alt[offset+i]|0, colors);
             histo[c2] += 1 + this.noise;
         }
         var hibit = histo[3]+histo[4] > histo[1]+histo[2];
@@ -208,11 +208,12 @@ class Apple2_Canvas extends VDPMode2_Canvas {
     }
     getValidColors(offset) {
         var i = Math.floor(offset / this.w);
-        var c1 = this.params[i];
-        if (c1 & 1)
-            return [0, 1, 2, 5];
-        else
+        var hibit = (this.params[i] & 1) != 0;
+        // hi bit set? (covers 2 bytes actually)
+        if (hibit)
             return [0, 3, 4, 5];
+        else
+            return [0, 1, 2, 5];
     }
 }
 class ZXSpectrum_Canvas extends ParamDitherCanvas {
@@ -341,14 +342,14 @@ class NES_Canvas extends ParamDitherCanvas {
         var col = Math.floor(offset / this.w) % ncols;
         var row = Math.floor(offset / (this.width*this.h));
         var i = col + row*ncols;
-        var c1 = this.params[i] & 0x3;
+        var c1 = this.params[i];
         // param specified which color to leave out
         switch (c1) {
             case 0: return [0, 2, 3, 4];
             case 1: return [0, 1, 3, 4];
             case 2: return [0, 1, 2, 4];
             case 3: return [0, 1, 2, 3];
-            default: throw "error";
+            default: throw "error "+c1+" "+i+" "+col+" "+row+" "+this.params.length;
         }
     }
     guessParam(p) {
@@ -373,8 +374,8 @@ class NES_Canvas extends ParamDitherCanvas {
             }
         }
         var choices = getChoices(histo);
-        // leave out this color, least frequent
-        this.params[p] = choices[choices.length-1].ind - 1;
+        // leave out last color, least frequent
+        choices.forEach((ch) => { if (ch.ind > 0) this.params[p] = ch.ind-1; });
     }
 }
 //
@@ -683,7 +684,7 @@ const SYSTEMS : DithertronSystem[] = [
     },
     {
         id:'nes',
-        name:'NES',
+        name:'NES (4 color)',
         width:256,
         height:240,
         scaleX:8/7,
@@ -741,7 +742,7 @@ const SYSTEMS : DithertronSystem[] = [
         name:'Atari Mode E',
         width:160,
         height:192,
-        scaleX:1.5,
+        scaleX:0.8571*2,
         conv:DitheringCanvas,
         pal:VCS_RGB,
         reduce:4,
@@ -752,7 +753,7 @@ const SYSTEMS : DithertronSystem[] = [
         name:'Atari Mode F',
         width:80,
         height:192,
-        scaleX:3,
+        scaleX:0.8571*4,
         conv:DitheringCanvas,
         pal:VCS_RGB,
         reduce:16,
@@ -988,13 +989,18 @@ const cropper = new Cropper(image, {
         convertImage();
     },
 });
+function clearImage() {
+    dithcanv = null;
+    resizeImageData = null;
+}
 function loadSourceImage(url) {
+    clearImage();
     cropper.clear();
     cropper.replace(url);
 }
 //
 function setTargetSystem(sys) {
-    dithcanv = null;
+    clearImage();
     sysparams = sys;
     showSystemInfo();
     resize.width = dest.width = sys.width;
