@@ -1,17 +1,33 @@
 function rnd(n) { return Math.floor(Math.random()*n); }
 function sqr(x) { return x*x; }
 
-var DITHER_TWOD = [[1, 0, 0.5], [0, 1, 0.5]];
-var DITHER_RIGHT = [[1, 0, 1.0]];
-var DITHER_DOWN = [[0, 1, 1.0]];
-var DITHER_DIAG = [[1, 1, 1.0]];
 var DITHER_FLOYD = [[1, 0, 7/16], [-1, 1, 3/16], [0, 1, 5/16], [1, 1, 1/16]];
 var DITHER_FALSEFLOYD = [[1, 0, 3/8], [0, 1, 3/8], [1, 1, 2/8]];
 var DITHER_ATKINSON = [[1, 0, 1/6], [2, 0, 1/6], [-1, 1, 1/6], [0, 1, 1/6], [1, 1, 1/6], [0, 2, 1/6]];
 var DITHER_SIERRA2 = [[1, 0, 4/16], [2, 0, 3/16], [-2, 1, 1/16], [-1, 1, 2/16], [0, 1, 3/16], [1, 1, 2/16], [2, 1, 1/16]];
-var DITHER_VDIAMOND = [[0, 1, 6/16], [-1, 1, 3/16], [1, 1, 3/16], [-2, 2, 1/16], [0, 2, 2/16], [2, 2, 1/16]];
 var DITHER_SIERRALITE = [[1, 0, 2/4], [-1, 1, 1/4], [0, 1, 1/4]];
 var DITHER_STUCKI =  [[1, 0, 8/42], [2, 0, 4/42], [-2, 1, 2/42], [1, -1, 4/42], [0, 1, 8/42], [1, 1, 4/42], [2, 1, 2/42], [-2, 2, 1/42], [-1, 2, 2/42], [0, 2, 4/42], [1, 2, 2/42], [2, 2, 1/42]];
+var DITHER_TWOD = [[1, 0, 0.5], [0, 1, 0.5]];
+var DITHER_RIGHT = [[1, 0, 1.0]];
+var DITHER_DOWN = [[0, 1, 1.0]];
+var DITHER_DOUBLE_DOWN = [[0, 1, 2/4], [0, 2, 1/4], [1, 2, 1/4]];
+var DITHER_DIAG = [[1, 1, 1.0]];
+var DITHER_VDIAMOND = [[0, 1, 6/16], [-1, 1, 3/16], [1, 1, 3/16], [-2, 2, 1/16], [0, 2, 2/16], [2, 2, 1/16]];
+
+const ALL_DITHER_SETTINGS = [
+    {name:"Floyd-Steinberg", kernel:DITHER_FLOYD},
+    {name:"False Floyd", kernel:DITHER_FALSEFLOYD},
+    {name:"Atkinson", kernel:DITHER_ATKINSON},
+    {name:"Sierra 2", kernel:DITHER_SIERRA2},
+    {name:"Sierra Lite", kernel:DITHER_SIERRALITE},
+    {name:"Stucki", kernel:DITHER_STUCKI},
+    {name:"Diamond", kernel:DITHER_VDIAMOND},
+    {name:"Two-D", kernel:DITHER_TWOD},
+    {name:"Right", kernel:DITHER_RIGHT},
+    {name:"Down", kernel:DITHER_DOWN},
+    {name:"Double Down", kernel:DITHER_DOUBLE_DOWN},
+    {name:"Diagonal", kernel:DITHER_DIAG},
+];
 
 class DitheringCanvas {
     pal; // Uint32Array
@@ -139,8 +155,7 @@ class ParamDitherCanvas extends DitheringCanvas {
         }
     }
     commit() {
-        // skip params @ random (1-4)
-        for (var i=0; i<this.params.length; i+=rnd(4)+1) {
+        for (var i=0; i<this.params.length; i++) {
             this.guessParam(i);
         }
     }
@@ -787,10 +802,14 @@ function convertImage() {
         iterateImage();
     });
 }
+
 //
+
 var sysparams;
 var resizeImageData;
 var dithcanv = null;
+var ditherFunction = DITHER_FLOYD;
+
 function showSystemInfo() {
     var sys = sysparams;
     var s = sys.width + " x " + sys.height;
@@ -832,6 +851,7 @@ function iterateImage() {
         dithcanv = new sysparams.conv(resizeImageData, dest.width, pal);
         dithcanv.noise = 1 << document.getElementById('noiseSlider').value;
         dithcanv.diffuse = document.getElementById('diffuseSlider').value / 100;
+        dithcanv.ditherfn = ditherFunction;
         dithcanv.init();
         showSystemInfo();
     }
@@ -873,6 +893,10 @@ function setTargetSystem(sys) {
     var showNoise = sys.conv != DitheringCanvas;
     $("#noiseSection").css('display',showNoise?'block':'none');
     cropper.replace(cropper.url);
+}
+function setDitherSettings(dset) {
+    ditherFunction = dset.kernel;
+    resetImage();
 }
 //
 //

@@ -67,7 +67,9 @@ img.crop {
                         data-slider-min="0"
                         data-slider-max="100"
                         data-slider-value="80"
-                        /></p>
+                        />
+                    <small><select id="diffuseTypeSelect"></select></small>
+                </p>
                 <p id="noiseSection">
                     <span class="mr-3">Noise:</span>
                     <input type="range" id="noiseSlider"
@@ -75,9 +77,8 @@ img.crop {
                         data-slider-min="0"
                         data-slider-max="15"
                         data-slider-value="12"
-                        /></p>
-                <p>
-                <!--<input type="button" id="resetButton" value="Reset"></p>-->
+                        />
+                </p>
             </div>
         </div>
     </div>
@@ -129,6 +130,17 @@ $("#targetFormatSelect").change((e) => {
     var opt = e.target.selectedOptions[0];
     if (opt) {
         setTargetSystem(SYSTEM_LOOKUP[opt.value]);
+    }
+});
+
+ALL_DITHER_SETTINGS.forEach((dset,index) => {
+    var opt = $("<option />").text(dset.name).val(index);
+    $("#diffuseTypeSelect").append(opt);
+});
+$("#diffuseTypeSelect").change((e) => {
+    var opt = e.target.selectedOptions[0];
+    if (opt) {
+        setDitherSettings(ALL_DITHER_SETTINGS[parseInt(opt.value)]);
     }
 });
 
