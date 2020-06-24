@@ -224,6 +224,7 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
     ncols : number;
     nrows : number;
     init() {
+        this.allColors = range(0, this.pal.length);
         this.ncols = this.width / this.w;
         this.nrows = this.height / this.h;
         this.params = new Uint32Array(this.ncols * this.nrows);
