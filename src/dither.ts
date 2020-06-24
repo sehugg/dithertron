@@ -992,10 +992,6 @@ interface ColorChoice {
     count: number;
 }
 function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count: number) : ColorChoice[] {
-    // reduce palette before we reduce the palette
-    if (colors.length >= count*2) {
-        colors = reducePalette(imageData, colors, count*2);
-    }
     // find best colors
     var inds = range(0, colors.length);
     var histo = new Uint32Array(colors.length);
@@ -1022,6 +1018,10 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     return choices;
 }
 function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: number) : Uint32Array {
+    // reduce palette before we reduce the palette
+    if (colors.length >= count*2) {
+        colors = reducePalette(imageData, colors, count*2);
+    }
     var choices = reducePaletteChoices(imageData, colors, count);
     return new Uint32Array(choices.slice(0, count).map((x) => colors[x.ind]));
 }
