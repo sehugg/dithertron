@@ -216,10 +216,11 @@ class Apple2_Canvas extends VDPMode2_Canvas {
             return [0, 1, 2, 5];
     }
 }
+// TODO: both colors affected by bright bit
 class ZXSpectrum_Canvas extends ParamDitherCanvas {
     w=8;
     h=8;
-    allColors = [0,1,2,3,4,5,6,7,9,10,11,12,13,14,15];
+    allColors = [0,1,2,3,4,5,6,7]; //,9,10,11,12,13,14,15];
     ncols : number;
     nrows : number;
     init() {
@@ -270,14 +271,20 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     w=4;
     h=8;
     allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-    bgcolor : number;
+    bgcolor : number = 0;
+    auxcolor : number = 0;
+    bordercolor : number = 0;
     init() {
         this.bgcolor = 0;
         this.ghisto.fill(0);
         this.params = new Uint32Array(this.width/this.w * this.height/this.h);
         for (var i=0; i<this.params.length; i++) {
             this.guessParam(i);
-            this.bgcolor = getChoices(this.ghisto)[0].ind;
+            let choices = getChoices(this.ghisto);
+            if (choices.length > 0) this.bgcolor = choices[0].ind;
+            // for VIC-20
+            if (choices.length > 1) this.auxcolor = choices[1].ind;
+            if (choices.length > 2) this.bordercolor = choices[2].ind;
         }
     }
     getValidColors(offset) {
@@ -295,7 +302,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         var col = p % ncols;
         var row = Math.floor(p / ncols);
         var offset = col*this.w + row*this.width*this.h;
-        var colors = this.allColors.filter((ind) => ind != this.bgcolor);
+        var localColors = this.getLocalColors();
         // rank all colors
         var histo = new Uint32Array(16);
         var w = this.w;
@@ -304,27 +311,43 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         for (var y=-b; y<h+b; y++) {
             var o = offset + y*this.width;
             for (var x=-b; x<w+b; x++) {
-                // get current color (or reference for 1st time)
-                var c1 = this.indexed[o+x]|0;
-                if (c1 != this.bgcolor)
-                    histo[c1] += 100;
-                // get error color (TODO: why alt not img like 2-color kernels?)
-                var rgbcomp = this.alt[o+x]|0;
-                var c2 = this.getClosest(rgbcomp, colors);
-                histo[c2] += 1 + this.noise;
+                this.updateHisto(histo, localColors, o+x);
             }
         }
         var choices = getChoices(histo);
         var ind1 = choices[0].ind;
         var ind2 = choices[1] && choices[1].ind;
         var ind3 = choices[2] && choices[2].ind;
-        this.ghisto[ind1]++;
-        /*
-        ind1 = 3;
-        ind2 = 4;
-        ind3 = 7;
-        */
-        this.params[p] = ind1 + (ind2<<4) + (ind3<<8);
+        this.ghisto[ind1] += 5;
+        this.ghisto[ind2] += 2;
+        this.ghisto[ind3] += 1;
+        return this.params[p] = ind1 + (ind2<<4) + (ind3<<8);
+    }
+    getLocalColors() {
+        return this.allColors.filter((ind) => ind != this.bgcolor);
+    }
+    updateHisto(histo, colors, i) {
+        // get current color (or reference for 1st time)
+        var c1 = this.indexed[i]|0;
+        if (colors.indexOf(c1) >= 0) // don't add global colors
+            histo[c1] += 100;
+        // get error color (TODO: why alt not img like 2-color kernels?)
+        var rgbcomp = this.alt[i]|0;
+        var c2 = this.getClosest(rgbcomp, colors);
+        histo[c2] += 1 + this.noise;
+    }
+}
+class VIC20_Multi_Canvas extends VICII_Multi_Canvas {
+    getValidColors(offset) {
+        var ncols = this.width / this.w;
+        var col = Math.floor(offset / this.w) % ncols;
+        var row = Math.floor(offset / (this.width*this.h));
+        var i = col + row*ncols;
+        var c1 = this.params[i] & 0xf;
+        return [this.bgcolor, this.auxcolor, this.bordercolor, c1];
+    }
+    getLocalColors() {
+        return this.allColors.filter((ind) => ind != this.bgcolor && ind != this.auxcolor && ind != this.bordercolor);
     }
 }
 class NES_Canvas extends ParamDitherCanvas {
@@ -507,24 +530,6 @@ const TMS9918_RGB = [
     RGBA(204,204,204),
     RGBA(255,255,255)
 ];
-const ZXSPECTRUM_RGB = [
-    0x000000,
-    0x0000cc,
-    0xcc0000,
-    0xcc00cc,
-    0x00cc00,
-    0x00cccc,
-    0xcccc00,
-    0xcccccc,
-    0x000000,
-    0x0000ff,
-    0xff0000,
-    0xff00ff,
-    0x00ff00,
-    0x00ffff,
-    0xffff00,
-    0xffffff,
-];
 const NES_RGB = [
     0x525252, 0xB40000, 0xA00000, 0xB1003D, 0x740069, 0x00005B, 0x00005F, 0x001840, 0x002F10, 0x084A08, 0x006700, 0x124200, 0x6D2800, 0x000000, 0x000000, 0x000000,
     0xC4D5E7, 0xFF4000, 0xDC0E22, 0xFF476B, 0xD7009F, 0x680AD7, 0x0019BC, 0x0054B1, 0x006A5B, 0x008C03, 0x00AB00, 0x2C8800, 0xA47200, 0x000000, 0x000000, 0x000000,
@@ -583,8 +588,25 @@ const VCS_RGB = [
     0x00302c,0x00302c, 0x1c504c,0x1c504c, 0x347068,0x347068, 0x4c8c84,0x4c8c84, 0x64a89c,0x64a89c, 0x78c0b4,0x78c0b4, 0x88d4cc,0x88d4cc, 0x9cece0,0x9cece0,
     0x002844,0x002844, 0x184864,0x184864, 0x306884,0x306884, 0x4484a0,0x4484a0, 0x589cb8,0x589cb8, 0x6cb4d0,0x6cb4d0, 0x7ccce8,0x7ccce8, 0x8ce0fc,0x8ce0fc
 ];
+const CGA_RGB = [
+    0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, 0xAA0000, 0xAA00AA, 0xAA55AA, 0xAAAAAA,
+    0x555555, 0x5555FF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF,
+];
 const SMS_RGB = generateRGBPalette(2,2,2);
 const WILLIAMS_RGB = generateRGBPalette(3,3,2);
+const TELETEXT_RGB = generateRGBPalette(1,1,1);
+const ZXSPECTRUM_RGB = TELETEXT_RGB;
+const AMSTRAD_CPC_RGB = [
+    0x000000, 0x000080, 0x0000FF,
+    0x800000, 0x800080, 0x8000FF,
+    0xFF0000, 0xFF0080, 0xFF00FF,
+    0x008000, 0x008080, 0x0080FF,
+    0x808000, 0x808080, 0x8080FF,
+    0xFF8000, 0xFF8080, 0xFF80FF,
+    0x00FF00, 0x00FF80, 0x00FFFF,
+    0x80FF00, 0x80FF80, 0x80FFFF,
+    0xFFFF00, 0xFFFF80, 0xFFFFFF,
+];
 
 function generateRGBPalette(rr,gg,bb) {
     var n = 1<<(rr+gg+bb);
@@ -616,7 +638,7 @@ interface DithertronSystem {
 const SYSTEMS : DithertronSystem[] = [
     {
         id:'c64.multi',
-        name:'C64 Multi',
+        name:'C-64 Multi',
         width:160,
         height:200,
         scaleX:0.936*2,
@@ -626,7 +648,7 @@ const SYSTEMS : DithertronSystem[] = [
     },
     {
         id:'c64.hires',
-        name:'C64 Hires',
+        name:'C-64 Hires',
         width:320,
         height:200,
         scaleX:0.936,
@@ -635,8 +657,40 @@ const SYSTEMS : DithertronSystem[] = [
         errfn:getRGBAErrorPerceptual,
     },
     {
+        id:'vic20.multi',
+        name:'VIC-20 Multi',
+        width:80,
+        height:160,
+        scaleX:3.0,
+        conv:VIC20_Multi_Canvas,
+        pal:VIC_NTSC_RGB,
+        errfn:getRGBAErrorPerceptual,
+    },
+    {
+        id:'nes',
+        name:'NES (4 color)',
+        width:256,
+        height:240,
+        scaleX:8/7,
+        conv:DitheringCanvas,
+        pal:NES_RGB,
+        reduce:4,
+        errfn:getRGBAErrorHue,
+    },
+    {
+        id:'nes.5color',
+        name:'NES (5 color)',
+        width:256,
+        height:240,
+        scaleX:8/7,
+        conv:NES_Canvas,
+        pal:NES_RGB,
+        reduce:5, // background + 4 colors
+        errfn:getRGBAErrorHue,
+    },
+    {
         id:'vdp',
-        name:'TMS9918A Mode 2',
+        name:'TMS9918A (Mode 2)',
         width:256,
         height:192,
         conv:VDPMode2_Canvas,
@@ -651,6 +705,27 @@ const SYSTEMS : DithertronSystem[] = [
         conv:ZXSpectrum_Canvas,
         pal:ZXSPECTRUM_RGB,
         errfn:getRGBAErrorHue,
+    },
+    {
+        id:'bbcmicro.mode2',
+        name:'BBC Micro (mode 2)',
+        width:160,
+        height:256,
+        scaleX:2,
+        conv:DitheringCanvas,
+        pal:TELETEXT_RGB,
+        errfn:getRGBAErrorHue,
+    },
+    {
+        id:'cpc.mode0',
+        name:'Amstrad CPC (mode 0)',
+        width:160,
+        height:200,
+        scaleX:2,
+        conv:DitheringCanvas,
+        pal:AMSTRAD_CPC_RGB,
+        reduce:16,
+        errfn:getRGBAErrorPerceptual,
     },
     {
         id:'apple2.dblhires',
@@ -680,28 +755,6 @@ const SYSTEMS : DithertronSystem[] = [
         scaleX:1.5,
         conv:DitheringCanvas,
         pal:AP2LORES_RGB,
-        errfn:getRGBAErrorHue,
-    },
-    {
-        id:'nes',
-        name:'NES (4 color)',
-        width:256,
-        height:240,
-        scaleX:8/7,
-        conv:DitheringCanvas,
-        pal:NES_RGB,
-        reduce:4,
-        errfn:getRGBAErrorHue,
-    },
-    {
-        id:'nes.5color',
-        name:'NES (5 color)',
-        width:256,
-        height:240,
-        scaleX:8/7,
-        conv:NES_Canvas,
-        pal:NES_RGB,
-        reduce:5, // background + 4 colors
         errfn:getRGBAErrorHue,
     },
     {
@@ -782,6 +835,16 @@ const SYSTEMS : DithertronSystem[] = [
         errfn:getRGBAErrorHue,
     },
     {
+        id:'williams',
+        name:'Williams Arcade',
+        width:304,
+        height:256,
+        conv:DitheringCanvas,
+        pal:WILLIAMS_RGB,
+        reduce:16,
+        errfn:getRGBAErrorPerceptual,
+    },
+    {
         id:'sms',
         name:'Sega Master System',
         width:176, // only 488 unique tiles max, otherwise 256x240
@@ -793,12 +856,13 @@ const SYSTEMS : DithertronSystem[] = [
         errfn:getRGBAErrorPerceptual,
     },
     {
-        id:'williams',
-        name:'Williams Arcade Game',
-        width:304,
-        height:256,
+        id:'ega.09h',
+        name:'EGA Mode 0Dh',
+        width:320,
+        height:200,
+        scaleX:200/320*1.2,
         conv:DitheringCanvas,
-        pal:WILLIAMS_RGB,
+        pal:CGA_RGB,
         reduce:16,
         errfn:getRGBAErrorPerceptual,
     },

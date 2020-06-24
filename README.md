@@ -34,3 +34,5 @@ TODO
 * Set width and height
 * Safari
 * TypeScript
+* Faster closest color lookup
+
