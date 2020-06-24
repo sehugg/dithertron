@@ -252,7 +252,7 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
             for (var x=-b; x<this.w+b; x++) {
                 var c1 = this.indexed[o+x]|0;
                 histo[c1] += 100;
-                var c2 = this.getClosest(this.alt[o]|0, colors.filter((c) => c != c1));
+                var c2 = this.getClosest(this.alt[o+x]|0, colors.filter((c) => c != c1));
                 histo[c2] += 1 + this.noise;
             }
         }
@@ -337,6 +337,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         histo[c2] += 1 + this.noise;
     }
 }
+// TODO: bordercolor and charcolor only first 8 colors
 class VIC20_Multi_Canvas extends VICII_Multi_Canvas {
     getValidColors(offset) {
         var ncols = this.width / this.w;
@@ -654,7 +655,7 @@ const SYSTEMS : DithertronSystem[] = [
         scaleX:0.936,
         conv:ZXSpectrum_Canvas,
         pal:VIC_NTSC_RGB,
-        errfn:getRGBAErrorPerceptual,
+        errfn:getRGBAErrorHue,
     },
     {
         id:'vic20.multi',
@@ -835,16 +836,6 @@ const SYSTEMS : DithertronSystem[] = [
         errfn:getRGBAErrorHue,
     },
     {
-        id:'williams',
-        name:'Williams Arcade',
-        width:304,
-        height:256,
-        conv:DitheringCanvas,
-        pal:WILLIAMS_RGB,
-        reduce:16,
-        errfn:getRGBAErrorPerceptual,
-    },
-    {
         id:'sms',
         name:'Sega Master System',
         width:176, // only 488 unique tiles max, otherwise 256x240
@@ -863,6 +854,16 @@ const SYSTEMS : DithertronSystem[] = [
         scaleX:200/320*1.2,
         conv:DitheringCanvas,
         pal:CGA_RGB,
+        reduce:16,
+        errfn:getRGBAErrorPerceptual,
+    },
+    {
+        id:'williams',
+        name:'Williams Arcade',
+        width:304,
+        height:256,
+        conv:DitheringCanvas,
+        pal:WILLIAMS_RGB,
         reduce:16,
         errfn:getRGBAErrorPerceptual,
     },
@@ -985,10 +986,14 @@ const resize = document.getElementById('resizecanvas') as HTMLCanvasElement;
 const dest = document.getElementById('destcanvas') as HTMLCanvasElement;
 //const cmdline = document.getElementById('cmdline');
 
-function generatePalette(imageData: Uint32Array, colors: Uint32Array, count: number) : Uint32Array {
+interface ColorChoice {
+    ind: number;
+    count: number;
+}
+function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count: number) : ColorChoice[] {
     // reduce palette before we reduce the palette
     if (colors.length >= count*2) {
-        colors = generatePalette(imageData, colors, count*2);
+        colors = reducePalette(imageData, colors, count*2);
     }
     // find best colors
     var inds = range(0, colors.length);
@@ -1013,6 +1018,10 @@ function generatePalette(imageData: Uint32Array, colors: Uint32Array, count: num
         err[2] -= (alt >> 16) & 0xff;
     }
     var choices = getChoices(histo);
+    return choices;
+}
+function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: number) : Uint32Array {
+    var choices = reducePaletteChoices(imageData, colors, count);
     return new Uint32Array(choices.slice(0, count).map((x) => colors[x.ind]));
 }
 
@@ -1027,7 +1036,7 @@ function iterateImage() {
         };
         var pal = sysparams.pal;
         if (sysparams.reduce) {
-            pal = generatePalette(resizeImageData, pal, sysparams.reduce);
+            pal = reducePalette(resizeImageData, pal, sysparams.reduce);
         }
         dithcanv = new sysparams.conv(resizeImageData, dest.width, pal);
         dithcanv.noise = 1 << parseFloat(noiseSlider.value);
