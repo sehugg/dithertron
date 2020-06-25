@@ -5,6 +5,7 @@
     <script src="node_modules/jquery/dist/jquery.min.js"></script>
     <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="node_modules/bootstrap-slider/dist/bootstrap-slider.min.js"></script>
+    <script src="node_modules/file-saver/dist/FileSaver.min.js"></script>
     <!-- Wrap the image or canvas element with a block element (container) -->
     <link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" crossorigin="anonymous">
     <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" crossorigin="anonymous">
@@ -87,9 +88,14 @@ img.crop {
         </div>
         <div class="col-md-6">
             <div class="alert alert-info">
+                <div class="float-right">
+                    <button id="downloadImageBtn" type="button" class="btn btn-secondary">PNG <i class="fa fa-download"></i></button>
+                    <button id="downloadNativeBtn" type="button" class="btn btn-secondary">Native <i class="fa fa-download"></i></button>
+                </div>
                 Convert to: <select id="targetFormatSelect"></select>
                 <br>
                 <small><span id="targetFormatInfo"></span></small>
+                <br>
             </div>
         </div>
     </div>
@@ -144,7 +150,7 @@ img.crop {
                             data-provide="slider"
                             data-slider-min="0"
                             data-slider-max="100"
-                            data-slider-value="80"
+                            data-slider-value="50"
                             />
                     </div>
                     <div class="col-md-4">

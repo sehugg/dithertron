@@ -11,6 +11,15 @@ function range(start:number,end:number) : number[] {
     return arr;
 }
 
+interface PixelsAvailableMessage {
+    img : Uint32Array;
+    width : number;
+    height : number;
+    pal : Uint32Array;
+    indexed : Uint8Array;
+    params : Uint32Array;
+}
+
 type DitherKernel = number[][];
 interface DitherSetting {
     name: string;
@@ -553,7 +562,7 @@ class Dithertron {
     sysparams : DithertronSettings;
     dithcanv : DitheringCanvas;
     sourceImageData : Uint32Array;
-    pixelsAvailable : (img:Uint32Array, width:number, height:number, pal:Uint32Array) => void;
+    pixelsAvailable : (msg:PixelsAvailableMessage) => void;
     timer;
 
     setSettings(sys : DithertronSettings) {
@@ -582,7 +591,14 @@ class Dithertron {
         this.dithcanv.iterate();
         this.dithcanv.noise >>= 1; // divide by 2
         if (this.pixelsAvailable != null) {
-            this.pixelsAvailable(this.dithcanv.img, this.dithcanv.width, this.dithcanv.height, this.dithcanv.pal);
+            this.pixelsAvailable({
+                img:    this.dithcanv.img,
+                width:  this.dithcanv.width,
+                height: this.dithcanv.height,
+                pal:    this.dithcanv.pal,
+                indexed:this.dithcanv.indexed,
+                params: (this.dithcanv as ParamDitherCanvas).params,
+            });
         }
     }
     iterateIfNeeded() {
@@ -632,11 +648,6 @@ onmessage = function(e) {
     }
 }
 
-worker_dtron.pixelsAvailable = (img,width,height,pal) => {
-    postMessage({
-        img:img,
-        width:width,
-        height:height,
-        pal:pal,
-    });
+worker_dtron.pixelsAvailable = (msg:PixelsAvailableMessage) => {
+    postMessage(msg);
 };

@@ -1,20 +1,24 @@
 
 declare var Cropper;
 declare var pica;
+declare var saveAs;
 
 class ProxyDithertron {
+    settings : DithertronSettings;
+    lastPixels : PixelsAvailableMessage;
+
     constructor(worker : Worker) {
         worker.onmessage = (ev) => {
             var data = ev.data;
             if (data != null) {
                 //console.log('recv',data);
                 if (data.img != null && this.pixelsAvailable != null) {
-                    this.pixelsAvailable(data.img, data.width, data.height, data.pal);
+                    this.pixelsAvailable(data);
+                    this.lastPixels = data;
                 }
             }
         };
     }
-    settings : DithertronSettings;
     setSettings(settings) {
         this.settings = settings;
         worker.postMessage({cmd:"setSettings", data:settings});
@@ -25,7 +29,7 @@ class ProxyDithertron {
     reset() {
         worker.postMessage({cmd:"reset"});
     }
-    pixelsAvailable : (img:Uint32Array, width:number, height:number, pal:Uint32Array) => void;
+    pixelsAvailable : (msg:PixelsAvailableMessage) => void;
 }
 
 const worker = new Worker("./gen/dithertron.js");
@@ -49,6 +53,7 @@ interface DithertronSettings {
     noise?: number;
     ditherfn?: DitherKernel;
     block?: {w:number, h:number, colors:number};
+    toNative?: string;
 }
 
 // DITHER SETTINGS
@@ -213,6 +218,51 @@ function generateRGBPalette(rr,gg,bb) {
     return pal;
 }
 
+//
+
+function apple2HiresToHGR(img:PixelsAvailableMessage) : Uint8Array {
+    var data = new Uint8Array(0x2000);
+    var srcofs = 0;
+    for (var y=0; y<img.height; y++) {
+        var destofs = (y&7)*0x400 + ((y>>3) & 7)*0x80 + (y>>6)*0x28;
+        for (var x=0; x<img.width; x+=7) {
+            var z = 0;
+            var hibit = 0;
+            for (var i=0; i<7; i++) {
+                var col = img.indexed[srcofs++];
+                if (col >= 3) {
+                    hibit = 0x80;
+                    col -= 2;
+                }
+                z |= (col << i*2);
+            }
+            data[destofs++] = (z & 0x7f) | hibit;
+            data[destofs++] = ((z >> 7) & 0x7f) | hibit;
+        }
+    }
+    return data;
+}
+
+function getFilenamePrefix() {
+    return dithertron.settings.id;
+}
+function downloadNativeFormat() {
+    var img = dithertron.lastPixels;
+    var fn = window[dithertron.settings.toNative];
+    if (img && fn) {
+        var data = fn(img);
+        var blob = new Blob([data], {type: "application/octet-stream"});
+        saveAs(blob, getFilenamePrefix() + ".bin");
+    }
+}
+function downloadImageFormat() {
+    dest.toBlob((blob) => {
+        saveAs(blob, getFilenamePrefix() + ".png");
+    }, "image/png");
+}
+
+//
+
 const SYSTEMS : DithertronSettings[] = [
     {
         id:'c64.multi',
@@ -331,6 +381,7 @@ const SYSTEMS : DithertronSettings[] = [
         pal:AP2HIRES_RGB,
         errfn:'hue',
         block:{w:7,h:1,colors:4},
+        toNative:'apple2HiresToHGR',
     },
     {
         id:'apple2.lores',
@@ -504,6 +555,7 @@ function reprocessImage() {
 
 function resetImage() {
     var opt = ($("#diffuseTypeSelect")[0] as HTMLSelectElement).selectedOptions[0];
+    // TODO: what if settings not yet set?
     if (opt) {
         dithertron.settings.ditherfn = ALL_DITHER_SETTINGS[parseInt(opt.value)].kernel;
     }
@@ -586,6 +638,7 @@ function setTargetSystem(sys : DithertronSettings) {
     dest.style.width = (90/(sys.scaleX||1))+'%';
     //dest.style = 'width:80%;height:'+(80/(sys.scaleX||1))+'%';
     $("#noiseSection").css('display',showNoise?'flex':'none');
+    $("#downloadNativeBtn").css('display',sys.toNative?'inline':'none');
     cropper.replace(cropper.url);
 }
 
@@ -623,6 +676,23 @@ window.addEventListener('load', function() {
         loadSourceImage("images/" + filename);
     });
 
+    SYSTEMS.forEach(sys => {
+        var opt = $("<option />").text(sys.name).val(sys.id);
+        $("#targetFormatSelect").append(opt);
+    });
+    ALL_DITHER_SETTINGS.forEach((dset,index) => {
+        var opt = $("<option />").text(dset.name).val(index);
+        $("#diffuseTypeSelect").append(opt);
+    });
+
+    dithertron.pixelsAvailable = (msg) => {
+        // TODO: resize canvas?
+        drawRGBA(dest, msg.img);
+        updatePaletteSwatches(msg.pal);
+    }
+
+    setTargetSystem(SYSTEM_LOOKUP['c64.multi']);
+
     $("#diffuseSlider").on('change', resetImage);
     $("#noiseSlider").on('change', resetImage);
     $("#brightSlider").on('change', reprocessImage);
@@ -630,32 +700,17 @@ window.addEventListener('load', function() {
     $("#saturationSlider").on('change', reprocessImage);
     $("#resetButton").on('click', resetImage);
     $("#diffuseTypeSelect").on('change', resetImage);
-
-    SYSTEMS.forEach(sys => {
-        var opt = $("<option />").text(sys.name).val(sys.id);
-        $("#targetFormatSelect").append(opt);
-    });
     $("#targetFormatSelect").change((e) => {
         var opt = (e.target as HTMLSelectElement).selectedOptions[0];
         if (opt) {
             setTargetSystem(SYSTEM_LOOKUP[opt.value]);
         }
     });
-    ALL_DITHER_SETTINGS.forEach((dset,index) => {
-        var opt = $("<option />").text(dset.name).val(index);
-        $("#diffuseTypeSelect").append(opt);
-    });
-
-    dithertron.pixelsAvailable = (img,width,height,pal) => {
-        // TODO showSystemInfo();
-        // TODO: resize canvas?
-        drawRGBA(dest, img);
-        updatePaletteSwatches(pal);
-    }
-
-    setTargetSystem(SYSTEM_LOOKUP['c64.multi']);
+    $("#downloadImageBtn").click(downloadImageFormat);
+    $("#downloadNativeBtn").click(downloadNativeFormat);
 });
 
+/*
 function printSystems() {
     var s = "";
     SYSTEMS.forEach((sys) => {
@@ -663,4 +718,5 @@ function printSystems() {
     });
     console.log(s);
 }
-//printSystems();
+printSystems();
+*/
