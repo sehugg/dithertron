@@ -132,6 +132,7 @@ abstract class ParamDitherCanvas extends DitheringCanvas {
         }
     }
 }
+// TODO: merge common code
 class VDPMode2_Canvas extends ParamDitherCanvas {
     w=8;
     h=1;
@@ -143,7 +144,7 @@ class VDPMode2_Canvas extends ParamDitherCanvas {
         for (var i=0; i<this.w; i++) {
             var c1 = this.indexed[offset+i]|0;
             histo[c1] += 100;
-            var c2 = this.getClosest(this.alt[offset+i]|0, colors.filter((c) => c != c1));
+            var c2 = this.getClosest(this.alt[offset+i]|0, colors);
             histo[c2] += 1 + this.noise;
         }
         var choices = getChoices(histo);
@@ -166,8 +167,11 @@ class VDPMode2_Canvas extends ParamDitherCanvas {
     }
 }
 class VCS_Canvas extends VDPMode2_Canvas {
-    w=40;
-    allColors = range(0, 128);
+    init() {
+        super.init();
+        this.w = this.width;
+        this.allColors = range(0, this.pal.length);
+    }
 }
 class Apple2_Canvas extends VDPMode2_Canvas {
     w=7;
@@ -232,7 +236,7 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
             for (var x=-b; x<this.w+b; x++) {
                 var c1 = this.indexed[o+x]|0;
                 histo[c1] += 100;
-                var c2 = this.getClosest(this.alt[o+x]|0, colors.filter((c) => c != c1));
+                var c2 = this.getClosest(this.alt[o+x]|0, colors);
                 histo[c2] += 1 + this.noise;
             }
         }
@@ -582,7 +586,7 @@ class Dithertron {
         }
     }
     iterateIfNeeded() {
-        if (this.dithcanv == null || (this.dithcanv.changes > 0 && this.dithcanv.iterateCount < 25)) {
+        if (this.dithcanv == null || (this.dithcanv.changes > 0 && this.dithcanv.iterateCount < 50)) {
             this.iterate();
             console.log(this.dithcanv.noise, this.dithcanv.changes, this.dithcanv.iterateCount);
         } else {

@@ -572,7 +572,7 @@ const cropper = new Cropper(image, {
     },
 });
 function loadSourceImage(url) {
-    cropper.clear();
+    //cropper.clear();
     cropper.replace(url);
 }
 //
@@ -585,7 +585,7 @@ function setTargetSystem(sys : DithertronSettings) {
     dest.style.transform = 'scaleX('+(sys.scaleX||1)+')';
     dest.style.width = (90/(sys.scaleX||1))+'%';
     //dest.style = 'width:80%;height:'+(80/(sys.scaleX||1))+'%';
-    $("#noiseSection").css('display',showNoise?'block':'none');
+    $("#noiseSection").css('display',showNoise?'flex':'none');
     cropper.replace(cropper.url);
 }
 

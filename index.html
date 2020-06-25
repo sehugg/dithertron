@@ -104,52 +104,64 @@ img.crop {
             <div id="paletteSwatches" class="mt-3 d-flex justify-content-center flex-wrap">
             </div>
             <div class="alert alert-secondary mt-3">
-                <p id="brightSection">
-                    <span class="mr-3">Bright:</span>
-                    <input type="range" id="brightSlider"
-                        data-provide="slider"
-                        data-slider-min="0"
-                        data-slider-max="100"
-                        data-slider-value="50"
-                        />
-                </p>
-                <p id="contrastSection">
-                    <span class="mr-3">Contrast:</span>
-                    <input type="range" id="contrastSlider"
-                        data-provide="slider"
-                        data-slider-min="0"
-                        data-slider-max="100"
-                        data-slider-value="50"
-                        />
-                </p>
-                <p id="saturationSection">
-                    <span class="mr-3">Saturation:</span>
-                    <input type="range" id="saturationSlider"
-                        data-provide="slider"
-                        data-slider-min="0"
-                        data-slider-max="100"
-                        data-slider-value="50"
-                        />
-                </p>
-                <p id="diffuseSection">
-                    <span class="mr-3">Dither:</span>
-                    <input type="range" id="diffuseSlider"
-                        data-provide="slider"
-                        data-slider-min="0"
-                        data-slider-max="100"
-                        data-slider-value="80"
-                        />
-                    <small><select id="diffuseTypeSelect"></select></small>
-                </p>
-                <p id="noiseSection">
-                    <span class="mr-3">Noise:</span>
-                    <input type="range" id="noiseSlider"
-                        data-provide="slider"
-                        data-slider-min="0"
-                        data-slider-max="10"
-                        data-slider-value="5"
-                        />
-                </p>
+                <div class="row align-items-center" id="brightSection">
+                    <label for="brightSlider" class="col-sm-3 col-form-label">Bright:</label>
+                    <div class="col-sm-9">
+                        <input type="range" id="brightSlider"
+                            data-provide="slider"
+                            data-slider-min="0"
+                            data-slider-max="100"
+                            data-slider-value="50"
+                            />
+                    </div>
+                </div>
+                <div class="row align-items-center" id="contrastSection">
+                    <label for="contrastSlider" class="col-sm-3 col-form-label">Contrast:</label>
+                    <div class="col-sm-9">
+                        <input type="range" id="contrastSlider"
+                            data-provide="slider"
+                            data-slider-min="0"
+                            data-slider-max="100"
+                            data-slider-value="50"
+                            />
+                    </div>
+                </div>
+                <div class="row align-items-center" id="saturationSection">
+                    <label for="saturationSlider" class="col-sm-3 col-form-label">Saturation:</label>
+                    <div class="col-sm-9">
+                        <input type="range" id="saturationSlider"
+                            data-provide="slider"
+                            data-slider-min="0"
+                            data-slider-max="100"
+                            data-slider-value="50"
+                            />
+                    </div>
+                </div>
+                <div class="row align-items-center" id="diffuseSection">
+                    <label for="diffuseSlider" class="col-sm-3 col-form-label">Dither:</label>
+                    <div class="col-sm-5 col-md-5">
+                        <input type="range" id="diffuseSlider"
+                            data-provide="slider"
+                            data-slider-min="0"
+                            data-slider-max="100"
+                            data-slider-value="80"
+                            />
+                    </div>
+                    <div class="col-md-4">
+                        <small><select id="diffuseTypeSelect"></select></small>
+                    </div>
+                </div>
+                <div class="row align-items-center" id="noiseSection">
+                    <label for="noiseSlider" class="col-sm-3 col-form-label">Noise:</label>
+                    <div class="col-sm-9">
+                        <input type="range" id="noiseSlider"
+                            data-provide="slider"
+                            data-slider-min="0"
+                            data-slider-max="10"
+                            data-slider-value="5"
+                            />
+                    </div>
+                </div>
             </div>
         </div>
     </div>
