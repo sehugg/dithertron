@@ -133,14 +133,17 @@ img.crop {
                     </div>
                 </div>
                 <div class="row align-items-center" id="saturationSection">
-                    <label for="saturationSlider" class="col-sm-3 col-form-label">Saturation:</label>
-                    <div class="col-sm-9">
+                    <label for="saturationSlider" class="col-sm-3 col-form-label">Color:</label>
+                    <div class="col-sm-5 col-md-5">
                         <input type="range" id="saturationSlider"
                             data-provide="slider"
                             data-slider-min="0"
                             data-slider-max="100"
                             data-slider-value="50"
                             />
+                    </div>
+                    <div class="col-md-4">
+                        <small><select id="errorFuncSelect"></select></small>
                     </div>
                 </div>
                 <div class="row align-items-center" id="diffuseSection">

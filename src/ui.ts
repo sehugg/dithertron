@@ -44,10 +44,11 @@ interface DithertronSettings {
     name: string;
     width: number;
     height: number;
-    scaleX?: number;
     conv: string; //new (...args: any[]) => DitheringCanvas;
     pal: number[];
-    errfn: string; //(rgb:number,rgb2:number) => number;
+
+    scaleX?: number; // aspect ratio
+    errfn?: string; //(rgb:number,rgb2:number) => number;
     reduce?: number;
     diffuse?: number;
     noise?: number;
@@ -272,7 +273,6 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:0.936*2,
         conv:'VICII_Multi_Canvas',
         pal:VIC_NTSC_RGB,
-        errfn:'perceptual',
         block:{w:4,h:8,colors:4},
     },
     {
@@ -283,7 +283,6 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:0.936,
         conv:'ZXSpectrum_Canvas',
         pal:VIC_NTSC_RGB,
-        errfn:'hue',
         block:{w:8,h:8,colors:2},
     },
     {
@@ -294,7 +293,6 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:3.0,
         conv:'VIC20_Multi_Canvas',
         pal:VIC_NTSC_RGB,
-        errfn:'perceptual',
         block:{w:4,h:8,colors:4},
     },
     {
@@ -306,7 +304,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:NES_RGB,
         reduce:4,
-        errfn:'hue',
     },
     {
         id:'nes.5color',
@@ -317,7 +314,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'NES_Canvas',
         pal:NES_RGB,
         reduce:5, // background + 4 colors
-        errfn:'hue',
         block:{w:16,h:16,colors:4},
     },
     {
@@ -327,7 +323,6 @@ const SYSTEMS : DithertronSettings[] = [
         height:192,
         conv:'VDPMode2_Canvas',
         pal:TMS9918_RGB,
-        errfn:'hue',
         block:{w:8,h:1,colors:2},
     },
     {
@@ -337,7 +332,6 @@ const SYSTEMS : DithertronSettings[] = [
         height:192,
         conv:'ZXSpectrum_Canvas',
         pal:ZXSPECTRUM_RGB,
-        errfn:'hue',
         block:{w:8,h:8,colors:2},
     },
     {
@@ -348,7 +342,6 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:2,
         conv:'DitheringCanvas',
         pal:TELETEXT_RGB,
-        errfn:'hue',
     },
     {
         id:'cpc.mode0',
@@ -359,7 +352,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:AMSTRAD_CPC_RGB,
         reduce:16,
-        errfn:'perceptual',
     },
     {
         id:'apple2.dblhires',
@@ -369,7 +361,6 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:2,
         conv:'DitheringCanvas',
         pal:AP2LORES_RGB,
-        errfn:'perceptual',
     },
     {
         id:'apple2.hires',
@@ -379,7 +370,6 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:2,
         conv:'Apple2_Canvas',
         pal:AP2HIRES_RGB,
-        errfn:'hue',
         block:{w:7,h:1,colors:4},
         toNative:'apple2HiresToHGR',
     },
@@ -391,7 +381,6 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:1.5,
         conv:'DitheringCanvas',
         pal:AP2LORES_RGB,
-        errfn:'hue',
     },
     {
         id:'astrocade',
@@ -402,7 +391,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:ASTROCADE_RGB,
         reduce:4,
-        errfn:'hue',
     },
     {
         id:'vcs',
@@ -413,7 +401,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:VCS_RGB,
         reduce:2,
-        errfn:'hue',
     },
     {
         id:'vcs.color',
@@ -424,7 +411,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'VCS_Canvas',
         pal:VCS_RGB,
         reduce:16,
-        errfn:'hue',
     },
     {
         id:'atari8.e',
@@ -435,7 +421,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:VCS_RGB,
         reduce:4,
-        errfn:'hue',
     },
     {
         id:'atari8.f',
@@ -446,7 +431,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:VCS_RGB,
         reduce:16,
-        errfn:'hue',
     },
     {
         id:'atari7800.160a',
@@ -457,7 +441,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:VCS_RGB,
         reduce:4,
-        errfn:'hue',
     },
     {
         id:'atari7800.160b',
@@ -468,7 +451,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:VCS_RGB,
         reduce:12,
-        errfn:'hue',
     },
     {
         id:'sms',
@@ -479,7 +461,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:SMS_RGB,
         reduce:16,
-        errfn:'perceptual',
     },
     {
         id:'ega.09h',
@@ -490,7 +471,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:CGA_RGB,
         reduce:16,
-        errfn:'perceptual',
     },
     {
         id:'williams',
@@ -500,11 +480,17 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:WILLIAMS_RGB,
         reduce:16,
-        errfn:'perceptual',
     },
 ];
 var SYSTEM_LOOKUP = {};
 SYSTEMS.forEach((sys) => SYSTEM_LOOKUP[sys.id||sys.name] = sys);
+
+const ERROR_FUNCS = [
+    {id:'hue', name:"Hue-Based"},
+    {id:'perceptual', name:"Perceptual"},
+    {id:'dist', name:"Distance"},
+    {id:'max', name:"Maximum"},
+];
 
 //
 
@@ -558,6 +544,10 @@ function resetImage() {
     // TODO: what if settings not yet set?
     if (opt) {
         dithertron.settings.ditherfn = ALL_DITHER_SETTINGS[parseInt(opt.value)].kernel;
+    }
+    var opt = ($("#errorFuncSelect")[0] as HTMLSelectElement).selectedOptions[0];
+    if (opt) {
+        dithertron.settings.errfn = opt.value;
     }
     dithertron.settings.diffuse = parseFloat(diffuseSlider.value) / 100;
     dithertron.settings.noise = parseFloat(noiseSlider.value);
@@ -684,6 +674,10 @@ window.addEventListener('load', function() {
         var opt = $("<option />").text(dset.name).val(index);
         $("#diffuseTypeSelect").append(opt);
     });
+    ERROR_FUNCS.forEach((dset, index) => {
+        var opt = $("<option />").text(dset.name).val(dset.id);
+        $("#errorFuncSelect").append(opt);
+    });
 
     dithertron.pixelsAvailable = (msg) => {
         // TODO: resize canvas?
@@ -706,6 +700,7 @@ window.addEventListener('load', function() {
             setTargetSystem(SYSTEM_LOOKUP[opt.value]);
         }
     });
+    $("#errorFuncSelect").on('change', resetImage);
     $("#downloadImageBtn").click(downloadImageFormat);
     $("#downloadNativeBtn").click(downloadNativeFormat);
 });

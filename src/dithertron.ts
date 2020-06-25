@@ -521,7 +521,7 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     // find best colors
     var inds = range(0, colors.length);
     var histo = new Uint32Array(colors.length);
-    var distfn = getRGBAErrorPerceptual;
+    var distfn = getRGBAErrorPerceptual; // TODO: choose?
     var err = new Int32Array(4);
     var tmp = new Uint8ClampedArray(4);
     var tmp2 = new Uint32Array(tmp.buffer);
@@ -582,7 +582,7 @@ class Dithertron {
             }
             var convFunction = emglobal[sys.conv];
             this.dithcanv = new convFunction(this.sourceImageData, sys.width, pal);
-            this.dithcanv.errfn = ERROR_FUNCTIONS[sys.errfn];
+            this.dithcanv.errfn = ERROR_FUNCTIONS[sys.errfn] || getRGBAErrorPerceptual;
             this.dithcanv.noise = sys.noise ? (1 << sys.noise) : 0;
             this.dithcanv.diffuse = sys.diffuse + 0;
             this.dithcanv.ditherfn = sys.ditherfn || [];
