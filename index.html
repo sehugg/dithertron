@@ -144,66 +144,7 @@ img.crop {
 <canvas id="resizecanvas" style="display:none">
 </div>
 
-<script src="./gen/dither.js"></script>
-
-<script>
-var EXAMPLE_IMAGES = [
-'benbenn.jpg',
-'cezanne2.jpg',
-'coolcar.jpg',
-'darkbrewery.jpg',
-'greentruck.jpg',
-'homer.jpg',
-'keyssunset.jpg',
-'lobsterpot.jpg',
-'myersflat.jpg',
-'myrtle.jpg',
-'parrot.jpg',
-'redrose.jpg',
-'robert_s_duncanson.jpg',
-'seurat.jpg',
-'vangogh.jpg',
-];
-EXAMPLE_IMAGES.forEach((filename) => {
-    $('<a class="dropdown-item" href="#"></a>').text(filename).appendTo("#examplesMenu");
-});
-$("#examplesMenu").click((e) => {
-    var filename = $(e.target).text();
-    loadSourceImage("images/" + filename);
-});
-
-$("#diffuseSlider").on('change', resetImage);
-$("#noiseSlider").on('change', resetImage);
-$("#brightSlider").on('change', reprocessImage);
-$("#contrastSlider").on('change', reprocessImage);
-$("#saturationSlider").on('change', reprocessImage);
-$("#resetButton").on('click', resetImage);
-
-SYSTEMS.forEach(sys => {
-    var opt = $("<option />").text(sys.name).val(sys.id);
-    $("#targetFormatSelect").append(opt);
-});
-$("#targetFormatSelect").change((e) => {
-    var opt = e.target.selectedOptions[0];
-    if (opt) {
-        setTargetSystem(SYSTEM_LOOKUP[opt.value]);
-    }
-});
-
-ALL_DITHER_SETTINGS.forEach((dset,index) => {
-    var opt = $("<option />").text(dset.name).val(index);
-    $("#diffuseTypeSelect").append(opt);
-});
-$("#diffuseTypeSelect").change((e) => {
-    var opt = e.target.selectedOptions[0];
-    if (opt) {
-        setDitherSettings(ALL_DITHER_SETTINGS[parseInt(opt.value)]);
-    }
-});
-
-setTargetSystem(SYSTEM_LOOKUP['c64.multi']);
-timerUpdate();
-</script>
+<script src="./gen/ui.js"></script>
 
 </body>
 </html>
