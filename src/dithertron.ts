@@ -617,7 +617,6 @@ declare function postMessage(msg);
 
 var worker_dtron = new Dithertron();
 
-// TODO: throttle worker
 onmessage = function(e) {
     if (e && e.data) {
         console.log(e.data.cmd);

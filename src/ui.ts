@@ -28,7 +28,7 @@ class ProxyDithertron {
     pixelsAvailable : (img:Uint32Array, width:number, height:number, pal:Uint32Array) => void;
 }
 
-const worker = new Worker("./gen/dither.js");
+const worker = new Worker("./gen/dithertron.js");
 const dithertron = new ProxyDithertron(worker);
 
 var resizeImageData : Uint32Array;
@@ -525,7 +525,7 @@ function convertImage() {
     });
 }
 
-function showSystemInfo(sys : DithertronSettings) {
+function getSystemInfo(sys : DithertronSettings) {
     var s = sys.width + " x " + sys.height;
     if (sys.reduce) s += ", " + sys.reduce + " out of " + sys.pal.length + " colors";
     else if (sys.pal) s += ", " + sys.pal.length + " colors";
@@ -534,7 +534,11 @@ function showSystemInfo(sys : DithertronSettings) {
         s += sys.block.colors + " colors per ";
         s += sys.block.w + "x" + sys.block.h + " block";
     }
-    $("#targetFormatInfo").text(s);
+    return s;
+}
+
+function showSystemInfo(sys : DithertronSettings) {
+    $("#targetFormatInfo").text(getSystemInfo(sys));
 }
 
 function updatePaletteSwatches(pal:Uint32Array) {
@@ -652,3 +656,11 @@ window.addEventListener('load', function() {
     setTargetSystem(SYSTEM_LOOKUP['c64.multi']);
 });
 
+function printSystems() {
+    var s = "";
+    SYSTEMS.forEach((sys) => {
+        s += "* " + sys.name + " - " +getSystemInfo(sys) + "\n";
+    });
+    console.log(s);
+}
+//printSystems();
