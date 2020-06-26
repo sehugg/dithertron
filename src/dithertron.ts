@@ -165,22 +165,15 @@ class VDPMode2_Canvas extends ParamDitherCanvas {
             ind1 = ind2;
             ind2 = tmp;
         }
-        this.params[p] = ind1 + (ind2 << 8);
+        this.params[p] = ind1 + (ind2 << 4);
         //if (offset < 100) console.log(p, choices);
     }
     getValidColors(offset) {
         var i = Math.floor(offset / this.w);
         var mask = this.pal.length - 1;
         var c1 = this.params[i] & mask;
-        var c2 = (this.params[i]>>8) & mask;
+        var c2 = (this.params[i]>>4) & mask;
         return [c1, c2];
-    }
-}
-class VCS_Canvas extends VDPMode2_Canvas {
-    init() {
-        super.init();
-        this.w = this.width;
-        this.allColors = range(0, this.pal.length);
     }
 }
 class Apple2_Canvas extends VDPMode2_Canvas {

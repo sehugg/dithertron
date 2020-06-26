@@ -297,6 +297,14 @@ function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) :
     }
     return words;
 }
+function concatArrays(arrays: Uint8Array[]) : Uint8Array {
+    var total = 0;
+    arrays.forEach((a) => { total += a.length });
+    var dest = new Uint8Array(total);
+    total = 0;
+    arrays.forEach((a) => { dest.set(a, total); total += a.length });
+    return dest;
+}
 function exportFrameBuffer(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     var fmt = settings.exportFormat;
     fmt.w = img.width;
@@ -354,14 +362,23 @@ function exportC64Multi(img:PixelsAvailableMessage, settings:DithertronSettings)
             i++;
         }
     }
-    var data = new Uint8Array(char.length + color.length + screen.length);
-    data.set(char, 0x0);
-    data.set(screen, char.length);
-    data.set(color, char.length + screen.length);
-    return data;
+    return concatArrays([char, color, screen]);
+}
+function exportTMS9918A(img:PixelsAvailableMessage, settings:DithertronSettings) {
+    var char = exportFrameBuffer(img, settings);
+    var attr = new Uint8Array(img.params);
+    return concatArrays([char, attr]);
+}
+function exportNES5Color(img:PixelsAvailableMessage, settings:DithertronSettings) {
+    var char = exportFrameBuffer(img, settings);
+    // TODO: attr block format
+    var fmt = {w:settings.block.w, h:settings.block.h, bpp:2};
+    var attr = new Uint8Array(convertImagesToWords([img.indexed], fmt));
+    return concatArrays([char, attr]);
 }
 
 function getFilenamePrefix() {
+    // TODO: use filename as prefix
     return dithertron.settings.id;
 }
 function downloadNativeFormat() {
@@ -423,6 +440,8 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:NES_RGB,
         reduce:4,
+        toNative:'exportFrameBuffer',
+        exportFormat:{w:16,h:16,bpp:1,brev:true,np:2,pofs:8,remap:[5,0,1,2,4,6,7,8,9,10,11,12]},
     },
     {
         id:'nes.5color',
@@ -443,6 +462,8 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'VDPMode2_Canvas',
         pal:TMS9918_RGB,
         block:{w:8,h:1,colors:2},
+        toNative:'exportTMS9918A',
+        exportFormat:{w:256,h:192,bpp:1,brev:true,remap:[3,4,5,6,7,0,1,2,8,9,10,11,12]},
     },
     {
         id:'zx',
@@ -517,23 +538,13 @@ const SYSTEMS : DithertronSettings[] = [
     },
     {
         id:'vcs',
-        name:'Atari VCS (Mono)',
+        name:'Atari VCS',
         width:40,
         height:192,
         scaleX:6,
         conv:'DitheringCanvas',
         pal:VCS_RGB,
         reduce:2,
-    },
-    {
-        id:'vcs.color',
-        name:'Atari VCS (Color)',
-        width:40,
-        height:192,
-        scaleX:6,
-        conv:'VCS_Canvas',
-        pal:VCS_RGB,
-        reduce:16,
     },
     {
         id:'atari8.e',
