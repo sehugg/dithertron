@@ -1,5 +1,5 @@
 <html>
-<body>
+<head>
     <script src="node_modules/cropperjs/dist/cropper.min.js"></script>
     <script src="node_modules/pica/dist/pica.min.js"></script>
     <script src="node_modules/jquery/dist/jquery.min.js"></script>
@@ -11,6 +11,9 @@
     <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" crossorigin="anonymous">
     <link rel="stylesheet" href="node_modules/cropperjs/dist/cropper.min.css">
     <link rel="stylesheet" href="node_modules/bootstrap-slider/dist/css/bootstrap-slider.min.css">
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
 <!-- google analytics -->
 <script>
@@ -56,22 +59,31 @@ img.crop {
     pointer-events:auto;
 }
 </style>
+</head>
 
-<div class="container">
+<body>
+    <div class="container">
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <a class="navbar-brand" href="#">Dithertron</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
             <ul class="navbar-nav mr-auto">
-            <li class="nav-item">
-                <a class="nav-link" href="https://github.com/sehugg/dithertron#dithertron" target="_github">README</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/">Go to 8bitworkshop.com</a>
-            </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="https://github.com/sehugg/dithertron#dithertron" target="_github">README</a>
+                </li>
+            </ul>
+        </div>
+        <div class="mx-auto order-0">
+            <a class="navbar-brand mx-auto" href="#">D I T H E R T R O N</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".dual-collapse2">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
+        <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="https://8bitworkshop.com/">by 8bitworkshop</a>
+                </li>
+            </ul>
         </div>
     </nav>
       
@@ -89,10 +101,10 @@ img.crop {
         <div class="col-md-6">
             <div class="alert alert-info">
                 <div class="float-right">
-                    <button id="downloadImageBtn" type="button" class="btn btn-secondary">PNG <i class="fa fa-download"></i></button>
-                    <button id="downloadNativeBtn" type="button" class="btn btn-secondary">Native <i class="fa fa-download"></i></button>
+                    <button id="downloadImageBtn" type="button" class="btn btn-secondary" title="Download a PNG image">PNG <i class="fa fa-download"></i></button>
+                    <button id="downloadNativeBtn" type="button" class="btn btn-secondary" title="Download a binary file in the target format">BIN <i class="fa fa-download"></i></button>
                 </div>
-                Convert to: <select id="targetFormatSelect"></select>
+                Convert to: <select id="targetFormatSelect" title="Select the target format"></select>
                 <br>
                 <small><span id="targetFormatInfo"></span></small>
                 <br>
@@ -174,12 +186,8 @@ img.crop {
             </div>
         </div>
     </div>
-    <div class="row">
-        <div class="col-md-6">
-            <span id="cmdline"></span>
-        </div>
-    </div>
-<canvas id="resizecanvas" style="display:none">
+    <!-- hidden canvas-->
+    <canvas id="resizecanvas" style="display:none">
 </div>
 
 <script src="./gen/ui.js"></script>

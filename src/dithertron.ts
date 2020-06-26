@@ -229,7 +229,7 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
         var row = Math.floor(offset / (this.width * this.h));
         var i = col + row*this.ncols;
         var c1 = this.params[i] & 0xf;
-        var c2 = (this.params[i]>>4) & 0xf;
+        var c2 = (this.params[i] >> 4) & 0xf;
         return [c1, c2];
     }
     guessParam(p) {
@@ -270,7 +270,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     init() {
         this.bgcolor = 0;
         this.ghisto.fill(0);
-        this.params = new Uint32Array(this.width/this.w * this.height/this.h);
+        this.params = new Uint32Array(this.width/this.w * this.height/this.h + 1);
         for (var i=0; i<this.params.length; i++) {
             this.guessParam(i);
             let choices = getChoices(this.ghisto);
@@ -279,6 +279,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
             if (choices.length > 1) this.auxcolor = choices[1].ind;
             if (choices.length > 2) this.bordercolor = choices[2].ind;
         }
+        this.params[this.params.length - 1] = this.bgcolor | (this.auxcolor << 8) | (this.bordercolor << 16);
     }
     getValidColors(offset) {
         var ncols = this.width / this.w;

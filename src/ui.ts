@@ -55,6 +55,7 @@ interface DithertronSettings {
     ditherfn?: DitherKernel;
     block?: {w:number, h:number, colors:number};
     toNative?: string;
+    exportFormat?: PixelEditorImageFormat;
 }
 
 // DITHER SETTINGS
@@ -221,7 +222,89 @@ function generateRGBPalette(rr,gg,bb) {
 
 //
 
-function apple2HiresToHGR(img:PixelsAvailableMessage) : Uint8Array {
+type PixelEditorImageFormat = {
+    w?:number
+    h?:number
+    count?:number
+    bpp?:number
+    np?:number
+    bpw?:number
+    sl?:number
+    pofs?:number
+    remap?:number[]
+    brev?:boolean
+    flip?:boolean
+    destfmt?:PixelEditorImageFormat
+    xform?:string
+    skip?:number
+    aspect?:number
+  };
+  function remapBits(x:number, arr:number[]) : number {
+    if (!arr) return x;
+    var y = 0;
+    for (var i=0; i<arr.length; i++) {
+      var s = arr[i];
+      if (s < 0) {
+        s = -s-1;
+        y ^= 1 << s;
+      }
+      if (x & (1 << i)) {
+        y ^= 1 << s;
+      }
+    }
+    return y;
+}
+function convertImagesToWords(images:Uint8Array[], fmt:PixelEditorImageFormat) : number[] {
+    if (fmt.destfmt) fmt = fmt.destfmt;
+    var width = fmt.w;
+    var height = fmt.h;
+    var count = fmt.count || 1;
+    var bpp = fmt.bpp || 1;
+    var nplanes = fmt.np || 1;
+    var bitsperword = fmt.bpw || 8;
+    var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
+    var mask = (1 << bpp)-1;
+    var pofs = fmt.pofs || wordsperline*height*count;
+    var skip = fmt.skip || 0;
+    var words;
+    if (nplanes > 0 && fmt.sl) // TODO?
+        words = new Uint8Array(wordsperline*height*count);
+    else if (bitsperword <= 8)
+        words = new Uint8Array(wordsperline*height*count*nplanes);
+    else
+        words = new Uint32Array(wordsperline*height*count*nplanes);
+    for (var n=0; n<count; n++) {
+        var imgdata = images[n];
+        var i = 0;
+        for (var y=0; y<height; y++) {
+            var yp = fmt.flip ? height-1-y : y;
+            var ofs0 = n*wordsperline*height + yp*wordsperline;
+            var shift = 0;
+            for (var x=0; x<width; x++) {
+                var color = imgdata[i++];
+                var ofs = remapBits(ofs0, fmt.remap);
+                for (var p=0; p<nplanes; p++) {
+                    var c = (color >> (p*bpp)) & mask;
+                    words[ofs + p*pofs + skip] |= (fmt.brev ? (c << (bitsperword-shift-bpp)) : (c << shift));
+                }
+                shift += bpp;
+                if (shift >= bitsperword) {
+                    ofs0 += 1;
+                    shift = 0;
+                }
+            }
+        }
+    }
+    return words;
+}
+function exportFrameBuffer(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
+    var fmt = settings.exportFormat;
+    fmt.w = img.width;
+    fmt.h = img.height;
+    return new Uint8Array(convertImagesToWords([img.indexed], fmt);
+}
+function exportApple2HiresToHGR(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
+    // TODO: handle other dimensions
     var data = new Uint8Array(0x2000);
     var srcofs = 0;
     for (var y=0; y<img.height; y++) {
@@ -243,6 +326,40 @@ function apple2HiresToHGR(img:PixelsAvailableMessage) : Uint8Array {
     }
     return data;
 }
+// TODO: support VIC-20
+function exportC64Multi(img:PixelsAvailableMessage, settings:DithertronSettings) {
+    var w = settings.block.w;
+    var h = settings.block.h;
+    var bpp = (w == 4) ? 2 : 1;
+    var cols = img.width / w;
+    var rows = img.height / h;
+    var screen = new Uint8Array(cols * rows);
+    var color = new Uint8Array(cols * rows);
+    var char = new Uint8Array(0x2000); // @ $D800
+    for (var i=0; i<img.params.length; i++) {
+        var c1 = img.params[i] & 0xf;
+        var c2 = (img.params[i] >> 4) & 0xf;
+        var c3 = (img.params[i] >> 8) & 0xf;
+        screen[i] = c1 | (c2 << 4);
+        color[i] = c3; // some bits are unused
+    }
+    char[0x1fff] = img.params[img.params.length-1]; // background color
+    char[0x1ffe] = img.params[img.params.length-1] >> 8; // border color
+    var i = 0;
+    for (var y=0; y<img.height; y++) {
+        for (var x=0; x<img.width; x++) {
+            var ofs = (Math.floor(x / w) * h + Math.floor(y / h) * h * cols) + (y & (h-1));
+            var shift = (x & ((1 << bpp) - 1));
+            char[ofs] |= img.indexed[i] << shift;
+            i++;
+        }
+    }
+    var data = new Uint8Array(char.length + color.length + screen.length);
+    data.set(char, 0x0);
+    data.set(screen, char.length);
+    data.set(color, char.length + screen.length);
+    return data;
+}
 
 function getFilenamePrefix() {
     return dithertron.settings.id;
@@ -251,7 +368,7 @@ function downloadNativeFormat() {
     var img = dithertron.lastPixels;
     var fn = window[dithertron.settings.toNative];
     if (img && fn) {
-        var data = fn(img);
+        var data = fn(img, dithertron.settings);
         var blob = new Blob([data], {type: "application/octet-stream"});
         saveAs(blob, getFilenamePrefix() + ".bin");
     }
@@ -274,6 +391,7 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'VICII_Multi_Canvas',
         pal:VIC_NTSC_RGB,
         block:{w:4,h:8,colors:4},
+        toNative:'exportC64Multi',
     },
     {
         id:'c64.hires',
@@ -284,6 +402,7 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'ZXSpectrum_Canvas',
         pal:VIC_NTSC_RGB,
         block:{w:8,h:8,colors:2},
+        toNative:'exportC64Multi',
     },
     {
         id:'vic20.multi',
@@ -371,7 +490,7 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'Apple2_Canvas',
         pal:AP2HIRES_RGB,
         block:{w:7,h:1,colors:4},
-        toNative:'apple2HiresToHGR',
+        toNative:'exportApple2HiresToHGR',
     },
     {
         id:'apple2.lores',
@@ -381,6 +500,8 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:1.5,
         conv:'DitheringCanvas',
         pal:AP2LORES_RGB,
+        toNative:'exportFrameBuffer',
+        exportFormat:{bpp:4},
     },
     {
         id:'astrocade',
@@ -391,6 +512,8 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:ASTROCADE_RGB,
         reduce:4,
+        toNative:'exportFrameBuffer',
+        exportFormat:{bpp:2,brev:true},
     },
     {
         id:'vcs',
@@ -471,7 +594,9 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:CGA_RGB,
         reduce:16,
-    },
+        toNative:'exportFrameBuffer',
+        exportFormat:{bpp:1,np:4},
+   },
     {
         id:'williams',
         name:'Williams Arcade',

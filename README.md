@@ -6,6 +6,17 @@ performing cropping, downsampling, and dithering.
 
 For some formats (e.g. C64 multicolor) it also searches for good palette colors for individual subblocks.
 
+How To Use
+----------
+
+1. Upload an image, or select an example image from the pulldown.
+
+2. Choose a target format.
+
+3. Play with the sliders until you're happy with the result.
+
+4. Download the final image (PNG) or a binary file that can be loaded into the target machine.
+
 
 Graphics Formats Supported
 --------------------------
