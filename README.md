@@ -45,7 +45,7 @@ Graphics Formats Supported
 * Williams Arcade - 304 x 256, 16 out of 256 colors
 
 
-Usage
+Development
 -----
 
 Install modules:

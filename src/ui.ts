@@ -301,7 +301,7 @@ function exportFrameBuffer(img:PixelsAvailableMessage, settings:DithertronSettin
     var fmt = settings.exportFormat;
     fmt.w = img.width;
     fmt.h = img.height;
-    return new Uint8Array(convertImagesToWords([img.indexed], fmt);
+    return new Uint8Array(convertImagesToWords([img.indexed], fmt));
 }
 function exportApple2HiresToHGR(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     // TODO: handle other dimensions
@@ -808,6 +808,13 @@ window.addEventListener('load', function() {
         // TODO: resize canvas?
         drawRGBA(dest, msg.img);
         updatePaletteSwatches(msg.pal);
+        /*
+        if (msg.final) {
+            dest.toBlob((blob) => {
+                $("#pngBytes").text(blob.size+"");
+            }, 'image/png');
+        }
+        */
     }
 
     setTargetSystem(SYSTEM_LOOKUP['c64.multi']);

@@ -18,6 +18,7 @@ interface PixelsAvailableMessage {
     pal : Uint32Array;
     indexed : Uint8Array;
     params : Uint32Array;
+    final : boolean;
 }
 
 type DitherKernel = number[][];
@@ -574,7 +575,7 @@ class Dithertron {
         this.sourceImageData = imageData;
         this.reset();
     }
-    iterate() {
+    iterate() : boolean {
         if (this.dithcanv == null) {
             var sys = this.sysparams;
             var pal = new Uint32Array(sys.pal);
@@ -591,6 +592,7 @@ class Dithertron {
         }
         this.dithcanv.iterate();
         this.dithcanv.noise >>= 1; // divide by 2
+        var final = this.dithcanv.changes == 0 || this.dithcanv.iterateCount > 50;
         if (this.pixelsAvailable != null) {
             this.pixelsAvailable({
                 img:    this.dithcanv.img,
@@ -599,12 +601,13 @@ class Dithertron {
                 pal:    this.dithcanv.pal,
                 indexed:this.dithcanv.indexed,
                 params: (this.dithcanv as ParamDitherCanvas).params,
+                final:  final,
             });
         }
+        return !final;
     }
     iterateIfNeeded() {
-        if (this.dithcanv == null || (this.dithcanv.changes > 0 && this.dithcanv.iterateCount < 50)) {
-            this.iterate();
+        if (this.iterate()) {
             console.log(this.dithcanv.noise, this.dithcanv.changes, this.dithcanv.iterateCount);
         } else {
             this.stop();
