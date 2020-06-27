@@ -335,47 +335,56 @@ function exportApple2HiresToHGR(img:PixelsAvailableMessage, settings:DithertronS
     return data;
 }
 // TODO: support VIC-20
-function exportC64Multi(img:PixelsAvailableMessage, settings:DithertronSettings) {
+function exportCharMemory(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     var w = settings.block.w;
     var h = settings.block.h;
-    var bpp = (w == 4) ? 2 : 1;
+    var bpp = (w == 4) ? 2 : 1; // C64-multi vs C64-hires & ZX
+    var i = 0;
     var cols = img.width / w;
     var rows = img.height / h;
-    var screen = new Uint8Array(cols * rows);
-    var color = new Uint8Array(cols * rows);
-    var char = new Uint8Array(0x2000); // @ $D800
-    for (var i=0; i<img.params.length; i++) {
-        var c1 = img.params[i] & 0xf;
-        var c2 = (img.params[i] >> 4) & 0xf;
-        var c3 = (img.params[i] >> 8) & 0xf;
-        screen[i] = c1 | (c2 << 4);
-        color[i] = c3; // some bits are unused
-    }
-    char[0x1fff] = img.params[img.params.length-1]; // background color
-    char[0x1ffe] = img.params[img.params.length-1] >> 8; // border color
-    var i = 0;
+    var char = new Uint8Array(settings.width * settings.height * bpp / 8);
     for (var y=0; y<img.height; y++) {
         for (var x=0; x<img.width; x++) {
             var ofs = (Math.floor(x / w) * h + Math.floor(y / h) * h * cols) + (y & (h-1));
-            var shift = (x & ((1 << bpp) - 1));
+            var shift = (x & (w-1)) * bpp;
             char[ofs] |= img.indexed[i] << shift;
             i++;
         }
     }
-    return concatArrays([char, color, screen]);
+    return char;
 }
-function exportTMS9918A(img:PixelsAvailableMessage, settings:DithertronSettings) {
+function exportC64(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
+    var w = settings.block.w;
+    var h = settings.block.h;
+    var cols = img.width / w;
+    var rows = img.height / h;
+    var screen = new Uint8Array(cols * rows);
+    var color = new Uint8Array(cols * rows);
+    for (var i=0; i<img.params.length; i++) {
+        screen[i] = img.params[i];
+        color[i] = img.params[i] >> 8;
+    }
+    var char = exportCharMemory(img, settings);
+    var xtraword = img.params[img.params.length-1]; // background, border colors
+    var xtra = new Uint8Array(2);
+    xtra[0] = xtraword;
+    xtra[1] = xtraword << 8;
+    return concatArrays([char, screen, color, xtra]);
+}
+function exportWithAttributes(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     var char = exportFrameBuffer(img, settings);
     var attr = new Uint8Array(img.params);
     return concatArrays([char, attr]);
 }
-function exportNES5Color(img:PixelsAvailableMessage, settings:DithertronSettings) {
+function exportNES5Color(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     var char = exportFrameBuffer(img, settings);
     // TODO: attr block format
     var fmt = {w:settings.block.w, h:settings.block.h, bpp:2};
     var attr = new Uint8Array(convertImagesToWords([img.indexed], fmt));
     return concatArrays([char, attr]);
 }
+
+//
 
 function getFilenamePrefix() {
     // TODO: use filename as prefix
@@ -408,7 +417,7 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'VICII_Multi_Canvas',
         pal:VIC_NTSC_RGB,
         block:{w:4,h:8,colors:4},
-        toNative:'exportC64Multi',
+        toNative:'exportC64',
     },
     {
         id:'c64.hires',
@@ -419,7 +428,7 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'ZXSpectrum_Canvas',
         pal:VIC_NTSC_RGB,
         block:{w:8,h:8,colors:2},
-        toNative:'exportC64Multi',
+        toNative:'exportC64',
     },
     {
         id:'vic20.multi',
@@ -462,7 +471,7 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'VDPMode2_Canvas',
         pal:TMS9918_RGB,
         block:{w:8,h:1,colors:2},
-        toNative:'exportTMS9918A',
+        toNative:'exportWithAttributes',
         exportFormat:{w:256,h:192,bpp:1,brev:true,remap:[3,4,5,6,7,0,1,2,8,9,10,11,12]},
     },
     {
