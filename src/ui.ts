@@ -36,6 +36,7 @@ const worker = new Worker("./gen/dithertron.js");
 const dithertron = new ProxyDithertron(worker);
 
 var resizeImageData : Uint32Array;
+var filenameLoaded : string;
 
 //
 
@@ -387,8 +388,9 @@ function exportNES5Color(img:PixelsAvailableMessage, settings:DithertronSettings
 //
 
 function getFilenamePrefix() {
-    // TODO: use filename as prefix
-    return dithertron.settings.id;
+    var fn = filenameLoaded || "image";
+    try { fn = fn.split('.').shift(); } catch (e) { } // remove extension
+    return fn + "-" + dithertron.settings.id;
 }
 function downloadNativeFormat() {
     var img = dithertron.lastPixels;
@@ -464,7 +466,7 @@ const SYSTEMS : DithertronSettings[] = [
         block:{w:16,h:16,colors:4},
     },
     {
-        id:'vdp',
+        id:'msx',
         name:'TMS9918A (Mode 2)',
         width:256,
         height:192,
@@ -606,7 +608,7 @@ const SYSTEMS : DithertronSettings[] = [
         reduce:16,
     },
     {
-        id:'ega.09h',
+        id:'x86.ega.09h',
         name:'EGA Mode 0Dh',
         width:320,
         height:200,
@@ -745,6 +747,7 @@ var contrastSlider = document.getElementById('contrastSlider') as HTMLInputEleme
 var saturationSlider = document.getElementById('saturationSlider') as HTMLInputElement;
 var noiseSlider = document.getElementById('noiseSlider') as HTMLInputElement;
 var diffuseSlider = document.getElementById('diffuseSlider') as HTMLInputElement;
+var imageUpload = document.getElementById("imageUpload") as HTMLInputElement;
 const image = document.getElementById('srcimage') as HTMLImageElement;
 const resize = document.getElementById('resizecanvas') as HTMLCanvasElement;
 const dest = document.getElementById('destcanvas') as HTMLCanvasElement;
@@ -759,7 +762,6 @@ const cropper = new Cropper(image, {
     },
 });
 function loadSourceImage(url) {
-    //cropper.clear();
     cropper.replace(url);
 }
 //
@@ -797,8 +799,10 @@ var EXAMPLE_IMAGES = [
 
 window.addEventListener('load', function() {
     document.querySelector('input[type="file"]').addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            var url = URL.createObjectURL(this.files[0]);
+        var file = this.files && this.files[0];
+        if (file) {
+            filenameLoaded = file.name;
+            var url = URL.createObjectURL(file);
             loadSourceImage(url);
         }
     });
@@ -808,7 +812,9 @@ window.addEventListener('load', function() {
     });
     $("#examplesMenu").click((e) => {
         var filename = $(e.target).text();
+        filenameLoaded = filename;
         loadSourceImage("images/" + filename);
+        imageUpload.value = "";
     });
 
     SYSTEMS.forEach(sys => {
