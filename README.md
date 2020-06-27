@@ -1,10 +1,16 @@
 Dithertron
 ==========
 
-This online tool converts full-color images to 8-bit retro formats,
-performing cropping, downsampling, and dithering.
+[Try it online!](https://8bitworkshop.com/dithertron/)
 
-For some formats (e.g. C64 multicolor) it also searches for good palette colors for individual subblocks.
+This interactive web-based tool converts full-color images to full-screen 8-bit retro formats,
+performing cropping, resizing, palette selection, and dithering.
+
+Some formats (e.g. C64 multicolor, TMS9918A, ZX Spectrum, NES 5-color)
+split the screen into smaller sub-blocks that each can only display 2 to 4 colors of a larger palette.
+Neighboring sub-blocks may affect each other when dithering is enabled,
+so Dithertron chooses good colors for each sub-block and iterates until they stabilize.
+
 
 How To Use
 ----------
@@ -63,7 +69,7 @@ TODO
 ----
 
 * Allow download of data files for target system
-* Import into 8bitworkshop
+* Import into 8bitworkshop with image viewer code
 * Palette editing
 * Search for optimal crop window
 * Check pixel-exact source images

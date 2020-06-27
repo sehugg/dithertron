@@ -33,7 +33,7 @@ class DitheringCanvas {
     img:Uint32Array;
     ref:Uint32Array;
     alt:Uint32Array;
-    err:Int16Array; // (n*3)
+    err:Float32Array; // (n*3)
     indexed:Uint8Array;
     width:number; // integer
     height:number;
@@ -64,7 +64,7 @@ class DitheringCanvas {
         this.ghisto = new Uint32Array(this.pal.length);
         this.img = new Uint32Array(this.ref);
         this.alt = new Uint32Array(this.ref);
-        this.err = new Int16Array(this.ref.length * 3);
+        this.err = new Float32Array(this.ref.length * 3);
         this.changes = 0;
     }
     init() {
