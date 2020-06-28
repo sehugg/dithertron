@@ -1,4 +1,19 @@
 
+export function hex(v:number, nd?:number) {
+    if (!nd) nd = 2;
+    return toradix(v,nd,16);
+}
+export function toradix(v:number, nd:number, radix:number) {
+    try {
+        var s = v.toString(radix).toUpperCase();
+        while (s.length < nd)
+        s = "0" + s;
+        return s;
+    } catch (e) {
+        return v+"";
+    }
+}
+  
 type PixelEditorImageFormat = {
     w?:number
     h?:number
@@ -127,19 +142,24 @@ function exportCharMemory(img:PixelsAvailableMessage, settings:DithertronSetting
             shift = 8 - bpp - shift; // reverse bits
             var palidx = img.indexed[i];
             var idx = 0;
-            if (palidx == (param & 0xf))
-                idx = 2; // lower nibble
-            else if (palidx == ((param >> 4) & 0xf))
-                idx = 1; // upper nibble
-            else if (palidx == ((param >> 8) & 0xf))
-                idx = 3; // color ram
+            if (bpp == 1) {
+                if (palidx == (param & 0xf))
+                    idx = 1;
+            } else {
+                if (palidx == (param & 0xf))
+                    idx = 2; // lower nibble
+                else if (palidx == ((param >> 4) & 0xf))
+                    idx = 1; // upper nibble
+                else if (palidx == ((param >> 8) & 0xf))
+                    idx = 3; // color ram
+            }
             char[ofs] |= idx << shift;
             i++;
         }
     }
     return char;
 }
-function exportC64(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
+function exportC64Multi(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     var w = settings.block.w;
     var h = settings.block.h;
     var cols = img.width / w;
@@ -157,10 +177,41 @@ function exportC64(img:PixelsAvailableMessage, settings:DithertronSettings) : Ui
     xtra[1] = (xtraword << 8) & 0xff;
     return concatArrays([char, screen, color, xtra]);
 }
+function exportC64Hires(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
+    var w = settings.block.w;
+    var h = settings.block.h;
+    var cols = img.width / w;
+    var rows = img.height / h;
+    var screen = new Uint8Array(cols * rows);
+    for (var i=0; i<screen.length; i++) {
+        var p = img.params[i] & 0xff;
+        screen[i] = (p << 4) | (p >> 4);
+    }
+    var char = exportCharMemory(img, settings);
+    return concatArrays([char, screen]);
+}
 function exportWithAttributes(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     var char = exportFrameBuffer(img, settings);
     var attr = new Uint8Array(img.params);
     return concatArrays([char, attr]);
+}
+function exportNES(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
+    var i = 0;
+    var cols = img.width / 8;
+    var rows = img.height / 8;
+    var char = new Uint8Array(img.width * img.height * 2 / 8);
+    for (var y=0; y<img.height; y++) {
+        for (var x=0; x<img.width; x++) {
+            var charofs = Math.floor(x / 8) + Math.floor(y / 8) * cols;
+            var ofs = charofs * 16 + (y & 7);
+            var shift = 7 - (x & 7);
+            var idx = img.indexed[i];
+            char[ofs] |= (idx & 1) << shift;
+            char[ofs+8] |= ((idx>>1) & 1) << shift;
+            i++;
+        }
+    }
+    return char;
 }
 function exportNES5Color(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     var char = exportFrameBuffer(img, settings);
@@ -168,6 +219,10 @@ function exportNES5Color(img:PixelsAvailableMessage, settings:DithertronSettings
     var fmt = {w:settings.block.w, h:settings.block.h, bpp:2};
     var attr = new Uint8Array(convertImagesToWords([img.indexed], fmt));
     return concatArrays([char, attr]);
+}
+
+function convertToSystemPalette(pal : Uint32Array, syspal : number[]) {
+    return pal.map((rgba) => syspal.indexOf(rgba & 0xffffff));
 }
 
 //
@@ -320,6 +375,12 @@ XtraData equ ColorData+1000
     return code;
 }
 
+function getFileViewerCode_c64_hires() : string {
+    var code = getFileViewerCode_c64_multi();
+    code = code.replace('lda #$18','lda #$08').replace('multicolor','single');
+    return code;
+}
+
 function getFileViewerCode_apple2_hires() : string {
     var code = `
     processor 6502
@@ -334,5 +395,113 @@ Start:
     org $2000	; start of hires page 1
     incbin "$DATAFILE"
 `;
+    return code;
+}
+
+function getFileViewerCode_nes() : string {
+    var code = `
+
+	include "nesdefs.dasm"
+
+;;;;; VARIABLES
+
+	seg.u ZEROPAGE
+	org $0
+
+;;;;; NES CARTRIDGE HEADER
+
+	NES_HEADER 0,2,1,0 ; mapper 0, 2 PRGs, 1 CHR, horiz. mirror
+
+;;;;; START OF CODE
+Start:
+; wait for PPU warmup; clear CPU RAM
+; byte $02
+	NES_INIT	; set up stack pointer, turn off PPU
+    jsr WaitSync	; wait for VSYNC
+    jsr ClearRAM	; clear RAM
+    jsr WaitSync	; wait for VSYNC (and PPU warmup)
+; set palette and nametable VRAM
+	jsr SetPalette	; set palette colors
+    jsr FillVRAM	; print message in name table
+; reset PPU address and scroll registers
+    lda #0
+    sta PPU_ADDR
+    sta PPU_ADDR	; PPU addr = $0000
+    sta PPU_SCROLL
+    sta PPU_SCROLL  ; PPU scroll = $0000
+; activate PPU graphics
+    lda #MASK_BG
+    sta PPU_MASK 	; enable rendering
+    lda #CTRL_NMI
+    sta PPU_CTRL	; enable NMI
+.endless
+	jmp .endless	; endless loop
+
+; set palette colors
+SetPalette: subroutine
+; set PPU address to palette start
+	PPU_SETADDR $3f00
+    ldy #0
+.loop:
+	lda Palette,y	; lookup byte in ROM
+	sta PPU_DATA	; store byte to PPU data
+    iny		; Y = Y + 1
+    cpy #4		; is Y equal to max colors?
+	bne .loop	; not yet, loop
+    rts		; return to caller
+
+; fill video RAM with "Hello World" msg
+FillVRAM: subroutine
+; set PPU address to name table A
+	PPU_SETADDR $2000
+    ldy #12		; # of rows
+    lda #1		; first tile index
+.nextrow
+    ldx #20		; # of columns
+.loop:
+	sta PPU_DATA	; store+advance PPU
+    clc
+    adc #1
+    dex
+    bne .loop
+    pha
+    lda #$00	; blank
+    REPEAT 12	; 32 - 20 = 12 cols/row
+	sta PPU_DATA	; store+advance PPU
+    REPEND
+    pla
+    dey
+    bne .nextrow
+.end
+    rts		; return to caller
+
+;;;;; COMMON SUBROUTINES
+
+	include "nesppu.dasm"
+
+;;;;; INTERRUPT HANDLERS
+
+NMIHandler:
+	rti		; return from interrupt
+
+;;;;; CONSTANT DATA
+
+Palette:
+	hex 1f;screen color
+    hex 01112100;background 0
+
+;;;;; CPU VECTORS
+
+	NES_VECTORS
+
+;;;;; TILE SETS
+
+	org $10000
+    ds 16	; blanks
+    incbin "$DATAFILE"
+`;
+    var palinds = convertToSystemPalette(dithertron.lastPixels.pal, dithertron.settings.pal);
+    code = code.replace('hex 1f;screen color', 'hex '+hex(palinds[0]));
+    code = code.replace('hex 01112100;background 0', 'hex '+hex(palinds[1])+hex(palinds[2])+hex(palinds[3])+hex(0));
     return code;
 }
