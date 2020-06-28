@@ -60,7 +60,6 @@ class DitheringCanvas {
     tmp:Uint8ClampedArray;
     tmp2:Uint32Array;
     changes : number;
-    ghisto : Uint32Array;
     noise : number = 0;
     diffuse : number = 0.8;
     ditherfn = [];
@@ -81,7 +80,6 @@ class DitheringCanvas {
     }
     reset() {
         this.indexed = new Uint8Array(this.ref.length);
-        this.ghisto = new Uint32Array(this.pal.length);
         this.img = new Uint32Array(this.ref);
         this.alt = new Uint32Array(this.ref);
         this.err = new Float32Array(this.ref.length * 3);
@@ -99,7 +97,8 @@ class DitheringCanvas {
         // store the error-modified color
         this.alt[offset] = this.tmp2[0];
         // find closest palette color
-        var palidx = this.getClosest(this.tmp2[0], this.getValidColors(offset));
+        var valid = this.getValidColors(offset);
+        var palidx = this.getClosest(this.tmp2[0], valid);
         var rgbimg = this.pal[palidx];
         // compute error and distribute to neighbors
         var err = getRGBADiff(rgbref, rgbimg);
@@ -278,22 +277,23 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     w=4;
     h=8;
     allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-    bgcolor : number = 0;
-    auxcolor : number = 0;
-    bordercolor : number = 0;
+    bgcolor : number;
+    auxcolor : number;
+    bordercolor : number;
+    // TODO: choose global colors before init?
     init() {
-        this.bgcolor = 0;
-        this.ghisto.fill(0);
+        // find global colors
+        var choices = reducePaletteChoices(this.ref, this.pal, 3);
+        this.bgcolor = choices[0] && choices[0].ind;
+        this.auxcolor = choices[1] && choices[1].ind;
+        this.bordercolor = choices[2] && choices[2].ind;
+        // fill params of subblocks
         this.params = new Uint32Array(this.width/this.w * this.height/this.h + 1);
-        for (var i=0; i<this.params.length; i++) {
+        for (var i=0; i<this.params.length-1; i++) {
             this.guessParam(i);
-            let choices = getChoices(this.ghisto);
-            if (choices.length > 0) this.bgcolor = choices[0].ind;
-            // for VIC-20
-            if (choices.length > 1) this.auxcolor = choices[1].ind;
-            if (choices.length > 2) this.bordercolor = choices[2].ind;
         }
-        this.params[this.params.length - 1] = this.bgcolor | (this.auxcolor << 8) | (this.bordercolor << 16);
+        // +1 extra parameter for global colors
+        this.params[this.params.length - 1] = this.bgcolor | (this.auxcolor << 4) | (this.bordercolor << 8);
     }
     getValidColors(offset) {
         var ncols = this.width / this.w;
@@ -306,11 +306,11 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         return [this.bgcolor, c1, c2, c3];
     }
     guessParam(p) {
+        if (p == this.params.length - 1) return; // don't mess with last param
         var ncols = this.width / this.w;
         var col = p % ncols;
         var row = Math.floor(p / ncols);
         var offset = col*this.w + row*this.width*this.h;
-        var localColors = this.getLocalColors();
         // rank all colors
         var histo = new Uint32Array(16);
         var w = this.w;
@@ -319,26 +319,22 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         for (var y=-b; y<h+b; y++) {
             var o = offset + y*this.width;
             for (var x=-b; x<w+b; x++) {
-                this.updateHisto(histo, localColors, o+x);
+                this.updateHisto(histo, this.allColors, o+x);
             }
         }
+        // don't worry about global colors
+        histo[this.bgcolor] = 0;
+        // get best choices for subblock
         var choices = getChoices(histo);
-        var ind1 = choices[0].ind;
+        var ind1 = choices[0] && choices[0].ind;
         var ind2 = choices[1] && choices[1].ind;
         var ind3 = choices[2] && choices[2].ind;
-        this.ghisto[ind1] += 5;
-        this.ghisto[ind2] += 2;
-        this.ghisto[ind3] += 1;
         return this.params[p] = ind1 + (ind2<<4) + (ind3<<8);
-    }
-    getLocalColors() {
-        return this.allColors.filter((ind) => ind != this.bgcolor);
     }
     updateHisto(histo, colors, i) {
         // get current color (or reference for 1st time)
         var c1 = this.indexed[i]|0;
-        if (colors.indexOf(c1) >= 0) // don't add global colors
-            histo[c1] += 100;
+        histo[c1] += 100;
         // get error color (TODO: why alt not img like 2-color kernels?)
         var rgbcomp = this.alt[i]|0;
         var c2 = this.getClosest(rgbcomp, colors);
@@ -355,6 +351,7 @@ class VIC20_Multi_Canvas extends VICII_Multi_Canvas {
         var c1 = this.params[i] & 0xf;
         return [this.bgcolor, this.auxcolor, this.bordercolor, c1];
     }
+    // TODO
     getLocalColors() {
         return this.allColors.filter((ind) => ind != this.bgcolor && ind != this.auxcolor && ind != this.bordercolor);
     }
@@ -624,10 +621,10 @@ class Dithertron {
     }
     iterateIfNeeded() {
         if (this.iterate()) {
-            console.log(this.dithcanv.noise, this.dithcanv.changes, this.dithcanv.iterateCount);
+            //console.log(this.dithcanv.noise, this.dithcanv.changes, this.dithcanv.iterateCount);
         } else {
             this.stop();
-            console.log('stop');
+            console.log('stop', this.dithcanv.iterateCount);
         }
     }
     reset() {

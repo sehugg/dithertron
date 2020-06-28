@@ -99,10 +99,8 @@ function exportApple2HiresToHGR(img:PixelsAvailableMessage, settings:DithertronS
             var hibit = 0;
             for (var i=0; i<7; i++) {
                 var col = img.indexed[srcofs++];
-                if (col >= 3) {
-                    hibit = 0x80;
-                    col -= 2;
-                }
+                if (col == 3 || col == 4) hibit |= 0x80;
+                if (col >= 3) col -= 2;
                 z |= (col << i*2);
             }
             data[destofs++] = (z & 0x7f) | hibit;
@@ -119,12 +117,23 @@ function exportCharMemory(img:PixelsAvailableMessage, settings:DithertronSetting
     var i = 0;
     var cols = img.width / w;
     var rows = img.height / h;
-    var char = new Uint8Array(settings.width * settings.height * bpp / 8);
+    var char = new Uint8Array(img.width * img.height * bpp / 8);
     for (var y=0; y<img.height; y++) {
         for (var x=0; x<img.width; x++) {
-            var ofs = (Math.floor(x / w) * h + Math.floor(y / h) * h * cols) + (y & (h-1));
+            var charofs = Math.floor(x / w) + Math.floor(y / h) * cols;
+            var param = img.params[charofs];
+            var ofs = charofs * h + (y & (h-1));
             var shift = (x & (w-1)) * bpp;
-            char[ofs] |= img.indexed[i] << shift;
+            shift = 8 - bpp - shift; // reverse bits
+            var palidx = img.indexed[i];
+            var idx = 0;
+            if (palidx == (param & 0xf))
+                idx = 2; // lower nibble
+            else if (palidx == ((param >> 4) & 0xf))
+                idx = 1; // upper nibble
+            else if (palidx == ((param >> 8) & 0xf))
+                idx = 3; // color ram
+            char[ofs] |= idx << shift;
             i++;
         }
     }
@@ -137,15 +146,15 @@ function exportC64(img:PixelsAvailableMessage, settings:DithertronSettings) : Ui
     var rows = img.height / h;
     var screen = new Uint8Array(cols * rows);
     var color = new Uint8Array(cols * rows);
-    for (var i=0; i<img.params.length; i++) {
+    for (var i=0; i<screen.length; i++) {
         screen[i] = img.params[i];
         color[i] = img.params[i] >> 8;
     }
     var char = exportCharMemory(img, settings);
-    var xtraword = img.params[img.params.length-1]; // background, border colors
+    var xtraword = img.params[img.params.length - 1]; // background, border colors
     var xtra = new Uint8Array(2);
-    xtra[0] = xtraword;
-    xtra[1] = xtraword << 8;
+    xtra[0] = xtraword & 0xff;
+    xtra[1] = (xtraword << 8) & 0xff;
     return concatArrays([char, screen, color, xtra]);
 }
 function exportWithAttributes(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
@@ -159,4 +168,171 @@ function exportNES5Color(img:PixelsAvailableMessage, settings:DithertronSettings
     var fmt = {w:settings.block.w, h:settings.block.h, bpp:2};
     var attr = new Uint8Array(convertImagesToWords([img.indexed], fmt));
     return concatArrays([char, attr]);
+}
+
+//
+
+function getFilenamePrefix() {
+    var fn = filenameLoaded || "image";
+    try { fn = fn.split('.').shift(); } catch (e) { } // remove extension
+    return fn + "-" + dithertron.settings.id;
+}
+
+function getNativeFormatData() {
+    var img = dithertron.lastPixels;
+    var fn = window[dithertron.settings.toNative];
+    return img && fn && fn(img, dithertron.settings);
+}
+function downloadNativeFormat() {
+    var data = getNativeFormatData();
+    if (data != null) {
+        var blob = new Blob([data], {type: "application/octet-stream"});
+        saveAs(blob, getFilenamePrefix() + ".bin");
+    }
+}
+function downloadImageFormat() {
+    dest.toBlob((blob) => {
+        saveAs(blob, getFilenamePrefix() + ".png");
+    }, "image/png");
+}
+function addHiddenField(form, name, val) {
+    $('<input type="hidden"/>').attr('name', name).val(val).appendTo(form);
+}
+function byteArrayToString(data : number[] | Uint8Array) : string {
+  var str = "";
+  if (data != null) {
+    var charLUT = new Array();
+    for (var i = 0; i < 256; ++i)
+      charLUT[i] = String.fromCharCode(i);
+    var len = data.length;
+    for (var i = 0; i < len; i++)
+      str += charLUT[data[i]];
+  }
+  return str;
+}
+function stringToByteArray(s:string) : Uint8Array {
+    var a = new Uint8Array(s.length);
+    for (var i=0; i<s.length; i++)
+        a[i] = s.charCodeAt(i);
+    return a;
+}
+function getCodeConvertFunction() : () => string {
+    var convertFuncName = 'getFileViewerCode_' + dithertron.settings.id.replace(/[^a-z0-9]/, '_');
+    var convertFunc = window[convertFuncName];
+    return convertFunc;
+}
+async function gotoIDE(e) {
+    if (confirm("Open image in 8bitworkshop?")) {
+        //e.target.disabled = true;
+        var platform_id = dithertron.settings.id.split('.')[0];
+        var form = $(document.forms['ideForm'] as HTMLFormElement);
+        form.empty();
+        addHiddenField(form, "platform", platform_id);
+        // TODO
+        var codeFilename = "viewer-" + getFilenamePrefix() + ".asm";
+        var dataFilename = getFilenamePrefix() + ".bin";
+        addHiddenField(form, "file0_name", codeFilename);
+        var code = getCodeConvertFunction()();
+        code = code.replace("$DATAFILE", getFilenamePrefix() + ".bin");
+        addHiddenField(form, "file0_data", code);
+        addHiddenField(form, "file0_type", "utf8");
+        addHiddenField(form, "file1_name", dataFilename);
+        addHiddenField(form, "file1_data", btoa(byteArrayToString(getNativeFormatData())));
+        addHiddenField(form, "file1_type", "binary");
+        form.submit();
+    }
+}
+
+function getFileViewerCode_c64_multi() : string {
+    var code = `
+    processor 6502
+    include "basicheader.dasm"
+
+Src equ $02
+Dest equ $04
+
+Start:
+    lda #$38   ; 25 rows, on, bitmap
+    sta $d011  ; VIC control #1
+    lda #$18   ; 40 column, multicolor
+    sta $d016  ; VIC control #2
+    lda #$02
+    sta $dd00  ; set VIC bank ($4000-$7FFF)
+    lda #$80
+    sta $d018  ; set VIC screen to $6000
+    lda XtraData+0
+    sta $d020  ; border
+    sta $d021  ; background
+    lda #0
+    sta Dest
+; copy char memory
+    lda #<CharData
+    sta Src
+    lda #>CharData
+    sta Src+1
+    lda #$40
+    sta Dest+1
+    ldx #$20
+    jsr CopyMem
+; copy screen memory
+    lda #<ScreenData
+    sta Src
+    lda #>ScreenData
+    sta Src+1
+    lda #$60
+    sta Dest+1
+    ldx #$04
+    jsr CopyMem
+; copy color RAM
+    lda #<ColorData
+    sta Src
+    lda #>ColorData
+    sta Src+1
+    lda #$d8
+    sta Dest+1
+    ldx #4
+    jsr CopyMem
+; infinite loop
+    jmp .
+
+; copy data from Src to Dest
+; X = number of bytes * 256
+CopyMem
+    ldy #0
+.Loop
+    lda (Src),y
+    sta (Dest),y
+    iny
+    bne .Loop
+    inc Src+1
+    inc Dest+1
+    dex
+    bne .Loop
+    rts
+
+; bitmap data
+CharData equ .
+ScreenData equ CharData+8000
+ColorData equ ScreenData+1000
+XtraData equ ColorData+1000
+	incbin "$DATAFILE"
+`;
+    return code;
+}
+
+function getFileViewerCode_apple2_hires() : string {
+    var code = `
+    processor 6502
+    seg Code
+    org $803	; start of program
+Start:
+    sta $c050	; set graphics
+    sta $c052	; no mixed mode
+    sta $c057	; set hires
+    jmp Start	; infinite loop
+
+    org $2000	; start of hires page 1
+    incbin "$DATAFILE"
+`;
+    return code;
 }

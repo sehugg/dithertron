@@ -100,20 +100,22 @@ img.crop {
         </div>
         <div class="col-md-6">
             <div class="alert alert-info">
-                <div class="float-right">
-                    <button id="downloadImageBtn" type="button" class="btn btn-secondary" title="Download a PNG image">PNG <i class="fa fa-download"></i></button>
-                    <button id="downloadNativeBtn" type="button" class="btn btn-secondary" title="Download a binary file in the target format">BIN <i class="fa fa-download"></i></button>
-                </div>
-                Convert to: <select id="targetFormatSelect" title="Select the target format"></select>
+                Convert to:
+                <select id="targetFormatSelect" title="Select the target format"></select>
                 <br>
                 <small><span id="targetFormatInfo"></span></small>
                 <br>
+                <div>
+                    <button id="downloadImageBtn" type="button" class="btn btn-secondary btn-sm" title="Download a PNG image">PNG <i class="fa fa-download"></i></button>
+                    <button id="downloadNativeBtn" type="button" class="btn btn-secondary btn-sm" title="Download a binary file in the target format">BIN <i class="fa fa-download"></i></button>
+                    <button id="gotoIDE" type="button" class="btn btn-secondary btn-sm" title="Open in 8bitworkshop">Open in 8bitworkshop <i class="fa fa-share"></i></button>
+                </div>
             </div>
         </div>
     </div>
     <div class="row">
         <div class="col-md-6">
-            <img class="crop" id="srcimage" src="./images/seurat.jpg">
+            <img class="crop" id="srcimage">
         </div>
         <div class="col-md-6">
             <div>
@@ -188,6 +190,9 @@ img.crop {
     </div>
     <!-- hidden canvas-->
     <canvas id="resizecanvas" style="display:none">
+    <!-- hidden form -->
+    <FORM action="/" method="GET" id="ideForm" target="_ide">
+    </FORM>
 </div>
 
 <script src="./gen/palettes.js"></script>

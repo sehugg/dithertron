@@ -67,30 +67,6 @@ const ALL_DITHER_SETTINGS : DitherSetting[] = [
     {name:"Diamond", kernel:DITHER_VDIAMOND},
 ];
 
-//
-
-function getFilenamePrefix() {
-    var fn = filenameLoaded || "image";
-    try { fn = fn.split('.').shift(); } catch (e) { } // remove extension
-    return fn + "-" + dithertron.settings.id;
-}
-function downloadNativeFormat() {
-    var img = dithertron.lastPixels;
-    var fn = window[dithertron.settings.toNative];
-    if (img && fn) {
-        var data = fn(img, dithertron.settings);
-        var blob = new Blob([data], {type: "application/octet-stream"});
-        saveAs(blob, getFilenamePrefix() + ".bin");
-    }
-}
-function downloadImageFormat() {
-    dest.toBlob((blob) => {
-        saveAs(blob, getFilenamePrefix() + ".png");
-    }, "image/png");
-}
-
-//
-
 const ERROR_FUNCS = [
     {id:'hue', name:"Hue-Based"},
     {id:'perceptual', name:"Perceptual"},
@@ -239,6 +215,7 @@ function setTargetSystem(sys : DithertronSettings) {
     }
     $("#noiseSection").css('display',showNoise?'flex':'none');
     $("#downloadNativeBtn").css('display',sys.toNative?'inline':'none');
+    $("#gotoIDE").css('display',getCodeConvertFunction()?'inline':'none');
     cropper.replace(cropper.url);
 }
 
@@ -307,6 +284,8 @@ window.addEventListener('load', function() {
     }
 
     setTargetSystem(SYSTEM_LOOKUP['c64.multi']);
+    filenameLoaded = "seurat.jpg";
+    loadSourceImage("images/" + filenameLoaded);
 
     $("#diffuseSlider").on('change', resetImage);
     $("#noiseSlider").on('change', resetImage);
@@ -324,6 +303,7 @@ window.addEventListener('load', function() {
     $("#errorFuncSelect").on('change', resetImage);
     $("#downloadImageBtn").click(downloadImageFormat);
     $("#downloadNativeBtn").click(downloadNativeFormat);
+    $("#gotoIDE").click(gotoIDE);
 });
 
 /*
