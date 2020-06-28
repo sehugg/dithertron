@@ -38,27 +38,6 @@ const dithertron = new ProxyDithertron(worker);
 var resizeImageData : Uint32Array;
 var filenameLoaded : string;
 
-//
-
-interface DithertronSettings {
-    id: string;
-    name: string;
-    width: number;
-    height: number;
-    conv: string; //new (...args: any[]) => DitheringCanvas;
-    pal: number[];
-
-    scaleX?: number; // aspect ratio
-    errfn?: string; //(rgb:number,rgb2:number) => number;
-    reduce?: number;
-    diffuse?: number;
-    noise?: number;
-    ditherfn?: DitherKernel;
-    block?: {w:number, h:number, colors:number};
-    toNative?: string;
-    exportFormat?: PixelEditorImageFormat;
-}
-
 // DITHER SETTINGS
 const DITHER_FLOYD = [[1, 0, 7/16], [-1, 1, 3/16], [0, 1, 5/16], [1, 1, 1/16]];
 const DITHER_FALSEFLOYD = [[1, 0, 3/8], [0, 1, 3/8], [1, 1, 2/8]];

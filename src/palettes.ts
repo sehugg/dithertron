@@ -151,13 +151,15 @@ const TIC80_RGB = [
     0xDAD45E,
     0xDEEED6,
 ];
-// TODO
+// TODO: https://geeks-world.github.io/articles/467811/index.html
 const CHANNELF_RGB = [
     // background
+    /*
     0xe0e0e0,
     0x101010,
     0x91ffa6,
     0xced0ff,
+    */
     // foreground
     0xfcfcfc,
     0xff3153,

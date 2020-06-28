@@ -11,6 +11,26 @@ function range(start:number,end:number) : number[] {
     return arr;
 }
 
+interface DithertronSettings {
+    id: string;
+    name: string;
+    width: number;
+    height: number;
+    conv: string; //new (...args: any[]) => DitheringCanvas;
+    pal: number[];
+
+    aspect?: number; // aspect ratio for crop rectangle, default 4/3 (TODO)
+    scaleX?: number; // aspect ratio for screen pixels
+    errfn?: string; //(rgb:number,rgb2:number) => number;
+    reduce?: number;
+    diffuse?: number;
+    noise?: number;
+    ditherfn?: DitherKernel;
+    block?: {w:number, h:number, colors:number};
+    toNative?: string;
+    exportFormat?: PixelEditorImageFormat;
+}
+
 interface PixelsAvailableMessage {
     img : Uint32Array;
     width : number;
@@ -539,6 +559,7 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     return choices;
 }
 function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: number) : Uint32Array {
+    if (colors.length == count) return new Uint32Array(colors);
     // reduce palette before we reduce the palette
     if (colors.length >= count*2) {
         colors = reducePalette(imageData, colors, count*2);
@@ -548,6 +569,8 @@ function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: numbe
 }
 
 //
+
+const MAX_ITERATE_COUNT = 75;
 
 interface DithertronInterface {
     iterate();
@@ -585,7 +608,7 @@ class Dithertron {
         }
         this.dithcanv.iterate();
         this.dithcanv.noise >>= 1; // divide by 2
-        var final = this.dithcanv.changes == 0 || this.dithcanv.iterateCount > 50;
+        var final = this.dithcanv.changes == 0 || this.dithcanv.iterateCount > MAX_ITERATE_COUNT;
         if (this.pixelsAvailable != null) {
             this.pixelsAvailable({
                 img:    this.dithcanv.img,
