@@ -24,7 +24,7 @@ const SYSTEMS : DithertronSettings[] = [
     },
     {
         id:'nes',
-        name:'NES (4 color)',
+        name:'NES (4 color, 240 tiles)',
         width:160,
         height:96,
         scaleX:8/7,
@@ -77,7 +77,31 @@ const SYSTEMS : DithertronSettings[] = [
         toNative:'exportFrameBuffer',
         exportFormat:{bpp:2,brev:true},
     },
+
     null,
+    
+    {
+        id:'nes4f',
+        name:'NES (4 color, full screen)',
+        width:256,
+        height:240,
+        scaleX:8/7,
+        conv:'DitheringCanvas',
+        pal:NES_RGB,
+        reduce:4,
+        toNative:'exportNES',
+    },
+    {
+        id:'nes5f',
+        name:'NES (5 color, full screen)',
+        width:256,
+        height:240,
+        scaleX:8/7,
+        conv:'NES_Canvas',
+        pal:NES_RGB,
+        reduce:5,
+        toNative:'exportNES',
+    },
     {
         id:'atari7800.160a',
         name:'Atari 7800 (160A)',
