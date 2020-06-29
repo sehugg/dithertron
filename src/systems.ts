@@ -62,8 +62,7 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'VDPMode2_Canvas',
         pal:TMS9918_RGB,
         block:{w:8,h:1,colors:2},
-        toNative:'exportWithAttributes',
-        exportFormat:{w:256,h:192,bpp:1,brev:true,remap:[3,4,5,6,7,0,1,2,8,9,10,11,12]},
+        toNative:'exportTMS9918',
     },
     {
         id:'zx',

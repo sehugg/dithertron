@@ -161,73 +161,11 @@ abstract class ParamDitherCanvas extends DitheringCanvas {
         }
     }
 }
-// TODO: merge common code
-class VDPMode2_Canvas extends ParamDitherCanvas {
-    w=8;
-    h=1;
-    allColors = [0,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-    guessParam(p) {
-        var offset = p * this.w;
-        var colors = this.allColors;
-        var histo = new Uint32Array(16);
-        for (var i=0; i<this.w; i++) {
-            var c1 = this.indexed[offset+i]|0;
-            histo[c1] += 100;
-            var c2 = this.getClosest(this.alt[offset+i]|0, colors);
-            histo[c2] += 1 + this.noise;
-        }
-        var choices = getChoices(histo);
-        var ind1 = choices[0].ind;
-        var ind2 = choices[1] && choices[1].ind;
-        if (ind1 > ind2) {
-            var tmp = ind1;
-            ind1 = ind2;
-            ind2 = tmp;
-        }
-        this.params[p] = ind1 + (ind2 << 4);
-        //if (offset < 100) console.log(p, choices);
-    }
-    getValidColors(offset) {
-        var i = Math.floor(offset / this.w);
-        var mask = this.pal.length - 1;
-        var c1 = this.params[i] & mask;
-        var c2 = (this.params[i]>>4) & mask;
-        return [c1, c2];
-    }
-}
-class Apple2_Canvas extends VDPMode2_Canvas {
-    w=7;
-    allColors = [0,1,2,3,4,5];
-    guessParam(p) {
-        var offset = p * this.w;
-        var colors = this.allColors;
-        var histo = new Uint32Array(16);
-        for (var i=0; i<this.w; i++) {
-            var c1 = this.indexed[offset+i]|0;
-            histo[c1] += 100;
-            var c2 = this.getClosest(this.alt[offset+i]|0, colors);
-            histo[c2] += 1 + this.noise;
-        }
-        var hibit = histo[3]+histo[4] > histo[1]+histo[2];
-        this.params[p] = hibit ? 1 : 0;
-    }
-    getValidColors(offset) {
-        var i = Math.floor(offset / this.w);
-        var hibit = (this.params[i] & 1) != 0;
-        // hi bit set? (covers 2 bytes actually)
-        if (hibit)
-            return [0, 3, 4, 5];
-        else
-            return [0, 1, 2, 5];
-    }
-}
 // TODO: both colors affected by bright bit
-class ZXSpectrum_Canvas extends ParamDitherCanvas {
-    w=8;
-    h=8;
-    allColors = [0,1,2,3,4,5,6,7]; //,9,10,11,12,13,14,15];
+abstract class TwoColor_Canvas extends ParamDitherCanvas {
     ncols : number;
     nrows : number;
+    border : number;
     init() {
         this.allColors = range(0, this.pal.length);
         this.ncols = this.width / this.w;
@@ -252,7 +190,7 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
         var colors = this.allColors;
         var histo = new Uint32Array(16);
         // pixel overlap in 8x8 window
-        var b = 1; // border
+        var b = this.border; // border
         for (var y=-b; y<this.h+b; y++) {
             var o = offset + y*this.width;
             for (var x=-b; x<this.w+b; x++) {
@@ -271,6 +209,46 @@ class ZXSpectrum_Canvas extends ParamDitherCanvas {
             ind2 = tmp;
         }
         this.params[p] = ind1 + (ind2 << 4);
+    }
+}
+class VDPMode2_Canvas extends TwoColor_Canvas {
+    w=8;
+    h=1;
+    border=0;
+    allColors = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+}
+class ZXSpectrum_Canvas extends TwoColor_Canvas {
+    w=8;
+    h=8;
+    border=1;
+    allColors = [0,1,2,3,4,5,6,7]; //,9,10,11,12,13,14,15];
+}
+class Apple2_Canvas extends TwoColor_Canvas {
+    w=7;
+    h=1;
+    allColors = [0,1,2,3,4,5];
+    border=0;
+    guessParam(p) {
+        var offset = p * this.w;
+        var colors = this.allColors;
+        var histo = new Uint32Array(16);
+        for (var i=0; i<this.w; i++) {
+            var c1 = this.indexed[offset+i]|0;
+            histo[c1] += 100;
+            var c2 = this.getClosest(this.alt[offset+i]|0, colors);
+            histo[c2] += 1 + this.noise;
+        }
+        var hibit = histo[3]+histo[4] > histo[1]+histo[2];
+        this.params[p] = hibit ? 1 : 0;
+    }
+    getValidColors(offset) {
+        var i = Math.floor(offset / this.w);
+        var hibit = (this.params[i] & 1) != 0;
+        // hi bit set? (covers 2 bytes actually)
+        if (hibit)
+            return [0, 3, 4, 5];
+        else
+            return [0, 1, 2, 5];
     }
 }
 class VICII_Multi_Canvas extends ParamDitherCanvas {

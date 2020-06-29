@@ -1,9 +1,9 @@
 
-export function hex(v:number, nd?:number) {
+function hex(v:number, nd?:number) {
     if (!nd) nd = 2;
     return toradix(v,nd,16);
 }
-export function toradix(v:number, nd:number, radix:number) {
+function toradix(v:number, nd:number, radix:number) {
     try {
         var s = v.toString(radix).toUpperCase();
         while (s.length < nd)
@@ -125,9 +125,7 @@ function exportApple2HiresToHGR(img:PixelsAvailableMessage, settings:DithertronS
     return data;
 }
 // TODO: support VIC-20
-function exportCharMemory(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
-    var w = settings.block.w;
-    var h = settings.block.h;
+function exportCharMemory(img:PixelsAvailableMessage, w:number, h:number) : Uint8Array {
     var bpp = (w == 4) ? 2 : 1; // C64-multi vs C64-hires & ZX
     var i = 0;
     var cols = img.width / w;
@@ -170,7 +168,7 @@ function exportC64Multi(img:PixelsAvailableMessage, settings:DithertronSettings)
         screen[i] = img.params[i];
         color[i] = img.params[i] >> 8;
     }
-    var char = exportCharMemory(img, settings);
+    var char = exportCharMemory(img, w, h);
     var xtraword = img.params[img.params.length - 1]; // background, border colors
     var xtra = new Uint8Array(2);
     xtra[0] = xtraword & 0xff;
@@ -187,13 +185,25 @@ function exportC64Hires(img:PixelsAvailableMessage, settings:DithertronSettings)
         var p = img.params[i] & 0xff;
         screen[i] = (p << 4) | (p >> 4);
     }
-    var char = exportCharMemory(img, settings);
+    var char = exportCharMemory(img, w, h);
     return concatArrays([char, screen]);
 }
-function exportWithAttributes(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
-    var char = exportFrameBuffer(img, settings);
-    var attr = new Uint8Array(img.params);
-    return concatArrays([char, attr]);
+function exportTMS9918(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
+    var w = settings.block.w;
+    var h = settings.block.h;
+    var cols = img.width / w;
+    var rows = img.height / h;
+    var screen = new Uint8Array(cols * rows); // 32 x 24
+    for (var i=0; i<screen.length; i++) {
+        // x[0..4] y[0..7] -> y[0..2] x[0..4] y[3..7]
+        var p = img.params[i] & 0xff;
+        var x = i & 31;
+        var y = i >> 5;
+        var ofs = (y & 7) | (x << 3) | ((y >> 3) << 8);
+        screen[ofs] = p; //(p << 4) | (p >> 4);
+    }
+    var char = exportCharMemory(img, 8, 8);
+    return concatArrays([char, screen]);
 }
 function exportNES(img:PixelsAvailableMessage, settings:DithertronSettings) : Uint8Array {
     var i = 0;
@@ -503,5 +513,43 @@ Palette:
     var palinds = convertToSystemPalette(dithertron.lastPixels.pal, dithertron.settings.pal);
     code = code.replace('hex 1f;screen color', 'hex '+hex(palinds[0]));
     code = code.replace('hex 01112100;background 0', 'hex '+hex(palinds[1])+hex(palinds[2])+hex(palinds[3])+hex(0));
+    return code;
+}
+
+function getFileViewerCode_msx() : string {
+    var code = `
+    ORG     04000H
+; MSX cartridge header @ 0x4000 - 0x400f
+    dw 0x4241
+    dw Start
+    dw Start
+    dw 0,0,0,0,0
+
+CHMOD   EQU   05fh
+WRTVRM  EQU   04dh
+LDIRVM  EQU   05ch
+
+PATTERN equ 0h
+NAME    equ 1800h
+COLOR   equ 2000h
+
+Start:
+Data:
+    ld a,2
+    call CHMOD  ; screen mode 2
+    ld bc,1800h
+    ld hl,ImageData
+    ld de,PATTERN
+    call LDIRVM ; copy pattern table
+    ld bc,1800h
+    ld hl,ImageData+1800h
+    ld de,COLOR
+    call LDIRVM ; copy color table
+Infinite:
+    jmp Infinite ; loop forever
+
+ImageData:
+    incbin "$DATAFILE"
+`;
     return code;
 }
