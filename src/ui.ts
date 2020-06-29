@@ -258,7 +258,7 @@ window.addEventListener('load', function() {
     });
 
     SYSTEMS.forEach(sys => {
-        var opt = $("<option />").text(sys.name).val(sys.id);
+        var opt = sys ? $("<option />").text(sys.name).val(sys.id) : $("<option disabled></option>");
         $("#targetFormatSelect").append(opt);
     });
     ALL_DITHER_SETTINGS.forEach((dset,index) => {
@@ -310,7 +310,7 @@ window.addEventListener('load', function() {
 function printSystems() {
     var s = "";
     SYSTEMS.forEach((sys) => {
-        s += "* " + sys.name + " - " +getSystemInfo(sys) + "\n";
+        if (sys) s += "* " + sys.name + " - " +getSystemInfo(sys) + "\n";
     });
     console.log(s);
 }

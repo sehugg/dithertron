@@ -131,15 +131,18 @@ function exportCharMemory(img:PixelsAvailableMessage, w:number, h:number) : Uint
     var cols = img.width / w;
     var rows = img.height / h;
     var char = new Uint8Array(img.width * img.height * bpp / 8);
+    var isvdp = char.length == img.params.length; // VDP mode (8x1 cells)
+    console.log('isvdp',isvdp,w,h,bpp,cols,rows);
     for (var y=0; y<img.height; y++) {
         for (var x=0; x<img.width; x++) {
+            var vdpofs = Math.floor(x / w) + y * cols;
             var charofs = Math.floor(x / w) + Math.floor(y / h) * cols;
-            var param = img.params[charofs];
             var ofs = charofs * h + (y & (h-1));
             var shift = (x & (w-1)) * bpp;
             shift = 8 - bpp - shift; // reverse bits
             var palidx = img.indexed[i];
             var idx = 0;
+            var param = isvdp ? img.params[vdpofs] : img.params[charofs];
             if (bpp == 1) {
                 if (palidx == (param & 0xf))
                     idx = 1;
@@ -151,6 +154,7 @@ function exportCharMemory(img:PixelsAvailableMessage, w:number, h:number) : Uint
                 else if (palidx == ((param >> 8) & 0xf))
                     idx = 3; // color ram
             }
+            if (i < 100) console.log(x,y,i,hex(param),palidx,ofs,idx,shift);
             char[ofs] |= idx << shift;
             i++;
         }
@@ -193,15 +197,16 @@ function exportTMS9918(img:PixelsAvailableMessage, settings:DithertronSettings) 
     var h = settings.block.h;
     var cols = img.width / w;
     var rows = img.height / h;
-    var screen = new Uint8Array(cols * rows); // 32 x 24
+    var screen = new Uint8Array(cols * rows); // 32 x 192
     for (var i=0; i<screen.length; i++) {
         // x[0..4] y[0..7] -> y[0..2] x[0..4] y[3..7]
         var p = img.params[i] & 0xff;
         var x = i & 31;
         var y = i >> 5;
         var ofs = (y & 7) | (x << 3) | ((y >> 3) << 8);
-        screen[ofs] = p; //(p << 4) | (p >> 4);
+        screen[ofs] = (p << 4) | (p >> 4);
     }
+    //console.log(img.params, screen);
     var char = exportCharMemory(img, 8, 8);
     return concatArrays([char, screen]);
 }

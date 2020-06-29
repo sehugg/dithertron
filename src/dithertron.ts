@@ -167,7 +167,8 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
     nrows : number;
     border : number;
     init() {
-        this.allColors = range(0, this.pal.length);
+        if (!this.allColors) this.allColors = range(0, this.pal.length);
+        this.indexed.fill(this.allColors[0]);
         this.ncols = this.width / this.w;
         this.nrows = this.height / this.h;
         this.params = new Uint32Array(this.ncols * this.nrows);
@@ -202,7 +203,7 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
         }
         var choices = getChoices(histo);
         var ind1 = choices[0].ind;
-        var ind2 = choices[1] && choices[1].ind;
+        var ind2 = choices[1] ? choices[1].ind : ind1;
         if (ind1 > ind2) {
             var tmp = ind1;
             ind1 = ind2;
@@ -215,7 +216,7 @@ class VDPMode2_Canvas extends TwoColor_Canvas {
     w=8;
     h=1;
     border=0;
-    allColors = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+    allColors = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]; // TODO?
 }
 class ZXSpectrum_Canvas extends TwoColor_Canvas {
     w=8;
