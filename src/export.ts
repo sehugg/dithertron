@@ -495,7 +495,7 @@ SetPalette: subroutine
 ; fill video RAM with "Hello World" msg
 FillVRAM: subroutine
 ; set PPU address to name table A
-    PPU_SETADDR $2000
+    PPU_SETADDR $2106  ; row 8, col 6
     ldy #12		; # of rows
     lda #1		; first tile index
 .nextrow
