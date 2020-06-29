@@ -262,7 +262,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     // TODO: choose global colors before init?
     init() {
         // find global colors
-        var choices = reducePaletteChoices(this.ref, this.pal, 3);
+        var choices = reducePaletteChoices(this.ref, this.pal, 3, this.errfn);
         this.bgcolor = choices[0] && choices[0].ind;
         this.auxcolor = choices[1] && choices[1].ind;
         this.bordercolor = choices[2] && choices[2].ind;
@@ -508,11 +508,10 @@ interface ColorChoice {
     count: number;
 }
 
-function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count: number) : ColorChoice[] {
+function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count: number, distfn : RGBDistanceFunction) : ColorChoice[] {
     // find best colors
     var inds = range(0, colors.length);
     var histo = new Uint32Array(colors.length);
-    var distfn = getRGBAErrorPerceptual; // TODO: choose?
     var err = new Int32Array(4);
     var tmp = new Uint8ClampedArray(4);
     var tmp2 = new Uint32Array(tmp.buffer);
@@ -534,13 +533,13 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     var choices = getChoices(histo);
     return choices;
 }
-function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: number) : Uint32Array {
+function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: number, distfn : RGBDistanceFunction) : Uint32Array {
     if (colors.length == count) return new Uint32Array(colors);
     // reduce palette before we reduce the palette
     if (colors.length >= count*2) {
-        colors = reducePalette(imageData, colors, count*2);
+        colors = reducePalette(imageData, colors, count*2, distfn);
     }
-    var choices = reducePaletteChoices(imageData, colors, count);
+    var choices = reducePaletteChoices(imageData, colors, count, distfn);
     return new Uint32Array(choices.slice(0, count).map((x) => colors[x.ind]));
 }
 
@@ -571,12 +570,13 @@ class Dithertron {
         if (this.dithcanv == null) {
             var sys = this.sysparams;
             var pal = new Uint32Array(sys.pal);
+            var errfn = ERROR_FUNCTIONS[sys.errfn] || getRGBAErrorPerceptual;
             if (sys.reduce) {
-                pal = reducePalette(this.sourceImageData, pal, sys.reduce);
+                pal = reducePalette(this.sourceImageData, pal, sys.reduce, errfn);
             }
             var convFunction = emglobal[sys.conv];
             this.dithcanv = new convFunction(this.sourceImageData, sys.width, pal);
-            this.dithcanv.errfn = ERROR_FUNCTIONS[sys.errfn] || getRGBAErrorPerceptual;
+            this.dithcanv.errfn = errfn;
             this.dithcanv.noise = sys.noise ? (1 << sys.noise) : 0;
             this.dithcanv.diffuse = sys.diffuse + 0;
             this.dithcanv.ditherfn = sys.ditherfn || [];
