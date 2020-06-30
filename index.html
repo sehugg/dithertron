@@ -6,7 +6,7 @@
     <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="node_modules/bootstrap-slider/dist/bootstrap-slider.min.js"></script>
     <script src="node_modules/file-saver/dist/FileSaver.min.js"></script>
-    <!-- Wrap the image or canvas element with a block element (container) -->
+    <!-- css -->
     <link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" crossorigin="anonymous">
     <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" crossorigin="anonymous">
     <link rel="stylesheet" href="node_modules/cropperjs/dist/cropper.min.css">
@@ -14,7 +14,13 @@
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
+    <!-- twitter tags-->
+    <meta name="twitter:card"         content="summary_large_image">
+    <meta name="twitter:site"         content="@8bitworkshop">
+    <meta name="twitter:creator"      content="@8bitworkshop">
+    <meta name="twitter:image"        content="https://8bitworkshop.com/blog/images/ide/dithertron-compare.png">
+    <meta name="twitter:title"        content="Dithertron by 8bitworkshop">
+    <meta name="twitter:description"  content="Crop, reduce, and dither images to 8-bit retro formats.">
 <!-- google analytics -->
 <script>
 window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
@@ -42,7 +48,7 @@ Sentry.init({
 });
 }
 </script>
- 
+<!-- local CSS --> 
 <style type="text/css" media="screen">
 body {
     background:#999;
@@ -60,7 +66,7 @@ img.crop {
 }
 </style>
 </head>
-
+<!-- body -->
 <body>
     <div class="container-xl">
 
@@ -194,7 +200,7 @@ img.crop {
     <FORM action="https://8bitworkshop.com/redir.html" method="GET" id="ideForm" target="_ide">
     </FORM>
 </div>
-    
+<!-- local scripts-->    
 <script src="./gen/palettes.js"></script>
 <script src="./gen/systems.js"></script>
 <script src="./gen/export.js"></script>

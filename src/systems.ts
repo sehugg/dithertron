@@ -263,3 +263,4 @@ const SYSTEMS : DithertronSettings[] = [
 ];
 var SYSTEM_LOOKUP = {};
 SYSTEMS.forEach((sys) => { if (sys) SYSTEM_LOOKUP[sys.id||sys.name] = sys; });
+

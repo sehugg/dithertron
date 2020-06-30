@@ -317,7 +317,7 @@ async function gotoIDE(e) {
     function addHiddenField(form, name, val) {
         $('<input type="hidden"/>').attr('name', name).val(val).appendTo(form);
     }
-    if (confirm("Open image in 8bitworkshop?")) {
+    if (confirm("Open code sample with image in 8bitworkshop?")) {
         //e.target.disabled = true;
         var platform_id = dithertron.settings.id.split('.')[0];
         var form = $(document.forms['ideForm'] as HTMLFormElement);

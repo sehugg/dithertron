@@ -306,13 +306,14 @@ window.addEventListener('load', function() {
     $("#gotoIDE").click(gotoIDE);
 });
 
-/*
-function printSystems() {
-    var s = "";
-    SYSTEMS.forEach((sys) => {
-        if (sys) s += "* " + sys.name + " - " +getSystemInfo(sys) + "\n";
-    });
-    console.log(s);
+// print diags (TODO)
+if (window.location.search == '?printmeta') {
+    function printSystems() {
+        var s = "";
+        SYSTEMS.forEach((sys) => {
+            if (sys) s += "* " + sys.name + " - " +getSystemInfo(sys) + "\n";
+        });
+        console.log(s);
+    }
+    printSystems();
 }
-printSystems();
-*/
