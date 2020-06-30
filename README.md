@@ -24,8 +24,10 @@ How To Use
 4. Download the final image (PNG), download a binary file, or open an image viewer code sample in 8bitworkshop.
 
 
-Graphics Formats Supported
---------------------------
+Graphics Formats
+----------------
+
+These formats will export a sample 8bitworkshop project that displays the image:
 
 * C-64 Multi - 160 x 200, 16 colors, 4 colors per 4x8 block
 * C-64 Hires - 320 x 200, 16 colors, 2 colors per 8x8 block
@@ -34,6 +36,9 @@ Graphics Formats Supported
 * Apple ][ Hires - 140 x 192, 6 colors, 4 colors per 7x1 block
 * Atari VCS - 40 x 192, 2 out of 256 colors
 * Bally Astrocade - 160 x 98, 4 out of 256 colors
+
+Other formats:
+
 * NES (4 color, full screen) - 256 x 240, 4 out of 64 colors
 * NES (5 color, full screen) - 256 x 240, 5 out of 64 colors
 * Atari 7800 (160A) - 160 x 240, 4 out of 256 colors

@@ -306,7 +306,7 @@ window.addEventListener('load', function() {
     $("#gotoIDE").click(gotoIDE);
 });
 
-// print diags (TODO)
+// print diags (TODO: generate markdown table)
 if (window.location.search == '?printmeta') {
     function printSystems() {
         var s = "";
