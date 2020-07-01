@@ -199,6 +199,11 @@ img.crop {
     <!-- hidden form -->
     <FORM action="https://8bitworkshop.com/redir.html" method="GET" id="ideForm" target="_ide">
     </FORM>
+    <script>
+        if (window.location.host == ('localhost:8000')) {
+            document.forms['ideForm'].action = '/';
+        }
+    </script>
 </div>
 <!-- local scripts-->    
 <script src="./gen/palettes.js"></script>

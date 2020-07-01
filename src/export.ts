@@ -309,7 +309,8 @@ function stringToByteArray(s: string): Uint8Array {
     return a;
 }
 function getCodeConvertFunction(): () => string {
-    var convertFuncName = 'getFileViewerCode_' + dithertron.settings.id.replace(/[^a-z0-9]/, '_');
+    var convertFuncName = 'getFileViewerCode_' + dithertron.settings.id.replace(/[^a-z0-9]/g, '_');
+    console.log(convertFuncName);
     var convertFunc = window[convertFuncName];
     return convertFunc;
 }
@@ -322,6 +323,7 @@ async function gotoIDE(e) {
         var platform_id = dithertron.settings.id.split('.')[0];
         var form = $(document.forms['ideForm'] as HTMLFormElement);
         form.empty();
+        if (platform_id == 'atari8') platform_id = 'atari8-5200.mame'; // TODO
         addHiddenField(form, "platform", platform_id);
         // TODO
         var codeFilename = "viewer-" + getFilenamePrefix() + ".asm";
@@ -710,4 +712,121 @@ code = code.replace('$b1', '$' + hex(palinds[1]));
 code = code.replace('$b2', '$' + hex(palinds[2]));
 code = code.replace('$b3', '$' + hex(palinds[3]));
 return code;
+}
+
+function getFileViewerCode_atari8_d() {
+    var code = `
+    processor 6502    
+DMACTL  equ     $D400           ;DMA Control
+sDMACTL equ     $07             ;DMA Control Shadow
+DLISTL  equ     $D402           ;Display list lo
+DLISTH  equ     $D403           ;Display list hi
+sDLISTL equ     $05             ;Display list lo shadow
+sDLISTH equ     $06             ;Display list hi shadow
+CHBASE  equ     $D409           ;Character set base
+CHACTL  equ     $D401           ;Character control
+NMIEN   equ     $D40E           ;NMI Enable
+COLOR0  equ     $0C             ;Color 0 shadow
+
+    org     $4000           ;Start of cartridge area
+    sei                     ;Disable interrupts
+    cld                     ;Clear decimal mode
+Start
+    ldx     #$00
+    lda     #$00
+crloop1    
+    sta     $00,x           ;Clear zero page
+    sta     $D400,x         ;Clear ANTIC
+    sta     $C000,x         ;Clear GTIA
+    sta     $E800,x         ;Clear POKEY
+    dex
+    bne     crloop1
+    ldy     #$00            ;Clear Ram
+    lda     #$02            ;Start at $0200
+    sta     $81             
+    lda     #$00
+    sta     $80
+crloop2
+    lda     #$00            
+crloop3
+    sta     ($80),y         ;Store data
+    iny                     ;Next byte
+    bne     crloop3         ;Branch if not done page
+    inc     $81             ;Next page
+    lda     $81
+    cmp     #$40            ;Check if end of RAM
+    bne     crloop2         ;Branch if not
+; copy display list to RAM
+    ldx     #0
+dlloop                          ;Create Display List
+    lda     dlist,x         ;Get byte
+    sta     $1000,x         ;Copy to RAM
+    inx                     ;next byte
+    cpx	#(dlistend-dlist)
+    bne     dlloop
+; set vectors
+    lda     #$03            ;point IRQ vector
+    sta     $200            ;to BIOS routine
+    lda     #$FC
+    sta     $201
+    lda     #$B8            ;point VBI vector
+    sta     $202            ;to BIOS routine
+    lda     #$FC
+    sta     $203
+    lda     #$B2            ;point Deferred VBI
+    sta     $204            ;to BIOS routine
+    lda     #$FC
+    sta     $205
+    lda     #$06
+    sta     CHACTL          ;Set Character Control
+; set colors
+    lda     #$00;PF0
+    sta     COLOR0+4
+    lda     #$00;PF1
+    sta     COLOR0
+    lda     #$00;PF2
+    sta     COLOR0+1
+    lda     #$00;PF3
+    sta     COLOR0+2
+; set display list
+    lda     #$00            ;Set Display list pointer
+    sta     sDLISTL
+    sta     DLISTL
+    lda     #$10
+    sta     sDLISTH
+    sta     DLISTH
+; enable DMI
+    lda     #$22            ;Enable DMA
+    sta     sDMACTL
+    lda     #$40            ;Enable NMI
+    sta     NMIEN
+; infinite loop
+wait
+    nop
+    jmp     wait
+
+;Display list data
+dlist
+    .byte $70,$70,$70
+    .byte $4d,#<ImgData1,#>ImgData1
+    REPEAT 95
+    .byte $0d
+    REPEND
+    .byte $41,$00,$10
+dlistend equ .
+
+;Graphics data
+ImgData1:
+ImgData2 equ ImgData1+40*96
+    incbin "$DATAFILE"
+
+;CPU vectors
+    org     $bffd
+    .byte   $FF         ;Don't display Atari logo
+    .byte   $00,$40     ;Start code at $4000
+`;
+    var palinds = convertToSystemPalette(dithertron.lastPixels.pal, dithertron.settings.pal);
+    for (var i=0; i<4; i++)
+        code = code.replace('$00;PF'+i, '$' + hex(palinds[i]));
+    return code;
 }

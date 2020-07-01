@@ -34,6 +34,7 @@ These formats will export a sample 8bitworkshop project that displays the image:
 * NES (4 color, 240 tiles) - 160 x 96, 4 out of 64 colors
 * TMS9918A (Mode 2) - 256 x 192, 16 colors, 2 colors per 8x1 block
 * Apple ][ Hires - 140 x 192, 6 colors, 4 colors per 7x1 block
+* Atari ANTIC D - 160 x 96, 4 out of 256 colors
 * Atari VCS - 40 x 192, 2 out of 256 colors
 * Bally Astrocade - 160 x 98, 4 out of 256 colors
 
@@ -50,8 +51,6 @@ Other formats:
 * Apple ][ Double-Hires - 140 x 192, 16 colors
 * Apple ][ Lores - 40 x 48, 16 colors
 * Fairchild Channel F - 102 x 58, 4 out of 4 colors
-* Atari Mode E - 160 x 192, 4 out of 256 colors
-* Atari Mode F - 80 x 192, 16 out of 256 colors
 * PC EGA Mode 0Dh - 320 x 200, 16 out of 16 colors
 * PC EGA Mode 10h - 640 x 350, 16 out of 16 colors
 * Williams Arcade - 304 x 256, 16 out of 256 colors
