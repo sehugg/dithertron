@@ -107,7 +107,16 @@ const CGA_RGB = [
 const SMS_RGB = generateRGBPalette(2,2,2);
 const WILLIAMS_RGB = generateRGBPalette(3,3,2);
 const TELETEXT_RGB = generateRGBPalette(1,1,1);
-const ZXSPECTRUM_RGB = TELETEXT_RGB;
+const ZXSPECTRUM_RGB = [ // GRB
+   RGB(0,0,0),
+   RGB(0,0,255),
+   RGB(255,0,0),
+   RGB(255,0,255),
+   RGB(0,255,0),
+   RGB(0,255,255),
+   RGB(255,255,0),
+   RGB(255,255,255)
+];
 const AMSTRAD_CPC_RGB = [
     0x000000, 0x000080, 0x0000FF,
     0x800000, 0x800080, 0x8000FF,

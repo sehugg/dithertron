@@ -89,6 +89,16 @@ const SYSTEMS : DithertronSettings[] = [
         toNative:'exportFrameBuffer',
         exportFormat:{bpp:2,brev:true},
     },
+    {
+        id:'zx',
+        name:'ZX Spectrum',
+        width:256,
+        height:192,
+        conv:'ZXSpectrum_Canvas',
+        pal:ZXSPECTRUM_RGB,
+        block:{w:8,h:8,colors:2},
+        toNative:'exportZXSpectrum',
+    },
 
     null,
     
@@ -143,15 +153,6 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:SMS_RGB,
         reduce:16,
-    },
-    {
-        id:'zx',
-        name:'ZX Spectrum',
-        width:256,
-        height:192,
-        conv:'ZXSpectrum_Canvas',
-        pal:ZXSPECTRUM_RGB,
-        block:{w:8,h:8,colors:2},
     },
     {
         id:'bbcmicro.mode2',

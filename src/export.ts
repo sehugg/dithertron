@@ -125,7 +125,7 @@ function exportApple2HiresToHGR(img: PixelsAvailableMessage, settings: Dithertro
     return data;
 }
 // TODO: support VIC-20
-function exportCharMemory(img: PixelsAvailableMessage, w: number, h: number): Uint8Array {
+function exportCharMemory(img: PixelsAvailableMessage, w: number, h: number, type?:'zx'): Uint8Array {
     var bpp = (w == 4) ? 2 : 1; // C64-multi vs C64-hires & ZX
     var i = 0;
     var cols = img.width / w;
@@ -138,6 +138,8 @@ function exportCharMemory(img: PixelsAvailableMessage, w: number, h: number): Ui
             var vdpofs = Math.floor(x / w) + y * cols;
             var charofs = Math.floor(x / w) + Math.floor(y / h) * cols;
             var ofs = charofs * h + (y & (h - 1));
+            if (type=='zx')
+                ofs = (vdpofs & 0b1100000011111) | ((vdpofs & 0b11100000) << 3) | ((vdpofs & 0b11100000000) >> 3);
             var shift = (x & (w - 1)) * bpp;
             shift = 8 - bpp - shift; // reverse bits
             var palidx = img.indexed[i];
@@ -190,6 +192,15 @@ function exportC64Hires(img: PixelsAvailableMessage, settings: DithertronSetting
         screen[i] = (p << 4) | (p >> 4);
     }
     var char = exportCharMemory(img, w, h);
+    return concatArrays([char, screen]);
+}
+function exportZXSpectrum(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    var screen = new Uint8Array(img.params.length);
+    for (var i = 0; i < screen.length; i++) {
+        var p = img.params[i] & 0xff;
+        screen[i] = (p & 0x7) | ((p >> 1) & 0x38) | 0x40; // 3 bits each, bright
+    }
+    var char = exportCharMemory(img, 8, 8, 'zx');
     return concatArrays([char, screen]);
 }
 function exportTMS9918(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
@@ -828,5 +839,25 @@ ImgData2 equ ImgData1+40*96
     var palinds = convertToSystemPalette(dithertron.lastPixels.pal, dithertron.settings.pal);
     for (var i=0; i<4; i++)
         code = code.replace('$00;PF'+i, '$' + hex(palinds[i]));
+    return code;
+}
+
+function getFileViewerCode_zx() {
+var code = `
+    org  0x5ccb     ; start of code
+Start
+    ld	de,0x4000   ; DE = screen
+    ld	hl,ImgData  ; HL = image data
+    ld 	bc,0x1b00   ; 6144 bytes bitmap, 768 bytes attributes
+    ldir            ; copy
+Loop
+    jp	loop        ; infinite loop
+
+ImgData             ; data file
+    incbin "$DATAFILE"
+
+    org 0xff57
+    defb 00h        ; end of ROM
+`;
     return code;
 }
