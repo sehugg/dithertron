@@ -179,13 +179,26 @@ const CHANNELF_RGB = [
     0x02cc5d,
     0x4b3ff3,
 ];
+const GAMEBOY_GREEN_RGB = [
+    0x0f380f,
+    0x306230,
+    0x0fac8c,
+    0x0fccac,
+];
+const GAMEBOY_MONO_RGB = [
+    0x000000,
+    0x555555,
+    0xaaaaaa,
+    0xffffff,
+];
+const GAMEBOY_COLOR_RGB = generateRGBPalette(4,4,4);
 
 function generateRGBPalette(rr,gg,bb) {
     var n = 1<<(rr+gg+bb);
     var rs = 255 / ((1<<rr)-1);
     var gs = 255 / ((1<<gg)-1);
     var bs = 255 / ((1<<bb)-1);
-    var pal = [];
+    var pal = new Uint32Array(n);
     for (var i=0; i<n; i++) {
         var r = (i & ((1<<rr)-1));
         var g = ((i>>rr) & ((1<<gg)-1));

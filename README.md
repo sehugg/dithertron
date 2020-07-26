@@ -81,5 +81,6 @@ TODO
 * Check pixel-exact source images
 * Interlaced modes (VCS color)
 * Refresh retains mode settings
-* Custom width and height
+* Custom width and height (crop rect for non-full-screen)
 * Faster closest color lookup
+

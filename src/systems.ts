@@ -261,6 +261,27 @@ const SYSTEMS : DithertronSettings[] = [
         conv:'DitheringCanvas',
         pal:TIC80_RGB,
     },
+    {
+        id:'gb',
+        name:'Game Boy Classic',
+        width:160,
+        height:144,
+        scaleX:10/9,
+        conv:'DitheringCanvas',
+        pal:GAMEBOY_GREEN_RGB,
+    },
+    /*
+    {
+        id:'gbc',
+        name:'Game Boy Color',
+        width:160,
+        height:144,
+        aspect:1,
+        conv:'DitheringCanvas',
+        pal:GAMEBOY_COLOR_RGB,
+        reduce:32,
+    },
+    */
 ];
 var SYSTEM_LOOKUP = {};
 SYSTEMS.forEach((sys) => { if (sys) SYSTEM_LOOKUP[sys.id||sys.name] = sys; });

@@ -274,7 +274,7 @@ function exportVCSPlayfield(img: PixelsAvailableMessage, settings: DithertronSet
 
 //
 
-function convertToSystemPalette(pal: Uint32Array, syspal: number[]) {
+function convertToSystemPalette(pal: Uint32Array, syspal: Uint32Array | number[]) {
     return pal.map((rgba) => syspal.indexOf(rgba & 0xffffff));
 }
 
