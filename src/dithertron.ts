@@ -180,8 +180,8 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
         var col = Math.floor(offset / this.w) % this.ncols;
         var row = Math.floor(offset / (this.width * this.h));
         var i = col + row*this.ncols;
-        var c1 = this.params[i] & 0xf;
-        var c2 = (this.params[i] >> 4) & 0xf;
+        var c1 = this.params[i] & 0xff;
+        var c2 = (this.params[i] >> 8) & 0xff;
         return [c1, c2];
     }
     guessParam(p) {
@@ -189,7 +189,7 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
         var row = Math.floor(p / this.ncols);
         var offset = col*this.w + row*(this.width*this.h);
         var colors = this.allColors;
-        var histo = new Uint32Array(16);
+        var histo = new Uint32Array(256);
         // pixel overlap in 8x8 window
         var b = this.border; // border
         for (var y=-b; y<this.h+b; y++) {
@@ -209,7 +209,7 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
             ind1 = ind2;
             ind2 = tmp;
         }
-        this.params[p] = ind1 + (ind2 << 4);
+        this.params[p] = ind1 + (ind2 << 8);
     }
 }
 class VDPMode2_Canvas extends TwoColor_Canvas {
@@ -217,6 +217,11 @@ class VDPMode2_Canvas extends TwoColor_Canvas {
     h=1;
     border=0;
     allColors = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]; // TODO?
+}
+class VCSColorPlayfield_Canvas extends TwoColor_Canvas {
+    w=40;
+    h=1;
+    border=0;
 }
 class ZXSpectrum_Canvas extends TwoColor_Canvas {
     w=8;

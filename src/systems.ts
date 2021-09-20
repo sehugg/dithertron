@@ -78,6 +78,16 @@ const SYSTEMS : DithertronSettings[] = [
         toNative:'exportVCSPlayfield',
     },
     {
+        id:'vcs.color',
+        name:'Atari VCS Color',
+        width:40,
+        height:192,
+        scaleX:6,
+        conv:'VCSColorPlayfield_Canvas',
+        pal:VCS_RGB,
+        toNative:'exportVCSPlayfield',
+    },
+    {
         id:'astrocade',
         name:'Bally Astrocade',
         width:160,

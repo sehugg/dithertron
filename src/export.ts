@@ -197,8 +197,8 @@ function exportC64Hires(img: PixelsAvailableMessage, settings: DithertronSetting
 function exportZXSpectrum(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     var screen = new Uint8Array(img.params.length);
     for (var i = 0; i < screen.length; i++) {
-        var p = img.params[i] & 0xff;
-        screen[i] = (p & 0x7) | ((p >> 1) & 0x38) | 0x40; // 3 bits each, bright
+        var p = img.params[i] & 0xffff;
+        screen[i] = (p & 0x7) | ((p >> 5) & 0x38) | 0x40; // 3 bits each, bright
     }
     var char = exportCharMemory(img, 8, 8, 'zx');
     return concatArrays([char, screen]);
@@ -211,11 +211,11 @@ function exportTMS9918(img: PixelsAvailableMessage, settings: DithertronSettings
     var screen = new Uint8Array(cols * rows); // 32 x 192
     for (var i = 0; i < screen.length; i++) {
         // x[0..4] y[0..7] -> y[0..2] x[0..4] y[3..7]
-        var p = img.params[i] & 0xff;
+        var p = img.params[i] & 0xffff;
         var x = i & 31;
         var y = i >> 5;
         var ofs = (y & 7) | (x << 3) | ((y >> 3) << 8);
-        screen[ofs] = (p << 4) | (p >> 4);
+        screen[ofs] = (p << 4) | (p >> 8);
     }
     //console.log(img.params, screen);
     var char = exportCharMemory(img, 8, 8);
