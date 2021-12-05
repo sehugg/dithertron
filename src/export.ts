@@ -27,9 +27,9 @@ type PixelEditorImageFormat = {
     brev?: boolean
     flip?: boolean
     destfmt?: PixelEditorImageFormat
-    xform?: string
     skip?: number
-    aspect?: number
+    yremap?: [number,number,number]
+    bitremap?: number[]
 };
 function remapBits(x: number, arr: number[]): number {
     if (!arr) return x;
@@ -61,6 +61,8 @@ function convertImagesToWords(images: Uint8Array[], fmt: PixelEditorImageFormat)
     var words;
     if (nplanes > 0 && fmt.sl) // TODO?
         words = new Uint8Array(wordsperline * height * count);
+    else if (fmt.yremap)
+        words = new Uint8Array(count * ((height>>fmt.yremap[0])*fmt.yremap[1] + (((1<<fmt.yremap[0])-1)*fmt.yremap[2])));
     else if (bitsperword <= 8)
         words = new Uint8Array(wordsperline * height * count * nplanes);
     else
@@ -71,13 +73,21 @@ function convertImagesToWords(images: Uint8Array[], fmt: PixelEditorImageFormat)
         for (var y = 0; y < height; y++) {
             var yp = fmt.flip ? height - 1 - y : y;
             var ofs0 = n * wordsperline * height + yp * wordsperline;
+            if (fmt.yremap) { ofs0 = ((y>>fmt.yremap[0])*fmt.yremap[1]) + ((y&(1<<fmt.yremap[0])-1)*fmt.yremap[2]) }
             var shift = 0;
             for (var x = 0; x < width; x++) {
                 var color = imgdata[i++];
                 var ofs = remapBits(ofs0, fmt.remap);
-                for (var p = 0; p < nplanes; p++) {
-                    var c = (color >> (p * bpp)) & mask;
-                    words[ofs + p * pofs + skip] |= (fmt.brev ? (c << (bitsperword - shift - bpp)) : (c << shift));
+                if (fmt.bitremap) {
+                    for (var p = 0; p < fmt.bpp; p++) {
+                        if (color & (1 << p))
+                            words[ofs] |= 1 << fmt.bitremap[shift + p];
+                    }
+                } else {
+                    for (var p = 0; p < nplanes; p++) {
+                        var c = (color >> (p * bpp)) & mask;
+                        words[ofs + p * pofs + skip] |= (fmt.brev ? (c << (bitsperword - shift - bpp)) : (c << shift));
+                    }
                 }
                 shift += bpp;
                 if (shift >= bitsperword) {
@@ -335,6 +345,7 @@ async function gotoIDE(e) {
         var form = $(document.forms['ideForm'] as HTMLFormElement);
         form.empty();
         if (platform_id == 'atari8') platform_id = 'atari8-5200.mame'; // TODO
+        if (platform_id == 'cpc') platform_id = 'cpc.6128'; // TODO
         addHiddenField(form, "platform", platform_id);
         // TODO
         var codeFilename = "viewer-" + getFilenamePrefix() + ".asm";
@@ -861,3 +872,62 @@ ImgData             ; data file
 `;
     return code;
 }
+
+// https://www.cpcwiki.eu/index.php/BIOS_Screen_Functions
+// http://www.cpcmania.com/Docs/Programming/Painting_pixels_introduction_to_video_memory.htm
+// https://www.cpcwiki.eu/index.php/CPC_Palette
+function getFileViewerCode_cpc(mode: number) {
+    var code = `
+    org  0x4000     ; start of code
+Start:
+    ld  a,$MODE		; graphics mode
+    call 0xbc0e		; SCR_SET_MODE
+; set border color
+    ld  hl,PalData
+    ld  b,(hl)
+    ld  c,b
+    call 0xbc38		; SCR_SET_BORDER
+    ld  b,0x10		; loop counter
+; read palette from memory
+    ld  hl,PalData+15
+Loop1:
+    push hl
+    push bc
+    ld  a,b
+    dec a
+    and a,0x0f
+    ld  b,(hl)
+    ld  c,b
+    call 0xbc32		; SCR_SET_INK
+    pop bc
+    pop hl
+    dec hl
+    djnz Loop1
+; set image bytes
+    ld	de,0xc000   ; DE = screen
+    ld	hl,ImgData  ; HL = image data
+    ld 	bc,0x4000   ; BC = # of bytes   
+    ldir            ; copy
+Loop:
+    jp	loop        ; infinite loop
+PalData:
+    db $c0,$c1,$c2,$c3,$c4,$c5,$c6,$c7
+    db $c8,$c9,$c10,$c11,$c12,$c13,$c14,$c15
+ImgData:            ; data file
+    incbin "$DATAFILE"
+`;
+    var palinds = convertToSystemPalette(dithertron.lastPixels.pal, dithertron.settings.pal);
+    code = code.replace('$MODE', mode+"");
+    for (var i=0; i<16; i++)
+        code = code.replace('$c'+i, '$' + hex(palinds[i] || 0));
+    return code;
+}
+
+function getFileViewerCode_cpc_mode0(mode: number) {
+    return getFileViewerCode_cpc(0);
+}
+
+function getFileViewerCode_cpc_mode1(mode: number) {
+    return getFileViewerCode_cpc(1);
+}
+

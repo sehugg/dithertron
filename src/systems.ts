@@ -109,6 +109,30 @@ const SYSTEMS : DithertronSettings[] = [
         block:{w:8,h:8,colors:2},
         toNative:'exportZXSpectrum',
     },
+    {
+        id:'cpc.mode0',
+        name:'Amstrad CPC (mode 0)',
+        width:160,
+        height:200,
+        scaleX:2,
+        conv:'DitheringCanvas',
+        pal:AMSTRAD_CPC_RGB,
+        reduce:16,
+        toNative:'exportFrameBuffer',
+        exportFormat:{ bpp:4, yremap:[3,80,2048], bitremap:[7,3,5,1,6,2,4,0] }
+    },
+    {
+        id:'cpc.mode1',
+        name:'Amstrad CPC (mode 1)',
+        width:320,
+        height:200,
+        scaleX:1,
+        conv:'DitheringCanvas',
+        pal:AMSTRAD_CPC_RGB,
+        reduce:4,
+        toNative:'exportFrameBuffer',
+        exportFormat:{ bpp:2, yremap:[3,80,2048], bitremap:[7,3,6,2,5,1,4,0] }
+    },
 
     null,
     
@@ -172,16 +196,6 @@ const SYSTEMS : DithertronSettings[] = [
         scaleX:2,
         conv:'DitheringCanvas',
         pal:TELETEXT_RGB,
-    },
-    {
-        id:'cpc.mode0',
-        name:'Amstrad CPC (mode 0)',
-        width:160,
-        height:200,
-        scaleX:2,
-        conv:'DitheringCanvas',
-        pal:AMSTRAD_CPC_RGB,
-        reduce:16,
     },
     {
         id:'apple2.dblhires',
