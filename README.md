@@ -37,6 +37,9 @@ These formats will export a sample 8bitworkshop project that displays the image:
 * Atari ANTIC D - 160 x 96, 4 out of 256 colors
 * Atari VCS - 40 x 192, 2 out of 256 colors
 * Bally Astrocade - 160 x 98, 4 out of 256 colors
+* ZX Spectrum - 256 x 192, 8 colors, 2 colors per 8x8 block
+* Amstrad CPC (mode 0) - 160 x 200, 16 out of 27 colors
+* Amstrad CPC (mode 1) - 320 x 200, 4 out of 27 colors
 
 Other formats:
 
@@ -45,17 +48,18 @@ Other formats:
 * Atari 7800 (160A) - 160 x 240, 4 out of 256 colors
 * Atari 7800 (160B) - 160 x 240, 12 out of 256 colors
 * Sega Master System - 176 x 144, 16 out of 64 colors
-* ZX Spectrum - 256 x 192, 8 colors, 2 colors per 8x8 block
 * BBC Micro (mode 2) - 160 x 256, 8 colors
-* Amstrad CPC (mode 0) - 160 x 200, 16 out of 27 colors
 * Apple ][ Double-Hires - 140 x 192, 16 colors
 * Apple ][ Lores - 40 x 48, 16 colors
 * Fairchild Channel F - 102 x 58, 4 out of 4 colors
+* Mac 128K - 512 x 342, monochrome
+* PC CGA Modes - 320 x 200, 4 colors
 * PC EGA Mode 0Dh - 320 x 200, 16 out of 16 colors
 * PC EGA Mode 10h - 640 x 350, 16 out of 16 colors
 * Williams Arcade - 304 x 256, 16 out of 256 colors
 * PICO-8 - 128 x 128, 16 colors
 * TIC-80 - 240 x 136, 16 colors
+* Game Boy Classic - 160 x 144, 4 colors
 
 
 Development
