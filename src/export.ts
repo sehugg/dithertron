@@ -206,7 +206,7 @@ function exportC64Hires(img: PixelsAvailableMessage, settings: DithertronSetting
         var p = img.params[i];
         screen[i] = ((p & 0xf) << 4) | ((p & 0xf00) >> 8);
     }
-    var char = exportCharMemory(img, w, h, 'fli');
+    var char = exportCharMemory(img, w, h);
     return concatArrays([char, screen]);
 }
 function exportC64HiresFLI(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
@@ -216,7 +216,7 @@ function exportC64HiresFLI(img: PixelsAvailableMessage, settings: DithertronSett
         let scrnofs = (Math.floor(i/40)&7)*0x400 + Math.floor(i/320)*40 + (i % 40);
         screen[scrnofs] = ((p & 0xf) << 4) | ((p & 0xf00) >> 8);
     }
-    var char = exportCharMemory(img, 8, 8);
+    var char = exportCharMemory(img, 8, 8, 'fli');
     return concatArrays([char, screen]);
 }
 function exportZXSpectrum(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
