@@ -135,13 +135,18 @@ function exportApple2HiresToHGR(img: PixelsAvailableMessage, settings: Dithertro
     return data;
 }
 // TODO: support VIC-20
-function exportCharMemory(img: PixelsAvailableMessage, w: number, h: number, type?:'zx'): Uint8Array {
+function exportCharMemory(img: PixelsAvailableMessage, 
+    w: number, 
+    h: number, 
+    type?:'zx'|'fli') : Uint8Array 
+{
     var bpp = (w == 4) ? 2 : 1; // C64-multi vs C64-hires & ZX
     var i = 0;
     var cols = img.width / w;
     var rows = img.height / h;
     var char = new Uint8Array(img.width * img.height * bpp / 8);
     var isvdp = char.length == img.params.length; // VDP mode (8x1 cells)
+    if (type == 'fli') isvdp = true;
     console.log('isvdp', isvdp, w, h, bpp, cols, rows);
     for (var y = 0; y < img.height; y++) {
         for (var x = 0; x < img.width; x++) {
@@ -198,10 +203,20 @@ function exportC64Hires(img: PixelsAvailableMessage, settings: DithertronSetting
     var rows = img.height / h;
     var screen = new Uint8Array(cols * rows);
     for (var i = 0; i < screen.length; i++) {
-        var p = img.params[i] & 0xff;
-        screen[i] = (p << 4) | (p >> 4);
+        var p = img.params[i];
+        screen[i] = ((p & 0xf) << 4) | ((p & 0xf00) >> 8);
     }
-    var char = exportCharMemory(img, w, h);
+    var char = exportCharMemory(img, w, h, 'fli');
+    return concatArrays([char, screen]);
+}
+function exportC64HiresFLI(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    var screen = new Uint8Array(0x2000);
+    for (var i = 0; i < img.params.length; i++) {
+        let p = img.params[i];
+        let scrnofs = (Math.floor(i/40)&7)*0x400 + Math.floor(i/320)*40 + (i % 40);
+        screen[scrnofs] = ((p & 0xf) << 4) | ((p & 0xf00) >> 8);
+    }
+    var char = exportCharMemory(img, 8, 8);
     return concatArrays([char, screen]);
 }
 function exportZXSpectrum(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
@@ -931,3 +946,114 @@ function getFileViewerCode_cpc_mode1(mode: number) {
     return getFileViewerCode_cpc(1);
 }
 
+function getFileViewerCode_c64_fli(): string {
+    var code = `
+    processor 6502
+    include "basicheader.dasm"
+Src equ $02
+Dest equ $04
+Start:
+    sei	       ; disable interrupts
+    lda #$38   ; 25 rows, on, bitmap
+    sta $d011  ; VIC control #1
+    lda #$08   ; 40 column, single
+    sta $d016  ; VIC control #2
+    lda #$00
+    sta $dd00  ; set VIC bank ($C000-$FFFF)
+    lda #$80
+    sta $d018
+    lda #0
+    sta $d020  ; border
+    sta $d021  ; background
+; copy char memory
+    lda #$00
+    sta $01    ; enable HIMEM RAM
+    lda #<CharData
+    sta Src
+    lda #>CharData
+    sta Src+1
+    lda #0
+    sta Dest
+    lda #$c0
+    sta Dest+1
+    ldx #$20
+    jsr CopyMem
+; copy screen memory
+    lda #<ScreenData
+    sta Src
+    lda #>ScreenData
+    sta Src+1
+    lda #0
+    sta Dest
+    lda #$e0
+    sta Dest+1
+    ldx #$20
+    jsr CopyMem
+    lda #$07
+    sta $01    ; enable ROM and $D000 I/O
+; raster frame loop
+NextFrame:
+; wait for $d011
+Wait256:
+    bit $d011
+    bpl Wait256
+Wait0:
+    bit $d011
+    bmi Wait0
+; wait for line 50
+    ldx #50
+    lda $d018
+WaitLine:
+    cpx $d012
+    bne WaitLine
+    jsr RTS
+    jsr RTS
+; 4+2+4+4+4+2+3 = 4*4+2*4+3 = 16+8+3 = 27
+; 63 (total) - 27 (loop) - 23 (DMA) = 4 (wait)
+NextLine:
+; change color RAM address
+    lda LookupD018-1,x
+    sta $d018      ; cycle through 0-7 color tables
+    lda LookupD011-1,x
+    sta $d011      ; force bad line
+    inx
+    cpx #250
+    bne NextLine
+; next frame
+    jmp NextFrame
+
+; copy data from Src to Dest
+; X = number of bytes * 256
+CopyMem:
+    ldy #0
+.Loop:
+    lda (Src),y
+    sta (Dest),y
+    iny
+    bne .Loop
+    inc Src+1
+    inc Dest+1
+    dex
+    bne .Loop
+RTS:
+    rts
+
+ .align $100
+ ; lookup table for $d011
+LookupD011:
+ .repeat 256/8
+ .byte $38,$39,$3a,$3b,$3c,$3d,$3e,$3f
+ .repend
+; lookup table for $d018
+LookupD018:
+ .repeat 256/8
+ .byte $80,$90,$a0,$b0,$c0,$d0,$e0,$f0
+ .repend
+ 
+; bitmap data
+CharData equ .
+ScreenData equ CharData+8000
+ incbin "$DATAFILE"
+`;
+    return code;
+}

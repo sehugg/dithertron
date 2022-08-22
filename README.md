@@ -11,6 +11,10 @@ split the screen into smaller sub-blocks that each can only display 2 to 4 color
 Neighboring sub-blocks may affect each other when dithering is enabled,
 so Dithertron chooses good colors for each sub-block and iterates until they stabilize.
 
+For modes with constrained palette choices (e.g. C64 Hires, ZX Spectrum, MSX/Coleco)
+it might help to reduce the Dither parameter, otherwise the dither errors will accumulate
+and create blocky splotches.
+
 
 How To Use
 ----------

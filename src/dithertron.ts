@@ -218,6 +218,12 @@ class VDPMode2_Canvas extends TwoColor_Canvas {
     border=0;
     allColors = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]; // TODO?
 }
+class C64HiresFLI_Canvas extends TwoColor_Canvas {
+    w=8;
+    h=1;
+    border=0;
+    allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+}
 class VCSColorPlayfield_Canvas extends TwoColor_Canvas {
     w=40;
     h=1;
@@ -227,7 +233,7 @@ class ZXSpectrum_Canvas extends TwoColor_Canvas {
     w=8;
     h=8;
     border=1;
-    allColors = [0,1,2,3,4,5,6,7]; //,9,10,11,12,13,14,15];
+    allColors = [0,1,2,3,4,5,6,7];
 }
 class Apple2_Canvas extends TwoColor_Canvas {
     w=7;
