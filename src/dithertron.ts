@@ -3,7 +3,6 @@ const emglobal : any = this['window'] || this['global'] || this;
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 
-function rnd(n:number) { return Math.floor(Math.random()*n); }
 function sqr(x:number) { return x*x; }
 function range(start:number,end:number) : number[] {
     var arr = [];
@@ -526,7 +525,8 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     var err = new Int32Array(4);
     var tmp = new Uint8ClampedArray(4);
     var tmp2 = new Uint32Array(tmp.buffer);
-    for (var i=0; i<imageData.length; i+=rnd(4)) {
+    // iterate over pixels, skipping some for performance
+    for (var i=0; i<imageData.length; i+=(i&3)+1) {
         var rgbref = imageData[i];
         err[0] += rgbref & 0xff;
         err[1] += (rgbref >> 8) & 0xff;
