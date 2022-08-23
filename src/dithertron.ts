@@ -526,31 +526,38 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     var tmp = new Uint8ClampedArray(4);
     var tmp2 = new Uint32Array(tmp.buffer);
     // iterate over pixels, skipping some for performance
-    for (var i=0; i<imageData.length; i+=(i&3)+1) {
-        var rgbref = imageData[i];
+    for (var i=0; i<imageData.length; i+=(i&7)+1) {
+        let rgbref = imageData[i];
         err[0] += rgbref & 0xff;
         err[1] += (rgbref >> 8) & 0xff;
         err[2] += (rgbref >> 16) & 0xff;
         tmp[0] = err[0];
         tmp[1] = err[1];
         tmp[2] = err[2];
-        var ind1 = getClosestRGB(tmp2[0], inds, colors, distfn);
-        histo[ind1]++;
-        var alt = colors[ind1];
-        err[0] -= alt & 0xff;
-        err[1] -= (alt >> 8) & 0xff;
-        err[2] -= (alt >> 16) & 0xff;
+        let ind1 = getClosestRGB(tmp2[0], inds, colors, distfn);
+        let n = ++histo[ind1];
+        let alt = colors[ind1];
+        let k = 1;
+        err[0] -= k * (alt & 0xff);
+        err[1] -= k * ((alt >> 8) & 0xff);
+        err[2] -= k * ((alt >> 16) & 0xff);
+        let decay = 0.95;
+        err[0] *= decay;
+        err[1] *= decay;
+        err[2] *= decay;
     }
     var choices = getChoices(histo);
+    //console.log('error', err);
     return choices;
 }
 function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: number, distfn : RGBDistanceFunction) : Uint32Array {
     if (colors.length == count) return new Uint32Array(colors);
     // reduce palette before we reduce the palette
-    if (colors.length >= count*2) {
-        colors = reducePalette(imageData, colors, count*2, distfn);
+    if (colors.length >= count*4) {
+        colors = reducePalette(imageData, colors, count*4, distfn);
     }
     var choices = reducePaletteChoices(imageData, colors, count, distfn);
+    console.log('reducePalette', colors.length, 'to', count, '=', choices);
     return new Uint32Array(choices.slice(0, count).map((x) => colors[x.ind]));
 }
 
