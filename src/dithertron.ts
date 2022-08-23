@@ -24,6 +24,7 @@ interface DithertronSettings {
     reduce?: number;
     diffuse?: number;
     noise?: number;
+    paletteDiversity?: number;
     ditherfn?: DitherKernel;
     block?: {w:number, h:number, colors:number};
     toNative?: string;
@@ -272,7 +273,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     // TODO: choose global colors before init?
     init() {
         // find global colors
-        var choices = reducePaletteChoices(this.ref, this.pal, 3, this.errfn);
+        var choices = reducePaletteChoices(this.ref, this.pal, 3, 2, this.errfn);
         this.bgcolor = choices[0] && choices[0].ind;
         this.auxcolor = choices[1] && choices[1].ind;
         this.bordercolor = choices[2] && choices[2].ind;
@@ -511,7 +512,9 @@ function getHistogram(inds) {
 function getChoices(histo) {
     var choices = [];
     for (var i=0; i<histo.length; i++) {
-        if (histo[i]) choices.push({count:histo[i], ind:i});
+        if (histo[i] > 0) {
+            choices.push({count:histo[i], ind:i});
+        }
     }
     choices.sort((a,b) => b.count - a.count);
     return choices;
@@ -527,7 +530,12 @@ interface ColorChoice {
     count: number;
 }
 
-function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count: number, distfn : RGBDistanceFunction) : ColorChoice[] {
+function reducePaletteChoices(imageData: Uint32Array, 
+    colors: Uint32Array, 
+    count: number, 
+    diversity: number,
+    distfn: RGBDistanceFunction) : ColorChoice[] 
+{
     // find best colors
     var inds = range(0, colors.length);
     var histo = new Int32Array(colors.length);
@@ -537,7 +545,7 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     var avgscore = 0;
     var numsamples = 0;
     // iterate over pixels, skipping some for performance
-    for (let i=0; i<imageData.length; i+=(i%count)+1) {
+    for (let i=0; i<imageData.length; i+=(i%11)+1) {
         let rgbref = imageData[i];
         err[0] += rgbref & 0xff;
         err[1] += (rgbref >> 8) & 0xff;
@@ -550,7 +558,7 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
         let score = distfn(tmp2[0], alt);
         avgscore += score;
         numsamples++;
-        histo[ind1] += 256 - score;
+        histo[ind1]++; // += Math.max(0, score);
         let k = 1;
         err[0] -= k * (alt & 0xff);
         err[1] -= k * ((alt >> 8) & 0xff);
@@ -563,36 +571,45 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     avgscore /= numsamples;
     // eliminate colors that are too similar
     var choices = getChoices(histo);
-    let ncolors = choices.length;
+    var ncolors = choices.length;
     for (let i=0; i<choices.length-1 && ncolors > count; i++) {
         let choice1 = choices[i];
         if (choice1.count > 0) {
             let rgb1 = colors[choice1.ind];
             for (let j=i+1; j<choices.length && ncolors > count; j++) {
                 let choice2 = choices[j];
-                if (choice2.count > 0) {
+                if (histo[choice2.ind] > 0) {
                     let rgb2 = colors[choice2.ind];
                     let score = distfn(rgb1, rgb2);
-                    let thresh = avgscore * 2;
+                    let thresh = avgscore * diversity;
                     if (score < thresh) {
                         //console.log(i, j, choice1, choice2, score);
-                        histo[choice2.ind] = 0;
+                        histo[choice2.ind] = -9999999;
                         ncolors--;
                     }
                 }
             }
         }
     }
+    //console.log(choices.length, ncolors, avgscore);
+    //inds = choices.filter(c => histo[c.ind] > 0).map(c => c.ind);
     choices = getChoices(histo);
     return choices.slice(0, count);
 }
-function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: number, distfn : RGBDistanceFunction) : Uint32Array {
+function reducePalette(imageData: Uint32Array,
+    colors: Uint32Array,
+    count: number,
+    diversity: number,
+    distfn : RGBDistanceFunction) : Uint32Array 
+{
     if (colors.length == count) return new Uint32Array(colors);
     // reduce palette before we reduce the palette
+    /*
     if (colors.length >= count*4) {
-        colors = reducePalette(imageData, colors, count*4, distfn);
+        colors = reducePalette(imageData, colors, count*4, diversity, distfn);
     }
-    var choices = reducePaletteChoices(imageData, colors, count, distfn);
+    */
+    var choices = reducePaletteChoices(imageData, colors, count, diversity, distfn);
     console.log('reducePalette', colors.length, 'to', choices.length);
     return new Uint32Array(choices.map((x) => colors[x.ind]));
 }
@@ -626,7 +643,8 @@ class Dithertron {
             var pal = new Uint32Array(sys.pal);
             var errfn = ERROR_FUNCTIONS[sys.errfn] || getRGBAErrorPerceptual;
             if (sys.reduce) {
-                pal = reducePalette(this.sourceImageData, pal, sys.reduce, errfn);
+                pal = reducePalette(this.sourceImageData, pal, 
+                    sys.reduce, sys.paletteDiversity, errfn);
             }
             var convFunction = emglobal[sys.conv];
             this.dithcanv = new convFunction(this.sourceImageData, sys.width, pal);

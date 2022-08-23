@@ -133,6 +133,7 @@ function resetImage() {
     }
     dithertron.settings.diffuse = parseFloat(diffuseSlider.value) / 100;
     dithertron.settings.noise = parseFloat(noiseSlider.value);
+    dithertron.settings.paletteDiversity = parseFloat(diversitySlider.value) / 10;
     dithertron.setSettings(dithertron.settings);
     dithertron.reset();
 }
@@ -182,6 +183,7 @@ var contrastSlider = document.getElementById('contrastSlider') as HTMLInputEleme
 var saturationSlider = document.getElementById('saturationSlider') as HTMLInputElement;
 var noiseSlider = document.getElementById('noiseSlider') as HTMLInputElement;
 var diffuseSlider = document.getElementById('diffuseSlider') as HTMLInputElement;
+var diversitySlider = document.getElementById('diversitySlider') as HTMLInputElement;
 var imageUpload = document.getElementById("imageUpload") as HTMLInputElement;
 const image = document.getElementById('srcimage') as HTMLImageElement;
 const resize = document.getElementById('resizecanvas') as HTMLCanvasElement;
@@ -214,6 +216,7 @@ function setTargetSystem(sys : DithertronSettings) {
         dest.style.width = '100%';
     }
     $("#noiseSection").css('display',showNoise?'flex':'none');
+    $("#diversitySection").css('display',sys.reduce?'flex':'none');
     $("#downloadNativeBtn").css('display',sys.toNative?'inline':'none');
     $("#gotoIDE").css('display',getCodeConvertFunction()?'inline':'none');
     cropper.replace(cropper.url);
@@ -289,6 +292,7 @@ window.addEventListener('load', function() {
 
     $("#diffuseSlider").on('change', resetImage);
     $("#noiseSlider").on('change', resetImage);
+    $("#diversitySlider").on('change', resetImage);
     $("#brightSlider").on('change', reprocessImage);
     $("#contrastSlider").on('change', reprocessImage);
     $("#saturationSlider").on('change', reprocessImage);
