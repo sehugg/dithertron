@@ -537,7 +537,7 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     var avgscore = 0;
     var numsamples = 0;
     // iterate over pixels, skipping some for performance
-    for (let i=0; i<imageData.length; i+=(i&7)+1) {
+    for (let i=0; i<imageData.length; i+=(i%count)+1) {
         let rgbref = imageData[i];
         err[0] += rgbref & 0xff;
         err[1] += (rgbref >> 8) & 0xff;
@@ -564,23 +564,23 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
     // eliminate colors that are too similar
     var choices = getChoices(histo);
     let ncolors = choices.length;
-    for (let i=0; i<inds.length && ncolors > count; i++) {
-        let histo1 = histo[inds[i]];
-        if (histo1 > 0) {
-            let rgb = colors[inds[i]];
-            let scores = scoreRGBDistances(rgb, inds.slice(i+1), colors, distfn);
-            scores.forEach((sc) => {
-                let histo2 = histo[sc.ind];
-                if (histo2 > 0 && ncolors > count) {
-                    let thresh = avgscore*2;
-                    //thresh = avgscore * 2 * histo2 / histo1;
-                    if (sc.score < thresh) {
-                        //console.log(i,histo1,histo2,thresh,ncolors,sc);
-                        histo[sc.ind] = 0;
+    for (let i=0; i<choices.length-1 && ncolors > count; i++) {
+        let choice1 = choices[i];
+        if (choice1.count > 0) {
+            let rgb1 = colors[choice1.ind];
+            for (let j=i+1; j<choices.length && ncolors > count; j++) {
+                let choice2 = choices[j];
+                if (choice2.count > 0) {
+                    let rgb2 = colors[choice2.ind];
+                    let score = distfn(rgb1, rgb2);
+                    let thresh = avgscore * 2;
+                    if (score < thresh) {
+                        //console.log(i, j, choice1, choice2, score);
+                        histo[choice2.ind] = 0;
                         ncolors--;
                     }
                 }
-            });
+            }
         }
     }
     choices = getChoices(histo);
@@ -593,7 +593,7 @@ function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: numbe
         colors = reducePalette(imageData, colors, count*4, distfn);
     }
     var choices = reducePaletteChoices(imageData, colors, count, distfn);
-    console.log('reducePalette', colors.length, 'to', count, '=', choices);
+    console.log('reducePalette', colors.length, 'to', choices.length);
     return new Uint32Array(choices.map((x) => colors[x.ind]));
 }
 
