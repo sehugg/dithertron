@@ -583,7 +583,7 @@ function reducePaletteChoices(imageData: Uint32Array,
                     let score = distfn(rgb1, rgb2);
                     let thresh = avgscore * diversity;
                     if (score < thresh) {
-                        //console.log(i, j, choice1, choice2, score);
+                        //console.log(i, j, choice1, choice2, score, thresh);
                         histo[choice2.ind] = -9999999;
                         ncolors--;
                     }

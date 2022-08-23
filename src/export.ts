@@ -816,6 +816,8 @@ dlloop                          ;Create Display List
     sta     $205
     lda     #$06
     sta     CHACTL          ;Set Character Control
+    lda #$00;PRIOR
+    sta $c01b
 ; set colors
     lda     #$00;PF0
     sta     COLOR0+4
@@ -867,6 +869,16 @@ ImgData2 equ ImgData1+40*96
         code = code.replace('$00;PF'+i, '$' + hex(palinds[i]));
     return code;
 }
+
+/*
+function getFileViewerCode_atari8_f_10() {
+    let code = getFileViewerCode_atari8_d();
+    code = code.replace('.byte $4d','.byte $4f');
+    code = code.replace('.byte $0d','.byte $0f');
+    code = code.replace('lda #$00;PRIOR','lda #$80');
+    return code;
+}
+*/
 
 function getFileViewerCode_zx() {
 var code = `

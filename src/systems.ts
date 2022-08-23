@@ -170,6 +170,18 @@ const SYSTEMS : DithertronSettings[] = [
         toNative:'exportNES',
     },
     {
+        id:'atari8.f.10',
+        name:'Atari ANTIC F/10',
+        width:80,
+        height:192,
+        scaleX:0.8571*4,
+        conv:'DitheringCanvas',
+        pal:VCS_RGB,
+        reduce:9,
+        toNative:'exportFrameBuffer',
+        exportFormat:{bpp:4,brev:true},
+    },
+    {
         id:'atari7800.160a',
         name:'Atari 7800 (160A)',
         width:160,
