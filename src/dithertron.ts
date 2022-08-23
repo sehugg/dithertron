@@ -437,7 +437,7 @@ function getRGBAErrorHue(rgbref, rgbimg) {
     b2 /= avg2;
     //var mag2 = Math.sqrt(sqr(r1-r2)*9 + sqr(g1-g2)*25 + sqr(b1-b2)*4);
     //var mag2 = Math.sqrt(sqr(r1-r2)*3 + sqr(g1-g2)*5 + sqr(b1-b2)*3);
-    var mag2 = Math.sqrt(sqr(r1-r2) + sqr(g1-g2) + sqr(b1-b2));
+    var mag2 = Math.sqrt(sqr(r1-r2) + sqr(g1-g2) + sqr(b1-b2))*256;
     return mag2;
 }
 function getRGBAErrorPerceptual(rgbref, rgbimg) {
@@ -491,6 +491,15 @@ function getClosestRGB(rgb:number, inds:number[], pal:Uint32Array, distfn:RGBDis
     }
     return bestidx;
 }
+function scoreRGBDistances(rgb:number, inds:number[], pal:Uint32Array, distfn:RGBDistanceFunction) {
+    let scores = [];
+    for (let i=0; i<inds.length; i++) {
+        var col = pal[inds[i]];
+        var score = distfn(rgb, col);
+        scores[i] = {i, ind:inds[i], rgb, col, score};
+    }
+    return scores;
+}
 
 //
 
@@ -521,12 +530,14 @@ interface ColorChoice {
 function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count: number, distfn : RGBDistanceFunction) : ColorChoice[] {
     // find best colors
     var inds = range(0, colors.length);
-    var histo = new Uint32Array(colors.length);
+    var histo = new Int32Array(colors.length);
     var err = new Int32Array(4);
     var tmp = new Uint8ClampedArray(4);
     var tmp2 = new Uint32Array(tmp.buffer);
+    var avgscore = 0;
+    var numsamples = 0;
     // iterate over pixels, skipping some for performance
-    for (var i=0; i<imageData.length; i+=(i&7)+1) {
+    for (let i=0; i<imageData.length; i+=(i&7)+1) {
         let rgbref = imageData[i];
         err[0] += rgbref & 0xff;
         err[1] += (rgbref >> 8) & 0xff;
@@ -535,8 +546,11 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
         tmp[1] = err[1];
         tmp[2] = err[2];
         let ind1 = getClosestRGB(tmp2[0], inds, colors, distfn);
-        let n = ++histo[ind1];
         let alt = colors[ind1];
+        let score = distfn(tmp2[0], alt);
+        avgscore += score;
+        numsamples++;
+        histo[ind1] += 256 - score;
         let k = 1;
         err[0] -= k * (alt & 0xff);
         err[1] -= k * ((alt >> 8) & 0xff);
@@ -546,9 +560,31 @@ function reducePaletteChoices(imageData: Uint32Array, colors: Uint32Array, count
         err[1] *= decay;
         err[2] *= decay;
     }
+    avgscore /= numsamples;
+    // eliminate colors that are too similar
     var choices = getChoices(histo);
-    //console.log('error', err);
-    return choices;
+    let ncolors = choices.length;
+    for (let i=0; i<inds.length && ncolors > count; i++) {
+        let histo1 = histo[inds[i]];
+        if (histo1 > 0) {
+            let rgb = colors[inds[i]];
+            let scores = scoreRGBDistances(rgb, inds.slice(i+1), colors, distfn);
+            scores.forEach((sc) => {
+                let histo2 = histo[sc.ind];
+                if (histo2 > 0 && ncolors > count) {
+                    let thresh = avgscore*2;
+                    //thresh = avgscore * 2 * histo2 / histo1;
+                    if (sc.score < thresh) {
+                        //console.log(i,histo1,histo2,thresh,ncolors,sc);
+                        histo[sc.ind] = 0;
+                        ncolors--;
+                    }
+                }
+            });
+        }
+    }
+    choices = getChoices(histo);
+    return choices.slice(0, count);
 }
 function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: number, distfn : RGBDistanceFunction) : Uint32Array {
     if (colors.length == count) return new Uint32Array(colors);
@@ -558,7 +594,7 @@ function reducePalette(imageData: Uint32Array, colors: Uint32Array, count: numbe
     }
     var choices = reducePaletteChoices(imageData, colors, count, distfn);
     console.log('reducePalette', colors.length, 'to', count, '=', choices);
-    return new Uint32Array(choices.slice(0, count).map((x) => colors[x.ind]));
+    return new Uint32Array(choices.map((x) => colors[x.ind]));
 }
 
 //
