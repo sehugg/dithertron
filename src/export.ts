@@ -1012,21 +1012,18 @@ Wait256:
 Wait0:
     bit $d011
     bmi Wait0
-; wait for line 50
-    ldx #50
+; wait for line 49
+    ldx #49
     lda $d018
 WaitLine:
     cpx $d012
     bne WaitLine
-    jsr RTS
-    jsr RTS
-; 4+2+4+4+4+2+3 = 4*4+2*4+3 = 16+8+3 = 27
 ; 63 (total) - 27 (loop) - 23 (DMA) = 4 (wait)
 NextLine:
 ; change color RAM address
     lda LookupD018-1,x
     sta $d018      ; cycle through 0-7 color tables
-    lda LookupD011-1,x
+    lda LookupD011,x
     sta $d011      ; force bad line
     inx
     cpx #250
