@@ -37,6 +37,7 @@ const dithertron = new ProxyDithertron(worker);
 
 var resizeImageData : Uint32Array;
 var filenameLoaded : string;
+var presetLoaded : string;
 
 // DITHER SETTINGS
 const DITHER_FLOYD = [[1, 0, 7/16], [-1, 1, 3/16], [0, 1, 5/16], [1, 1, 1/16]];
@@ -198,10 +199,12 @@ const cropper = new Cropper(image, {
         convertImage();
     },
 });
+
 function loadSourceImage(url) {
     cropper.replace(url);
+    updateURL();
 }
-//
+
 function setTargetSystem(sys : DithertronSettings) {
     var showNoise = sys.conv != 'DitheringCanvas';
     dithertron.setSettings(sys);
@@ -220,8 +223,33 @@ function setTargetSystem(sys : DithertronSettings) {
     $("#downloadNativeBtn").css('display',sys.toNative?'inline':'none');
     $("#gotoIDE").css('display',getCodeConvertFunction()?'inline':'none');
     cropper.replace(cropper.url);
+    updateURL();
 }
 
+function updateURL() {
+    let qs = { 
+        sys: dithertron.settings.id,
+        image: presetLoaded,
+    };
+    window.location.hash = '#' + $.param(qs);
+}
+
+function decodeQueryString(qs : string) : {} {
+    if (qs.startsWith('?')) qs = qs.substr(1);
+    var a = qs.split('&');
+    if (!a || a.length == 0)
+        return {};
+    var b = {};
+    for (var i = 0; i < a.length; ++i) {
+        var p = a[i].split('=', 2);
+        if (p.length == 1)
+            b[p[0]] = "";
+        else
+            b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
+    }
+    return b;
+}
+  
 var EXAMPLE_IMAGES = [
     'benbenn.jpg',
     'cezanne2.jpg',
@@ -245,6 +273,7 @@ window.addEventListener('load', function() {
         var file = this.files && this.files[0];
         if (file) {
             filenameLoaded = file.name;
+            presetLoaded = "";
             var url = URL.createObjectURL(file);
             loadSourceImage(url);
         }
@@ -255,7 +284,7 @@ window.addEventListener('load', function() {
     });
     $("#examplesMenu").click((e) => {
         var filename = $(e.target).text();
-        filenameLoaded = filename;
+        filenameLoaded = presetLoaded = filename;
         loadSourceImage("images/" + filename);
         imageUpload.value = "";
     });
@@ -286,8 +315,11 @@ window.addEventListener('load', function() {
         */
     }
 
-    setTargetSystem(SYSTEM_LOOKUP['c64.multi']);
-    filenameLoaded = "seurat.jpg";
+    var qs = decodeQueryString(window.location.hash.substring(1));
+    var sys = qs['sys'] || 'c64.multi';
+    $('#targetFormatSelect').val(sys);
+    setTargetSystem(SYSTEM_LOOKUP[sys]);
+    filenameLoaded = presetLoaded = qs['image'] || "seurat.jpg";
     loadSourceImage("images/" + filenameLoaded);
 
     $("#diffuseSlider").on('change', resetImage);
