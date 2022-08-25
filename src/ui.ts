@@ -69,8 +69,8 @@ const ALL_DITHER_SETTINGS : DitherSetting[] = [
 ];
 
 const ERROR_FUNCS = [
-    {id:'hue', name:"Hue-Based"},
     {id:'perceptual', name:"Perceptual"},
+    {id:'hue', name:"Hue-Based"},
     {id:'dist', name:"Distance"},
     {id:'max', name:"Maximum"},
 ];
@@ -219,7 +219,7 @@ function setTargetSystem(sys : DithertronSettings) {
         dest.style.width = '100%';
     }
     $("#noiseSection").css('display',showNoise?'flex':'none');
-    $("#diversitySection").css('display',sys.reduce?'flex':'none');
+    $("#diversitySection").css('display',/*sys.reduce*/false?'flex':'none');
     $("#downloadNativeBtn").css('display',sys.toNative?'inline':'none');
     $("#gotoIDE").css('display',getCodeConvertFunction()?'inline':'none');
     cropper.replace(cropper.url);

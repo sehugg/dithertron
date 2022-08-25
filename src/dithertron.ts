@@ -483,11 +483,14 @@ function getClosestRGB(rgb:number, inds:number[], pal:Uint32Array, distfn:RGBDis
     var best = 9999999;
     var bestidx = -1;
     for (var i=0; i<inds.length; i++) {
-        var col = pal[inds[i]];
-        var score = distfn(rgb, col);
-        if (score < best) {
-            best = score;
-            bestidx = inds[i];
+        let ind = inds[i];
+        if (ind >= 0) {
+            var col = pal[inds[i]];
+            var score = distfn(rgb, col);
+            if (score < best) {
+                best = score;
+                bestidx = inds[i];
+            }
         }
     }
     return bestidx;
@@ -530,6 +533,25 @@ interface ColorChoice {
     count: number;
 }
 
+class Centroid {
+    r: number = 0;
+    g: number = 0;
+    b: number = 0;
+    n: number = 0;
+    add(rgb: number) {
+        this.r += (rgb >> 0) & 0xff;
+        this.g += (rgb >> 8) & 0xff;
+        this.b += (rgb >> 16) & 0xff;
+        this.n++;
+    }
+    getAvgRGB() {
+        var r = Math.max(0, Math.min(255, this.r / this.n));
+        var g = Math.max(0, Math.min(255, this.g / this.n));
+        var b = Math.max(0, Math.min(255, this.b / this.n));
+        return (r << 0) | (g << 8) | (b << 16);
+    }
+}
+
 function reducePaletteChoices(imageData: Uint32Array, 
     colors: Uint32Array, 
     count: number, 
@@ -537,65 +559,65 @@ function reducePaletteChoices(imageData: Uint32Array,
     distfn: RGBDistanceFunction) : ColorChoice[] 
 {
     // find best colors
-    var inds = range(0, colors.length);
+    var centroids : Centroid[] = [];
+    var inds : number[] = [];
+    for (let i=0; i<count; i++) {
+        inds.push(Math.floor(i * (colors.length-1) / count));
+        centroids.push(new Centroid());
+    }
     var histo = new Int32Array(colors.length);
     var err = new Int32Array(4);
     var tmp = new Uint8ClampedArray(4);
     var tmp2 = new Uint32Array(tmp.buffer);
     var avgscore = 0;
     var numsamples = 0;
-    // iterate over pixels, skipping some for performance
-    for (let i=0; i<imageData.length; i+=(i%11)+1) {
-        let rgbref = imageData[i];
-        err[0] += rgbref & 0xff;
-        err[1] += (rgbref >> 8) & 0xff;
-        err[2] += (rgbref >> 16) & 0xff;
-        tmp[0] = err[0];
-        tmp[1] = err[1];
-        tmp[2] = err[2];
-        let ind1 = getClosestRGB(tmp2[0], inds, colors, distfn);
-        let alt = colors[ind1];
-        let score = distfn(tmp2[0], alt);
-        avgscore += score;
-        numsamples++;
-        histo[ind1]++; // += Math.max(0, score);
-        let k = 1;
-        err[0] -= k * (alt & 0xff);
-        err[1] -= k * ((alt >> 8) & 0xff);
-        err[2] -= k * ((alt >> 16) & 0xff);
-        let decay = 0.95;
-        err[0] *= decay;
-        err[1] *= decay;
-        err[2] *= decay;
-    }
-    avgscore /= numsamples;
-    // eliminate colors that are too similar
-    var choices = getChoices(histo);
-    var ncolors = choices.length;
-    for (let i=0; i<choices.length-1 && ncolors > count; i++) {
-        let choice1 = choices[i];
-        if (choice1.count > 0) {
-            let rgb1 = colors[choice1.ind];
-            for (let j=i+1; j<choices.length && ncolors > count; j++) {
-                let choice2 = choices[j];
-                if (histo[choice2.ind] > 0) {
-                    let rgb2 = colors[choice2.ind];
-                    let score = distfn(rgb1, rgb2);
-                    let thresh = avgscore * diversity;
-                    if (score < thresh) {
-                        //console.log(i, j, choice1, choice2, score, thresh);
-                        histo[choice2.ind] = -9999999;
-                        ncolors--;
-                    }
-                }
-            }
+    for (let iter=0; iter<5; iter++) {
+        // iterate over pixels, skipping some for performance
+        for (let i=iter; i<imageData.length; i+=(i&15)+1) {
+            let rgbref = imageData[i];
+            err[0] += rgbref & 0xff;
+            err[1] += (rgbref >> 8) & 0xff;
+            err[2] += (rgbref >> 16) & 0xff;
+            tmp[0] = err[0];
+            tmp[1] = err[1];
+            tmp[2] = err[2];
+            let ind1 = getClosestRGB(tmp2[0], inds, colors, distfn);
+            let alt = colors[ind1];
+            centroids[inds.indexOf(ind1)].add(tmp2[0]);
+            let score = distfn(tmp2[0], alt);
+            avgscore += score;
+            numsamples++;
+            histo[ind1] += Math.max(0, 256 - score);
+            err[0] -= (alt & 0xff);
+            err[1] -= ((alt >> 8) & 0xff);
+            err[2] -= ((alt >> 16) & 0xff);
+            let decay = 0.95;
+            err[0] *= decay;
+            err[1] *= decay;
+            err[2] *= decay;
         }
+        avgscore /= numsamples;
+        // move colors if the new one is better
+        var allinds = range(0, colors.length);
+        var nchanged = 0;
+        for (let i=0; i<count; i++) {
+            let cent = centroids[i];
+            let current = colors[inds[i]];
+            let ind2 = getClosestRGB(cent.getAvgRGB(), allinds, colors, distfn);
+            let better = colors[ind2];
+            if (better != current) {
+                let score = distfn(current, better);
+                console.log(i, inds[i], ind2, score);
+                inds[i] = ind2;
+                nchanged++;
+            }
+            allinds[ind2] = -1;
+        }
+        if (nchanged == 0) break;
     }
-    //console.log(choices.length, ncolors, avgscore);
-    //inds = choices.filter(c => histo[c.ind] > 0).map(c => c.ind);
-    choices = getChoices(histo);
-    return choices.slice(0, count);
+    return inds.map((ind) => { return {ind, count:histo[ind]} });
 }
+
 function reducePalette(imageData: Uint32Array,
     colors: Uint32Array,
     count: number,
