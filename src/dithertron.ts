@@ -273,7 +273,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     // TODO: choose global colors before init?
     init() {
         // find global colors
-        var choices = reducePaletteChoices(this.ref, this.pal, 3, 2, this.errfn);
+        var choices = reducePaletteChoices(this.ref, this.pal, 3, 1, this.errfn);
         this.bgcolor = choices[0] && choices[0].ind;
         this.auxcolor = choices[1] && choices[1].ind;
         this.bordercolor = choices[2] && choices[2].ind;
@@ -463,6 +463,9 @@ function getRGBAErrorMax(rgbref, rgbimg) {
     var b2 = ((rgbimg>>16) & 0xff);
     return Math.max(Math.abs(r1-r2), Math.abs(g1-g2), Math.abs(b1-b2));
 }
+function intensity(rgb) {
+    return getRGBAErrorPerceptual(0, rgb);
+}
 const ERROR_FUNCTIONS = {
     'perceptual': getRGBAErrorPerceptual,
     'hue': getRGBAErrorHue,
@@ -544,10 +547,10 @@ class Centroid {
         this.b += (rgb >> 16) & 0xff;
         this.n++;
     }
-    getAvgRGB() {
-        var r = Math.max(0, Math.min(255, this.r / this.n));
-        var g = Math.max(0, Math.min(255, this.g / this.n));
-        var b = Math.max(0, Math.min(255, this.b / this.n));
+    getAvgRGB(k: number) {
+        var r = Math.max(0, Math.min(255, this.r * k / this.n));
+        var g = Math.max(0, Math.min(255, this.g * k / this.n));
+        var b = Math.max(0, Math.min(255, this.b * k / this.n));
         return (r << 0) | (g << 8) | (b << 16);
     }
 }
@@ -558,20 +561,21 @@ function reducePaletteChoices(imageData: Uint32Array,
     diversity: number,
     distfn: RGBDistanceFunction) : ColorChoice[] 
 {
-    // find best colors
+    var histo = new Int32Array(colors.length);
+    var err = new Int32Array(4);
+    var tmp = new Uint8ClampedArray(4);
+    var tmp2 = new Uint32Array(tmp.buffer);
+    var bias = diversity*0.5 + 0.5;
+    let decay = diversity*0.25 + 0.65;
+    // choose initial centroids from palette
     var centroids : Centroid[] = [];
     var inds : number[] = [];
     for (let i=0; i<count; i++) {
         inds.push(Math.floor(i * (colors.length-1) / count));
         centroids.push(new Centroid());
     }
-    var histo = new Int32Array(colors.length);
-    var err = new Int32Array(4);
-    var tmp = new Uint8ClampedArray(4);
-    var tmp2 = new Uint32Array(tmp.buffer);
-    var avgscore = 0;
-    var numsamples = 0;
-    for (let iter=0; iter<5; iter++) {
+    // iterate over the frame a max. number of items
+    for (let iter=0; iter<10; iter++) {
         // iterate over pixels, skipping some for performance
         for (let i=iter; i<imageData.length; i+=(i&15)+1) {
             let rgbref = imageData[i];
@@ -585,37 +589,40 @@ function reducePaletteChoices(imageData: Uint32Array,
             let alt = colors[ind1];
             centroids[inds.indexOf(ind1)].add(tmp2[0]);
             let score = distfn(tmp2[0], alt);
-            avgscore += score;
-            numsamples++;
             histo[ind1] += Math.max(0, 256 - score);
             err[0] -= (alt & 0xff);
             err[1] -= ((alt >> 8) & 0xff);
             err[2] -= ((alt >> 16) & 0xff);
-            let decay = 0.95;
             err[0] *= decay;
             err[1] *= decay;
             err[2] *= decay;
         }
-        avgscore /= numsamples;
         // move colors if the new one is better
         var allinds = range(0, colors.length);
         var nchanged = 0;
         for (let i=0; i<count; i++) {
+            // find closest palette color to centroid mean
             let cent = centroids[i];
             let current = colors[inds[i]];
-            let ind2 = getClosestRGB(cent.getAvgRGB(), allinds, colors, distfn);
+            let ind2 = getClosestRGB(cent.getAvgRGB(bias), allinds, colors, distfn);
             let better = colors[ind2];
+            // if it's different, update the color
             if (better != current) {
-                let score = distfn(current, better);
-                console.log(i, inds[i], ind2, score);
                 inds[i] = ind2;
                 nchanged++;
+                //console.log(iter, i, inds[i], ind2, score);
             }
-            allinds[ind2] = -1;
+            // don't use this color again
+            for (let j=0; j<colors.length; j++) {
+                if (colors[j] == better) { allinds[j] = -1; }
+            }
         }
         if (nchanged == 0) break;
     }
-    return inds.map((ind) => { return {ind, count:histo[ind]} });
+    // sort resulting colors by intensity
+    var result = inds.map((ind) => { return {ind, count:histo[ind]} });
+    result.sort((a,b) => intensity(colors[a.ind]) - intensity(colors[b.ind]));
+    return result;
 }
 
 function reducePalette(imageData: Uint32Array,
@@ -625,12 +632,6 @@ function reducePalette(imageData: Uint32Array,
     distfn : RGBDistanceFunction) : Uint32Array 
 {
     if (colors.length == count) return new Uint32Array(colors);
-    // reduce palette before we reduce the palette
-    /*
-    if (colors.length >= count*4) {
-        colors = reducePalette(imageData, colors, count*4, diversity, distfn);
-    }
-    */
     var choices = reducePaletteChoices(imageData, colors, count, diversity, distfn);
     console.log('reducePalette', colors.length, 'to', choices.length);
     return new Uint32Array(choices.map((x) => colors[x.ind]));

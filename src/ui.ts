@@ -92,7 +92,7 @@ function drawRGBA(dest, arr) {
         // TODO: source array is too long when switching
     }
 }
-function applyBrightness(imageData:Uint32Array, bright:number, bias:number, sat:number) {
+function applyBrightness(imageData:Uint32Array, bright:number, bias:number, sat:number, gamma:number) {
     bright *= 1;
     bias *= 1;
     var u8arr = new Uint8ClampedArray(imageData.buffer);
@@ -106,9 +106,9 @@ function applyBrightness(imageData:Uint32Array, bright:number, bias:number, sat:
             g = gray * (1-sat) + g * sat;
             b = gray * (1-sat) + b * sat;
         }
-        u8arr[i] = r * bright + bias;
-        u8arr[i+1] = g * bright + bias;
-        u8arr[i+2] = b * bright + bias;
+        u8arr[i] = Math.pow(r * bright, gamma) + bias;
+        u8arr[i+1] = Math.pow(g * bright, gamma) + bias;
+        u8arr[i+2] = Math.pow(b * bright, gamma) + bias;
     }
 }
 
@@ -117,7 +117,8 @@ function reprocessImage() {
     let bright = (parseFloat(contrastSlider.value) - 50) / 100 + 1.0; // middle = 1.0, range = 0.5-1.5
     let bias = (parseFloat(brightSlider.value) - bright * 50) * (128 / 50);
     let sat = (parseFloat(saturationSlider.value) - 50) / 50 + 1.0; // middle = 1.0, range = 0-2
-    applyBrightness(resizeImageData, bright, bias, sat);
+    let gamma = 1;
+    applyBrightness(resizeImageData, bright, bias, sat, gamma);
     dithertron.setSourceImage(resizeImageData);
     resetImage();
 }
@@ -134,7 +135,7 @@ function resetImage() {
     }
     dithertron.settings.diffuse = parseFloat(diffuseSlider.value) / 100;
     dithertron.settings.noise = parseFloat(noiseSlider.value);
-    dithertron.settings.paletteDiversity = parseFloat(diversitySlider.value) / 10;
+    dithertron.settings.paletteDiversity = parseFloat(diversitySlider.value) / 200 + 0.75;
     dithertron.setSettings(dithertron.settings);
     dithertron.reset();
 }
@@ -219,7 +220,7 @@ function setTargetSystem(sys : DithertronSettings) {
         dest.style.width = '100%';
     }
     $("#noiseSection").css('display',showNoise?'flex':'none');
-    $("#diversitySection").css('display',/*sys.reduce*/false?'flex':'none');
+    $("#diversitySection").css('display',sys.reduce?'flex':'none');
     $("#downloadNativeBtn").css('display',sys.toNative?'inline':'none');
     $("#gotoIDE").css('display',getCodeConvertFunction()?'inline':'none');
     cropper.replace(cropper.url);
@@ -324,7 +325,7 @@ window.addEventListener('load', function() {
 
     $("#diffuseSlider").on('change', resetImage);
     $("#noiseSlider").on('change', resetImage);
-    $("#diversitySlider").on('change', resetImage);
+    $("#diversitySlider").on('change', reprocessImage);
     $("#brightSlider").on('change', reprocessImage);
     $("#contrastSlider").on('change', reprocessImage);
     $("#saturationSlider").on('change', reprocessImage);
