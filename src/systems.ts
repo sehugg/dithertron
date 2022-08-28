@@ -393,6 +393,29 @@ const SYSTEMS : DithertronSettings[] = [
         reduce:32,
     },
     */
+    {
+        id:'amiga.lores',
+        name:'Amiga Lores',
+        width:320,
+        height:256,
+        conv:'DitheringCanvas',
+        pal:AMIGA_OCS_COLOR_RGB,
+        reduce:32,
+        //toNative:'exportFrameBuffer',
+        //exportFormat:{bpp:1,brev:true,np:5},
+    },
+    {
+        id:'amiga.lores.ham6',
+        name:'Amiga Lores HAM6',
+        width:320,
+        height:256,
+        conv:'HAM6_Canvas',
+        pal:AMIGA_OCS_COLOR_RGB,
+        reduce:16,
+        extraColors:48,
+        //toNative:'exportFrameBuffer',
+        //exportFormat:{bpp:1,brev:true,np:6},
+    },
 ];
 var SYSTEM_LOOKUP = {};
 SYSTEMS.forEach((sys) => { if (sys) SYSTEM_LOOKUP[sys.id||sys.name] = sys; });

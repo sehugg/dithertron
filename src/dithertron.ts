@@ -22,6 +22,7 @@ interface DithertronSettings {
     scaleX?: number; // aspect ratio for screen pixels
     errfn?: string; //(rgb:number,rgb2:number) => number;
     reduce?: number;
+    extraColors?: number;
     diffuse?: number;
     noise?: number;
     paletteDiversity?: number;
@@ -397,6 +398,26 @@ class NES_Canvas extends ParamDitherCanvas {
         choices.forEach((ch) => { if (ch.ind > 0) this.params[p] = ch.ind-1; });
     }
 }
+class HAM6_Canvas extends DitheringCanvas {
+    getValidColors(offset:number) : number[] {
+        let arr = super.getValidColors(offset);
+        if (offset == 0) {
+            arr = arr.slice(0, 16);
+        } else {
+            let palindex = 16;
+            let prevrgb = this.img[offset-1];
+            for (let chan=0; chan<3; chan++) {
+                for (let i=0; i<16; i++) {
+                    let rgb = prevrgb;
+                    rgb &= ~(0xff << (chan*8));
+                    rgb |= (i << 4) << (chan*8);
+                    this.pal[palindex++] = rgb;
+                }
+            }
+        }
+        return arr;
+    }
+}
 
 //
 function getRGBADiff(rgbref, rgbimg) {
@@ -668,6 +689,11 @@ class Dithertron {
             if (sys.reduce) {
                 pal = reducePalette(this.sourceImageData, pal, 
                     sys.reduce, sys.paletteDiversity, errfn);
+            }
+            if (sys.extraColors) {
+                let pal2 = new Uint32Array(pal.length + sys.extraColors);
+                pal2.set(pal);
+                pal = pal2;
             }
             var convFunction = emglobal[sys.conv];
             this.dithcanv = new convFunction(this.sourceImageData, sys.width, pal);
