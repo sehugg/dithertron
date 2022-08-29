@@ -92,3 +92,8 @@ TODO
 * Custom width and height (crop rect for non-full-screen)
 * Faster closest color lookup
 
+SAMPLE IMAGES
+-------------
+
+https://www.pexels.com/photo/dreamy-black-woman-in-bright-headscarf-near-rough-wall-4615699/
+https://www.pexels.com/photo/creative-graffiti-wall-with-portrait-of-frida-kahlo-6424244/
