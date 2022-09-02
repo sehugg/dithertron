@@ -763,7 +763,8 @@ sDLISTH equ     $06             ;Display list hi shadow
 CHBASE  equ     $D409           ;Character set base
 CHACTL  equ     $D401           ;Character control
 NMIEN   equ     $D40E           ;NMI Enable
-COLOR0  equ     $0C             ;Color 0 shadow
+PMCOL0  equ     $08             ;PM colors
+COLOR0  equ     $0C             ;PF colors
 
     org     $4000           ;Start of cartridge area
     sei                     ;Disable interrupts
@@ -816,13 +817,24 @@ dlloop                          ;Create Display List
     sta     $205
     lda     #$06
     sta     CHACTL          ;Set Character Control
-    lda #$00;PRIOR
-    sta $c01b
-; set colors
+    lda     #$00;PRIOR
+    sta     $c01b
+; set GTIA mode colors
+    lda     #$00;PF4
+    sta     COLOR0 + 0
+    lda     #$00;PF5
+    sta     COLOR0 + 1
+    lda     #$00;PF6
+    sta     COLOR0 + 2
+    lda     #$00;PF7
+    sta     COLOR0 + 3
+    lda     #$00;PF8
+    sta     COLOR0 + 4
+; set non-GTIA mode colors
     lda     #$00;PF0
     sta     COLOR0+4
     lda     #$00;PF1
-    sta     COLOR0
+    sta     COLOR0+0
     lda     #$00;PF2
     sta     COLOR0+1
     lda     #$00;PF3
@@ -865,20 +877,22 @@ ImgData2 equ ImgData1+40*96
     .byte   $00,$40     ;Start code at $4000
 `;
     var palinds = convertToSystemPalette(dithertron.lastPixels.pal, dithertron.settings.pal);
-    for (var i=0; i<4; i++)
+    for (var i=0; i<palinds.length; i++)
         code = code.replace('$00;PF'+i, '$' + hex(palinds[i]));
     return code;
 }
 
-/*
 function getFileViewerCode_atari8_f_10() {
     let code = getFileViewerCode_atari8_d();
     code = code.replace('.byte $4d','.byte $4f');
     code = code.replace('.byte $0d','.byte $0f');
-    code = code.replace('lda #$00;PRIOR','lda #$80');
+    code = code.replace('#$00;PRIOR','#$80');
+    code = code.replace('COLOR0+4', 'PMCOL0+0');
+    code = code.replace('COLOR0+0', 'PMCOL0+1');
+    code = code.replace('COLOR0+1', 'PMCOL0+2');
+    code = code.replace('COLOR0+2', 'PMCOL0+3');
     return code;
 }
-*/
 
 function getFileViewerCode_zx() {
 var code = `
