@@ -359,7 +359,7 @@ async function gotoIDE(e) {
         var platform_id = dithertron.settings.id.split('.')[0];
         var form = $(document.forms['ideForm'] as HTMLFormElement);
         form.empty();
-        if (platform_id == 'atari8') platform_id = 'atari8-5200.mame'; // TODO
+        if (platform_id == 'atari8') platform_id = 'atari8-800xl.mame'; // TODO
         if (platform_id == 'cpc') platform_id = 'cpc.6128'; // TODO
         addHiddenField(form, "platform", platform_id);
         // TODO
@@ -754,71 +754,13 @@ return code;
 function getFileViewerCode_atari8_d() {
     var code = `
     processor 6502    
-DMACTL  equ     $D400           ;DMA Control
-sDMACTL equ     $07             ;DMA Control Shadow
-DLISTL  equ     $D402           ;Display list lo
-DLISTH  equ     $D403           ;Display list hi
-sDLISTL equ     $05             ;Display list lo shadow
-sDLISTH equ     $06             ;Display list hi shadow
-CHBASE  equ     $D409           ;Character set base
-CHACTL  equ     $D401           ;Character control
-NMIEN   equ     $D40E           ;NMI Enable
-PMCOL0  equ     $08             ;PM colors
-COLOR0  equ     $0C             ;PF colors
-
-    org     $4000           ;Start of cartridge area
-    sei                     ;Disable interrupts
-    cld                     ;Clear decimal mode
-Start
-    ldx     #$00
-    lda     #$00
-crloop1    
-    sta     $00,x           ;Clear zero page
-    sta     $D400,x         ;Clear ANTIC
-    sta     $C000,x         ;Clear GTIA
-    sta     $E800,x         ;Clear POKEY
-    dex
-    bne     crloop1
-    ldy     #$00            ;Clear Ram
-    lda     #$02            ;Start at $0200
-    sta     $81             
-    lda     #$00
-    sta     $80
-crloop2
-    lda     #$00            
-crloop3
-    sta     ($80),y         ;Store data
-    iny                     ;Next byte
-    bne     crloop3         ;Branch if not done page
-    inc     $81             ;Next page
-    lda     $81
-    cmp     #$40            ;Check if end of RAM
-    bne     crloop2         ;Branch if not
-; copy display list to RAM
-    ldx     #0
-dlloop                          ;Create Display List
-    lda     dlist,x         ;Get byte
-    sta     $1000,x         ;Copy to RAM
-    inx                     ;next byte
-    cpx	#(dlistend-dlist)
-    bne     dlloop
-; set vectors
-    lda     #$03            ;point IRQ vector
-    sta     $200            ;to BIOS routine
-    lda     #$FC
-    sta     $201
-    lda     #$B8            ;point VBI vector
-    sta     $202            ;to BIOS routine
-    lda     #$FC
-    sta     $203
-    lda     #$B2            ;point Deferred VBI
-    sta     $204            ;to BIOS routine
-    lda     #$FC
-    sta     $205
-    lda     #$06
-    sta     CHACTL          ;Set Character Control
-    lda     #$00;PRIOR
-    sta     $c01b
+    include "atari.inc"
+;GPIOMODE equ 1
+    org     $a000           ;Start of left cartridge area
+Start:
+ ifconst GPIOMODE
+    lda     #$80
+    sta     GPRIOR
 ; set GTIA mode colors
     lda     #$00;PF4
     sta     COLOR0 + 0
@@ -830,6 +772,7 @@ dlloop                          ;Create Display List
     sta     COLOR0 + 3
     lda     #$00;PF8
     sta     COLOR0 + 4
+ endif
 ; set non-GTIA mode colors
     lda     #$00;PF0
     sta     COLOR0+4
@@ -840,21 +783,23 @@ dlloop                          ;Create Display List
     lda     #$00;PF3
     sta     COLOR0+2
 ; set display list
-    lda     #$00            ;Set Display list pointer
-    sta     sDLISTL
-    sta     DLISTL
-    lda     #$10
-    sta     sDLISTH
-    sta     DLISTH
+    lda     #<dlist            ;Set Display list pointer
+    sta     SDLSTL
+    lda     #>dlist
+    sta     SDLSTH
 ; enable DMI
     lda     #$22            ;Enable DMA
-    sta     sDMACTL
-    lda     #$40            ;Enable NMI
-    sta     NMIEN
+    sta     SDMCTL
 ; infinite loop
 wait
     nop
     jmp     wait
+
+;Graphics data
+    align $100   ; ANTIC can only count to $FFF
+ImgData1:
+ImgData2 equ ImgData1+40*96
+    incbin "$DATAFILE"
 
 ;Display list data
 dlist
@@ -863,18 +808,21 @@ dlist
     REPEAT 95
     .byte $0d
     REPEND
+    ifconst GPIOMODE
+    .byte $4f,#<ImgData2,#>ImgData2
+    REPEAT 95
+    .byte $0f
+    REPEND
+    endif
     .byte $41,$00,$10
 dlistend equ .
 
-;Graphics data
-ImgData1:
-ImgData2 equ ImgData1+40*96
-    incbin "$DATAFILE"
-
-;CPU vectors
-    org     $bffd
-    .byte   $FF         ;Don't display Atari logo
-    .byte   $00,$40     ;Start code at $4000
+;Cartridge footer
+    org     CARTCS
+    .word 	Start	; cold start address
+    .byte	$00	; 0 == cart exists
+    .byte	$04	; boot cartridge
+    .word	Start	; start
 `;
     var palinds = convertToSystemPalette(dithertron.lastPixels.pal, dithertron.settings.pal);
     for (var i=0; i<palinds.length; i++)
@@ -887,10 +835,11 @@ function getFileViewerCode_atari8_f_10() {
     code = code.replace('.byte $4d','.byte $4f');
     code = code.replace('.byte $0d','.byte $0f');
     code = code.replace('#$00;PRIOR','#$80');
-    code = code.replace('COLOR0+4', 'PMCOL0+0');
-    code = code.replace('COLOR0+0', 'PMCOL0+1');
-    code = code.replace('COLOR0+1', 'PMCOL0+2');
-    code = code.replace('COLOR0+2', 'PMCOL0+3');
+    code = code.replace('COLOR0+4', 'PCOLR0+0');
+    code = code.replace('COLOR0+0', 'PCOLR0+1');
+    code = code.replace('COLOR0+1', 'PCOLR0+2');
+    code = code.replace('COLOR0+2', 'PCOLR0+3');
+    code = code.replace(';GPIOMODE equ 1', 'GPIOMODE equ 1');
     return code;
 }
 
