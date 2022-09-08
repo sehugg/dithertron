@@ -217,8 +217,10 @@ const GAMEBOY_MONO_RGB = [
     0xaaaaaa,
     0xffffff,
 ];
-const GAMEBOY_COLOR_RGB = generateRGBPalette(4,4,4);
-const AMIGA_OCS_COLOR_RGB = generateRGBPalette(4,4,4);
+const RGB_444 = generateRGBPalette(4,4,4);
+const GAMEBOY_COLOR_RGB = RGB_444;
+const AMIGA_OCS_COLOR_RGB = RGB_444;
+const IIGS_COLOR_RGB = RGB_444;
 
 function generateRGBPalette(rr,gg,bb) {
     var n = 1<<(rr+gg+bb);

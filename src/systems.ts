@@ -241,6 +241,15 @@ const SYSTEMS : DithertronSettings[] = [
         exportFormat:{bpp:4},
     },
     {
+        id:'appleiigs.320.16',
+        name:'Apple IIGS (16 colors)',
+        width:320,
+        height:200,
+        conv:'DitheringCanvas',
+        pal:IIGS_COLOR_RGB,
+        reduce:16,
+    },
+    {
         id:'channelf',
         name:'Fairchild Channel F',
         width:102,

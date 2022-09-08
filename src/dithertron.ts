@@ -66,7 +66,6 @@ class DitheringCanvas {
     ditherfn = [];
     errfn : RGBDistanceFunction = getRGBAErrorPerceptual;
     iterateCount : number = 0;
-    allColors : number[];
 
     constructor(img, width, pal) {
         for (var i=0; i<pal.length; i++)
@@ -145,11 +144,14 @@ class DitheringCanvas {
         return range(0, this.pal.length);
     }
 }
+
 abstract class ParamDitherCanvas extends DitheringCanvas {
     params : Uint32Array;
     w : number;
     h : number;
+
     abstract guessParam(paramIndex: number) : void;
+
     init() {
         this.params = new Uint32Array(this.width*this.height/this.w);
         for (var i=0; i<this.params.length; i++) {
@@ -162,11 +164,14 @@ abstract class ParamDitherCanvas extends DitheringCanvas {
         }
     }
 }
+
 // TODO: both colors affected by bright bit
 abstract class TwoColor_Canvas extends ParamDitherCanvas {
     ncols : number;
     nrows : number;
     border : number;
+    allColors : number[];
+
     init() {
         if (!this.allColors) this.allColors = range(0, this.pal.length);
         this.indexed.fill(this.allColors[0]);
@@ -347,6 +352,7 @@ class VIC20_Multi_Canvas extends VICII_Multi_Canvas {
         return this.allColors.filter((ind) => ind != this.bgcolor && ind != this.auxcolor && ind != this.bordercolor);
     }
 }
+
 class NES_Canvas extends ParamDitherCanvas {
     w=16;
     h=16;
@@ -398,6 +404,7 @@ class NES_Canvas extends ParamDitherCanvas {
         choices.forEach((ch) => { if (ch.ind > 0) this.params[p] = ch.ind-1; });
     }
 }
+
 class HAM6_Canvas extends DitheringCanvas {
     getValidColors(offset:number) : number[] {
         let arr = super.getValidColors(offset);
