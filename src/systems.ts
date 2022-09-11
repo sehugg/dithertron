@@ -34,26 +34,6 @@ const SYSTEMS : DithertronSettings[] = [
         toNative:'exportC64HiresFLI',
     },
     {
-        id:'cx16.lores',
-        name:'Commander X16 / VGA Lores',
-        width:320,
-        height:240,
-        scaleX:1,
-        conv:'DitheringCanvas',
-        pal:AMIGA_OCS_COLOR_RGB,
-        reduce:256
-    },
-    {
-        id:'cx16.hires',
-        name:'Commander X16 Hires (cropped)',
-        width:640,
-        height:400,
-        scaleX:1,
-        conv:'DitheringCanvas',
-        pal:AMIGA_OCS_COLOR_RGB,
-        reduce:16
-    },
-    {
         id:'nes',
         name:'NES (4 color, 240 tiles)',
         width:160,
@@ -444,6 +424,26 @@ const SYSTEMS : DithertronSettings[] = [
         extraColors:48,
         //toNative:'exportFrameBuffer',
         //exportFormat:{bpp:1,brev:true,np:6},
+    },
+    {
+        id:'cx16.lores',
+        name:'Commander X16 / VGA Lores',
+        width:320,
+        height:240,
+        scaleX:1,
+        conv:'DitheringCanvas',
+        pal:AMIGA_OCS_COLOR_RGB,
+        reduce:256
+    },
+    {
+        id:'cx16.hires',
+        name:'Commander X16 Hires (cropped)',
+        width:640,
+        height:400,
+        scaleX:1,
+        conv:'DitheringCanvas',
+        pal:AMIGA_OCS_COLOR_RGB,
+        reduce:16
     },
 ];
 var SYSTEM_LOOKUP = {};
