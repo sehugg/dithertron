@@ -427,7 +427,7 @@ const SYSTEMS : DithertronSettings[] = [
     },
     {
         id:'cx16.lores',
-        name:'Commander X16 / VGA Lores',
+        name:'Commander X16 Lores',
         width:320,
         height:240,
         scaleX:1,
