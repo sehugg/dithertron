@@ -64,6 +64,10 @@ Other formats:
 * PICO-8 - 128 x 128, 16 colors
 * TIC-80 - 240 x 136, 16 colors
 * Game Boy Classic - 160 x 144, 4 colors
+* Commander X16 - 320 x 240, 256 colors out of 4096
+* Commander X16 - 640 x 400 (cropped to fit in VRAM), 16 colors out of 4096
+* Amiga Lores - 320 x 256, 32 colors out of 4096
+* Amiga Lores HAM6 - 320 x 256, 4096 colors via HAM
 
 
 Development
