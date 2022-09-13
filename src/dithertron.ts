@@ -24,6 +24,7 @@ interface DithertronSettings {
     reduce?: number;
     extraColors?: number;
     diffuse?: number;
+    ordered?: number;
     noise?: number;
     paletteDiversity?: number;
     ditherfn?: DitherKernel;
@@ -49,6 +50,13 @@ interface DitherSetting {
 }
 type RGBDistanceFunction = (a:number,b:number) => number;
 
+const THRESHOLD_MAP_4X4 = [
+    0,8,2,10,
+    12,4,14,6,
+    3,11,1,9,
+    15,7,13,5,
+];
+
 class DitheringCanvas {
     pal:Uint32Array;
     img:Uint32Array;
@@ -63,6 +71,7 @@ class DitheringCanvas {
     changes : number;
     noise : number = 0;
     diffuse : number = 0.8;
+    ordered : number = 0.0;
     ditherfn = [];
     errfn : RGBDistanceFunction = getRGBAErrorPerceptual;
     iterateCount : number = 0;
@@ -91,9 +100,15 @@ class DitheringCanvas {
         var errofs = offset*3;
         var rgbref = this.ref[offset];
         // add cumulative error to pixel, clamp @ 0-255
-        this.tmp[0] = (rgbref & 0xff) + this.err[errofs];
-        this.tmp[1] = ((rgbref>>8) & 0xff) + this.err[errofs+1];
-        this.tmp[2] = ((rgbref>>16) & 0xff) + this.err[errofs+2];
+        var ko = 1;
+        if (this.ordered > 0) {
+            let x = (offset % this.width) & 3;
+            let y = (offset / this.width) & 3;
+            ko = 1 + (THRESHOLD_MAP_4X4[x + y*4] / 15 - 0.5) * this.ordered;
+        }
+        this.tmp[0] = (rgbref & 0xff) * ko + this.err[errofs];
+        this.tmp[1] = ((rgbref>>8) & 0xff) * ko + this.err[errofs+1];
+        this.tmp[2] = ((rgbref>>16) & 0xff) * ko + this.err[errofs+2];
         // store the error-modified color
         this.alt[offset] = this.tmp2[0];
         // find closest palette color
@@ -713,6 +728,7 @@ class Dithertron {
             this.dithcanv.errfn = errfn;
             this.dithcanv.noise = sys.noise ? (1 << sys.noise) : 0;
             this.dithcanv.diffuse = sys.diffuse + 0;
+            this.dithcanv.ordered = sys.ordered + 0;
             this.dithcanv.ditherfn = sys.ditherfn || [];
             this.dithcanv.init();
         }

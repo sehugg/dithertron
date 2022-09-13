@@ -180,7 +180,7 @@ img.crop {
                     </div>
                 </div>
                 <div class="row align-items-center" id="diffuseSection">
-                    <label for="diffuseSlider" class="col-sm-3 col-form-label">Dither:</label>
+                    <label for="diffuseSlider" class="col-sm-3 col-form-label">Diffusion:</label>
                     <div class="col-sm-5 col-md-5">
                         <input type="range" id="diffuseSlider"
                             data-provide="slider"
@@ -191,6 +191,17 @@ img.crop {
                     </div>
                     <div class="col-lg-5 col-xl-4">
                         <small><select id="diffuseTypeSelect"></select></small>
+                    </div>
+                </div>
+                <div class="row align-items-center" id="diffuseSection">
+                    <label for="orderedSlider" class="col-sm-3 col-form-label">Ordered:</label>
+                    <div class="col-sm-5 col-md-5">
+                        <input type="range" id="orderedSlider"
+                            data-provide="slider"
+                            data-slider-min="0"
+                            data-slider-max="100"
+                            data-slider-value="0"
+                            />
                     </div>
                 </div>
                 <div class="row align-items-center" id="noiseSection">

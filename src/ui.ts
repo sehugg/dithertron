@@ -134,6 +134,7 @@ function resetImage() {
         dithertron.settings.errfn = opt.value;
     }
     dithertron.settings.diffuse = parseFloat(diffuseSlider.value) / 100;
+    dithertron.settings.ordered = parseFloat(orderedSlider.value) * 3 / 100;
     dithertron.settings.noise = parseFloat(noiseSlider.value);
     dithertron.settings.paletteDiversity = parseFloat(diversitySlider.value) / 200 + 0.75;
     dithertron.setSettings(dithertron.settings);
@@ -185,6 +186,7 @@ var contrastSlider = document.getElementById('contrastSlider') as HTMLInputEleme
 var saturationSlider = document.getElementById('saturationSlider') as HTMLInputElement;
 var noiseSlider = document.getElementById('noiseSlider') as HTMLInputElement;
 var diffuseSlider = document.getElementById('diffuseSlider') as HTMLInputElement;
+var orderedSlider = document.getElementById('orderedSlider') as HTMLInputElement;
 var diversitySlider = document.getElementById('diversitySlider') as HTMLInputElement;
 var imageUpload = document.getElementById("imageUpload") as HTMLInputElement;
 const image = document.getElementById('srcimage') as HTMLImageElement;
@@ -326,6 +328,7 @@ window.addEventListener('load', function() {
     loadSourceImage("images/" + filenameLoaded);
 
     $("#diffuseSlider").on('change', resetImage);
+    $("#orderedSlider").on('change', resetImage);
     $("#noiseSlider").on('change', resetImage);
     $("#diversitySlider").on('change', reprocessImage);
     $("#brightSlider").on('change', reprocessImage);
