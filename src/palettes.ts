@@ -221,6 +221,7 @@ const RGB_444 = generateRGBPalette(4,4,4);
 const GAMEBOY_COLOR_RGB = RGB_444;
 const AMIGA_OCS_COLOR_RGB = RGB_444;
 const IIGS_COLOR_RGB = RGB_444;
+const GAMEGEAR_COLOR_RGB = RGB_444;
 
 function generateRGBPalette(rr,gg,bb) {
     var n = 1<<(rr+gg+bb);

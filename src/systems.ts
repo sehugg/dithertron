@@ -212,6 +212,16 @@ const SYSTEMS : DithertronSettings[] = [
         reduce:16,
     },
     {
+        id:'sms-gg',
+        name:'Sega GameGear',
+        width:160,
+        height:144,
+        scaleX:1.2,
+        conv:'DitheringCanvas',
+        pal:GAMEGEAR_COLOR_RGB,
+        reduce:16,
+    },
+    {
         id:'bbcmicro.mode2',
         name:'BBC Micro (mode 2)',
         width:160,
