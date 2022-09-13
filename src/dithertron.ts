@@ -241,6 +241,12 @@ class ZXSpectrum_Canvas extends TwoColor_Canvas {
     border=1;
     allColors = [0,1,2,3,4,5,6,7];
 }
+class Compucolor_Canvas extends TwoColor_Canvas {
+    w=2;
+    h=4;
+    border=0;
+    allColors = [0,1,2,3,4,5,6,7];
+}
 class Apple2_Canvas extends TwoColor_Canvas {
     w=7;
     h=1;

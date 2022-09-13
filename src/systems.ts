@@ -455,6 +455,16 @@ const SYSTEMS : DithertronSettings[] = [
         pal:AMIGA_OCS_COLOR_RGB,
         reduce:16
     },
+    {
+        id:'compucolor',
+        name:'Compucolor',
+        width:160,
+        height:192,
+        scaleX:1.6,
+        conv:'Compucolor_Canvas',
+        pal:ZXSPECTRUM_RGB,
+        block:{w:2,h:4,colors:2},
+    },
 ];
 var SYSTEM_LOOKUP = {};
 SYSTEMS.forEach((sys) => { if (sys) SYSTEM_LOOKUP[sys.id||sys.name] = sys; });
