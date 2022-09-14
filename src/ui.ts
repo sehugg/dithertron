@@ -134,7 +134,7 @@ function resetImage() {
         dithertron.settings.errfn = opt.value;
     }
     dithertron.settings.diffuse = parseFloat(diffuseSlider.value) / 100;
-    dithertron.settings.ordered = parseFloat(orderedSlider.value) * 3 / 100;
+    dithertron.settings.ordered = parseFloat(orderedSlider.value) / 100;
     dithertron.settings.noise = parseFloat(noiseSlider.value);
     dithertron.settings.paletteDiversity = parseFloat(diversitySlider.value) / 200 + 0.75;
     dithertron.setSettings(dithertron.settings);
