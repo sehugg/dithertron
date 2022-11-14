@@ -194,16 +194,19 @@ const resize = document.getElementById('resizecanvas') as HTMLCanvasElement;
 const dest = document.getElementById('destcanvas') as HTMLCanvasElement;
 //const cmdline = document.getElementById('cmdline');
 
-// https://github.com/fengyuanchen/cropperjs/blob/master/README.md
-const cropper = new Cropper(image, {
-    viewMode:1,
-    initialAspectRatio: 4/3,
-    crop(event) {
-        convertImage();
-    },
-});
+var cropper;
 
 function loadSourceImage(url) {
+    // https://github.com/fengyuanchen/cropperjs/blob/master/README.md
+    if (cropper) cropper.destroy();
+    let aspect = (dithertron.settings.width * (dithertron.settings.scaleX||1) / dithertron.settings.height) || (4/3);
+    cropper = new Cropper(image, {
+        viewMode:1,
+        initialAspectRatio: aspect,
+        crop(event) {
+            convertImage();
+        },
+    });
     cropper.replace(url);
     updateURL();
 }
@@ -214,18 +217,15 @@ function setTargetSystem(sys : DithertronSettings) {
     showSystemInfo(sys);
     resize.width = dest.width = sys.width;
     resize.height = dest.height = sys.height;
-    dest.style.transform = 'scaleX('+(sys.scaleX||1)+')';
-    var widthPct = 90 / (sys.scaleX || 1);
-    if (widthPct < 100) {
-        dest.style.width = (90/(sys.scaleX||1))+'%';
-    } else {
-        dest.style.width = '100%';
-    }
+    let pixelAspect = sys.scaleX || 1;
+    (dest.style as any).aspectRatio = (sys.width * pixelAspect / sys.height).toString();
     $("#noiseSection").css('display',showNoise?'flex':'none');
     $("#diversitySection").css('display',sys.reduce?'flex':'none');
     $("#downloadNativeBtn").css('display',sys.toNative?'inline':'none');
     $("#gotoIDE").css('display',getCodeConvertFunction()?'inline':'none');
-    cropper.replace(cropper.url);
+    if (cropper) {
+        loadSourceImage(cropper.url);
+    }
     updateURL();
 }
 

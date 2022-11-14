@@ -18,7 +18,6 @@ interface DithertronSettings {
     conv: string; //new (...args: any[]) => DitheringCanvas;
     pal: number[] | Uint32Array;
 
-    aspect?: number; // aspect ratio for crop rectangle, default 4/3 (TODO)
     scaleX?: number; // aspect ratio for screen pixels
     errfn?: string; //(rgb:number,rgb2:number) => number;
     reduce?: number;
