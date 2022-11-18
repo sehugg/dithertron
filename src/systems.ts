@@ -463,6 +463,17 @@ const SYSTEMS : DithertronSettings[] = [
         pal:ZXSPECTRUM_RGB,
         block:{w:2,h:4,colors:2},
     },
+    // https://www.bighole.nl//pub/mirror/homepage.ntlworld.com/kryten_droid/teletext/spec/teletext_spec_1974.htm
+    {
+        id:'teletext',
+        name:'Teletext',
+        width:40*2,
+        height:24*3,
+        scaleX:4/3,
+        conv:'Teletext_Canvas',
+        pal:TELETEXT_RGB,
+        block:{w:2,h:3,colors:2},
+    },
 ];
 var SYSTEM_LOOKUP = {};
 SYSTEMS.forEach((sys) => { if (sys) SYSTEM_LOOKUP[sys.id||sys.name] = sys; });

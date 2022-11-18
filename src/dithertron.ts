@@ -222,6 +222,9 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
             }
         }
         var choices = getChoices(histo);
+        this.updateParams(p, choices);
+    }
+    updateParams(p: number, choices: {ind:number}[]) {
         var ind1 = choices[0].ind;
         var ind2 = choices[1] ? choices[1].ind : ind1;
         if (ind1 > ind2) {
@@ -231,6 +234,35 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
         }
         this.params[p] = ind1 + (ind2 << 8);
     }
+}
+abstract class OneColor_Canvas extends TwoColor_Canvas {
+    bgcolor : number;
+    init() {
+        /*
+        var choices = reducePaletteChoices(this.ref, this.pal, 2, 1, this.errfn);
+        this.bgcolor = choices[choices.length-1].ind;
+        this.allColors = [1,2,3,4,5,6,7].filter(x => x != this.bgcolor);
+        console.log(this.bgcolor, this.allColors);
+        */
+        this.bgcolor = 0;
+        super.init();
+    }
+    getValidColors(offset) {
+        return [this.bgcolor, super.getValidColors(offset)[0]];
+    }
+    updateParams(p: number, choices: {ind:number}[]) {
+        for (let c of choices) {
+            if (c.ind != this.bgcolor) {
+                this.params[p] = c.ind;
+                break;
+            }
+        }
+    }
+}
+class Teletext_Canvas extends OneColor_Canvas {
+    w=2;
+    h=3;
+    border=0;
 }
 class VDPMode2_Canvas extends TwoColor_Canvas {
     w=8;
@@ -559,12 +591,12 @@ function scoreRGBDistances(rgb:number, inds:number[], pal:Uint32Array, distfn:RG
 //
 
 function getHistogram(inds) {
-    var histo = new Uint8Array(256);
+    var histo = new Uint32Array(256);
     inds.forEach((x) => histo[x]++);
     return getChoices(histo);
 }
-function getChoices(histo) {
-    var choices = [];
+function getChoices(histo: Uint32Array) {
+    var choices : {count:number,ind:number}[] = [];
     for (var i=0; i<histo.length; i++) {
         if (histo[i] > 0) {
             choices.push({count:histo[i], ind:i});
