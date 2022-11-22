@@ -359,7 +359,7 @@ async function gotoIDE(e) {
         var platform_id = dithertron.settings.id.split('.')[0];
         var form = $(document.forms['ideForm'] as HTMLFormElement);
         form.empty();
-        if (platform_id == 'atari8') platform_id = 'atari8-800xl.mame'; // TODO
+        if (platform_id == 'atari8') platform_id = 'atari8-800'; // TODO
         if (platform_id == 'cpc') platform_id = 'cpc.6128'; // TODO
         addHiddenField(form, "platform", platform_id);
         // TODO
