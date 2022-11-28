@@ -474,6 +474,16 @@ const SYSTEMS : DithertronSettings[] = [
         pal:TELETEXT_RGB,
         block:{w:2,h:3,colors:2},
     },
+    {
+        id:'atarist',
+        name:'Atari ST',
+        width:320,
+        height:200,
+        scaleX:1,
+        conv:'DitheringCanvas',
+        pal:ATARIST_RGB,
+        reduce:16
+    },
 ];
 var SYSTEM_LOOKUP = {};
 SYSTEMS.forEach((sys) => { if (sys) SYSTEM_LOOKUP[sys.id||sys.name] = sys; });

@@ -131,6 +131,7 @@ const CGA_RGB_2H = [ 0x000000, 0xFFFF55, 0xFF55FF, 0xFFFFFF ];
 const CGA_RGB_3H = [ 0x000000, 0xFFFF00, 0x5555FF, 0xFFFFFF ];
 const SMS_RGB = generateRGBPalette(2,2,2);
 const WILLIAMS_RGB = generateRGBPalette(3,3,2);
+const ATARIST_RGB = generateRGBPalette(3,3,3);
 const TELETEXT_RGB = generateRGBPalette(1,1,1);
 const ZXSPECTRUM_RGB = [ // GRB
    RGB(0,0,0),
