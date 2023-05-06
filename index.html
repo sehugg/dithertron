@@ -34,21 +34,16 @@
     </script>
     <script async src='https://www.google-analytics.com/analytics.js'></script>
     <!-- Sentry error reporting -->
-    <script src="https://browser.sentry-cdn.com/5.10.2/bundle.min.js"
-        integrity="sha384-ssBfXiBvlVC7bdA/VX03S88B5MwXQWdnpJRbUYFPgswlOBwETwTp6F3SMUNpo9M9"
-        crossorigin="anonymous"></script>
+    <script
+    src="https://js.sentry-cdn.com/628f9569422c43a7a69e4f5fad1d6bb7.min.js"
+    crossorigin="anonymous"
+    ></script>
     <script>
-        if (window.location.host.endsWith('8bitworkshop.com')) {
-            Sentry.init({
-                dsn: 'https://bf329df3d1b34afa9f5b5e8ecd80ad11@sentry.io/1813925',
-                beforeBreadcrumb(breadcrumb, hint) {
-                    if (breadcrumb.category === 'xhr' && typeof breadcrumb.data.url === 'string') {
-                        if (breadcrumb.data.url.startsWith('http')) return null; // discard external scripts
-                    }
-                    return breadcrumb;
-                },
-            });
-        }
+    if (window.Sentry) Sentry.onLoad(function() {
+        Sentry.init({
+            sampleRate: window.location.host.endsWith('8bitworkshop.com') ? 0.5 : 0.05,
+        });
+    });
     </script>
     <!-- local CSS -->
     <style type="text/css" media="screen">

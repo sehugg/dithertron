@@ -142,7 +142,10 @@ function resetImage() {
 }
 
 function convertImage() {
-    pica().resize(cropper.getCroppedCanvas(), resize, {
+    let cropCanvas = cropper.getCroppedCanvas();
+    // avoid "Failed to execute 'createImageBitmap' on 'Window': The crop rect height is 0."
+    if (cropCanvas.width == 0 || cropCanvas.height == 0) return;
+    pica().resize(cropCanvas, resize, {
         /*
         unsharpAmount: 50,
         unsharpRadius: 0.5,
