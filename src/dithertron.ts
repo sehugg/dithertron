@@ -411,12 +411,11 @@ class NES_Canvas extends ParamDitherCanvas {
         var i = col + row*ncols;
         var c1 = this.params[i];
         // param specified which color to leave out
-        switch (c1) {
+        switch (c1 & 3) {
             case 0: return [0, 2, 3, 4];
             case 1: return [0, 1, 3, 4];
             case 2: return [0, 1, 2, 4];
             case 3: return [0, 1, 2, 3];
-            default: throw "error "+c1+" "+i+" "+col+" "+row+" "+this.params.length;
         }
     }
     guessParam(p) {
@@ -442,7 +441,9 @@ class NES_Canvas extends ParamDitherCanvas {
         }
         var choices = getChoices(histo);
         // leave out last color, least frequent
-        choices.forEach((ch) => { if (ch.ind > 0) this.params[p] = ch.ind-1; });
+        choices.forEach((ch) => {
+            if (ch.ind >= 1 && ch.ind <= 4) this.params[p] = ch.ind - 1;
+        });
     }
 }
 
