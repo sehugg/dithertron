@@ -224,6 +224,20 @@ const AMIGA_OCS_COLOR_RGB = RGB_444;
 const IIGS_COLOR_RGB = RGB_444;
 const GAMEGEAR_COLOR_RGB = RGB_444;
 
+const MC6847_PALETTE0 = [
+   RGB(0x30, 0xd2, 0x00),    /* NTSC: RGB( 28, 213,  16), */   // green 
+   RGB(0xf5, 0xf5, 0x80),    /* NTSC: RGB(226, 219,  15), */   // yellow
+   RGB(0x4c, 0x3a, 0xb4),    /* NTSC: RGB(  3,  32, 255), */   // blue  
+   RGB(0x9a, 0x32, 0x36),    /* NTSC: RGB(226,  32,  10), */   // red   
+];    
+
+const MC6847_PALETTE1 = [
+   RGB(0xd8, 0xd8, 0xd8),    /* NTSC: RGB( 205, 219, 224), */  // buff    
+   RGB(0x41, 0xaf, 0x71),    /* NTSC: RGB(  22, 208, 226), */  // cyan    
+   RGB(0xd8, 0x6e, 0xf0),    /* NTSC: RGB( 203,  57, 226), */  // magenta 
+   RGB(0xd4, 0x7f, 0x00),    /* NTSC: RGB( 204,  45,  16), */  // orange  
+];    
+
 function generateRGBPalette(rr,gg,bb) {
     var n = 1<<(rr+gg+bb);
     var rs = 255 / ((1<<rr)-1);
