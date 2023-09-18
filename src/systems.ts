@@ -484,6 +484,72 @@ const SYSTEMS : DithertronSettings[] = [
         pal:ATARIST_RGB,
         reduce:16
     },
+    {
+        id:'MC6847.CG2.palette0',
+        name:'MC6847 CG2 (palette 0)',
+        width:128,
+        height:64,
+        scaleX: 1/1.3,
+        conv:'DitheringCanvas',
+        pal:MC6847_PALETTE0,
+        reduce:4,
+        toNative:'exportMC6847'
+    },
+    {
+        id:'MC6847.CG2.palette1',
+        name:'MC6847 CG2 (palette 1)',
+        width:128,
+        height:64,
+        scaleX: 1/1.3,
+        conv:'DitheringCanvas',
+        pal:MC6847_PALETTE1,
+        reduce:4,
+        toNative:'exportMC6847'
+    },
+    {
+        id:'MC6847.CG3.palette0',
+        name:'MC6847 CG3 (palette 0)',
+        width:128,
+        height:96,
+        scaleX: 1/1.3*96/64,
+        conv:'DitheringCanvas',
+        pal:MC6847_PALETTE0,
+        reduce:4,
+        toNative:'exportMC6847'
+    },
+    {
+        id:'MC6847.CG3.palette1',
+        name:'MC6847 CG3 (palette 1)',
+        width:128,
+        height:96,
+        scaleX: 1/1.3*96/64,
+        conv:'DitheringCanvas',
+        pal:MC6847_PALETTE1,
+        reduce:4,
+        toNative:'exportMC6847'
+    },
+    {
+        id:'MC6847.CG6.palette0',
+        name:'MC6847 CG6 (palette 0)',
+        width:128,
+        height:192,
+        scaleX: 1/1.3*192/64,
+        conv:'DitheringCanvas',
+        pal:MC6847_PALETTE0,
+        reduce:4,
+        toNative:'exportMC6847'
+    },
+    {
+        id:'MC6847.CG6.palette1',
+        name:'MC6847 CG6 (palette 1)',
+        width:128,
+        height:192,
+        scaleX: 1/1.3*192/64,
+        conv:'DitheringCanvas',
+        pal:MC6847_PALETTE1,
+        reduce:4,
+        toNative:'exportMC6847'
+    }
 ];
 var SYSTEM_LOOKUP = {};
 SYSTEMS.forEach((sys) => { if (sys) SYSTEM_LOOKUP[sys.id||sys.name] = sys; });

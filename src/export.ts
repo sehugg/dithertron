@@ -297,6 +297,22 @@ function exportVCSPlayfield(img: PixelsAvailableMessage, settings: DithertronSet
     return char;
 }
 
+function exportMC6847(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {    
+    var char = new Uint8Array(img.width*img.height/4);
+    let dptr = 0;
+    let sptr = 0;
+    for (var y = 0; y < img.height; y++) {
+        for (var x = 0; x < img.width; x+=4, sptr+=4) {
+            char[dptr++] = ((img.indexed[sptr+0] & 0b11 ) << 6)+ 
+                           ((img.indexed[sptr+1] & 0b11 ) << 4)+ 
+                           ((img.indexed[sptr+2] & 0b11 ) << 2)+ 
+                           ((img.indexed[sptr+3] & 0b11 ) << 0);
+        }
+    }
+    console.log(char);
+    return char;
+}
+
 //
 
 function convertToSystemPalette(pal: Uint32Array, syspal: Uint32Array | number[]) {
