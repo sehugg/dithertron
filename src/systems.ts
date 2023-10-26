@@ -1,5 +1,5 @@
 
-const SYSTEMS : DithertronSettings[] = [
+const SYSTEMS : (DithertronSettings|null)[] = [
     {
         id:'c64.multi',
         name:'C-64 Multi',
@@ -549,8 +549,18 @@ const SYSTEMS : DithertronSettings[] = [
         pal:MC6847_PALETTE1,
         reduce:4,
         toNative:'exportMC6847'
-    }
+    },
+    {
+        id:'vcs.48',
+        name:'Atari VCS 48x48 bitmap',
+        width:48,
+        height:48,
+        conv:'DitheringCanvas',
+        pal:VCS_RGB,
+        reduce:2,
+        toNative:'exportVCS48Pixel',
+    },
 ];
-var SYSTEM_LOOKUP = {};
+var SYSTEM_LOOKUP : {[id:string]:DithertronSettings} = {};
 SYSTEMS.forEach((sys) => { if (sys) SYSTEM_LOOKUP[sys.id||sys.name] = sys; });
 

@@ -1,5 +1,5 @@
 
-const emglobal : any = this['window'] || this['global'] || this;
+const emglobal : any = this['window'] || (this as any)['global'] || this;
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 
@@ -71,11 +71,12 @@ class DitheringCanvas {
     noise : number = 0;
     diffuse : number = 0.8;
     ordered : number = 0.0;
-    ditherfn = [];
+    ditherfn : DitherKernel = [];
     errfn : RGBDistanceFunction = getRGBAErrorPerceptual;
     iterateCount : number = 0;
 
-    constructor(img, width, pal) {
+    constructor(img:Uint32Array, width:number, pal:Uint32Array) {
+        this.img = img;
         for (var i=0; i<pal.length; i++)
             pal[i] |= 0xff000000;
         this.pal = new Uint32Array(pal);
@@ -84,18 +85,22 @@ class DitheringCanvas {
         this.tmp = new Uint8ClampedArray(4);
         this.tmp2 = new Uint32Array(this.tmp.buffer);
         this.ref = new Uint32Array(img);
+        this.alt = new Uint32Array(this.ref);
+        this.err = new Float32Array(this.ref.length * 3);
+        this.indexed = new Uint8Array(this.ref.length);
+        this.changes = 0;
         this.reset();
     }
     reset() {
-        this.indexed = new Uint8Array(this.ref.length);
         this.img = new Uint32Array(this.ref);
-        this.alt = new Uint32Array(this.ref);
-        this.err = new Float32Array(this.ref.length * 3);
+        this.alt.set(this.ref);
+        this.err.fill(0);
+        this.indexed.fill(0);
         this.changes = 0;
     }
     init() {
     }
-    update(offset) {
+    update(offset: number) {
         var errofs = offset*3;
         var rgbref = this.ref[offset];
         // add cumulative error to pixel, clamp @ 0-255
@@ -132,16 +137,8 @@ class DitheringCanvas {
         this.img[offset] = rgbimg;
         //this.img[offset] = this.tmp2[0] | 0xff000000;
     }
-    getClosest(rgb, inds) {
+    getClosest(rgb: number, inds: number[]) {
         return getClosestRGB(rgb, inds, this.pal, this.errfn);
-    }
-    addHisto(histo, rgb, inds) {
-        var choices = [];
-        for (var i=0; i<inds.length; i++) {
-            var score = this.errfn(rgb, this.pal[inds[i]]);
-            histo[inds[i]] -= score;
-        }
-        return choices;
     }
     iterate() {
         this.changes = 0;
@@ -160,9 +157,9 @@ class DitheringCanvas {
 }
 
 abstract class ParamDitherCanvas extends DitheringCanvas {
-    params : Uint32Array;
-    w : number;
-    h : number;
+    params : Uint32Array = new Uint32Array(0);
+    abstract w : number;
+    abstract h : number;
 
     abstract guessParam(paramIndex: number) : void;
 
@@ -181,10 +178,10 @@ abstract class ParamDitherCanvas extends DitheringCanvas {
 
 // TODO: both colors affected by bright bit
 abstract class TwoColor_Canvas extends ParamDitherCanvas {
-    ncols : number;
-    nrows : number;
+    ncols : number = 0;
+    nrows : number = 0;
     border : number = 0;
-    allColors : number[];
+    allColors : number[] | null = null;
 
     init() {
         if (!this.allColors) this.allColors = range(0, this.pal.length);
@@ -196,7 +193,7 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
             this.guessParam(i);
         }
     }
-    getValidColors(offset) {
+    getValidColors(offset: number) {
         var col = Math.floor(offset / this.w) % this.ncols;
         var row = Math.floor(offset / (this.width * this.h));
         var i = col + row*this.ncols;
@@ -204,11 +201,11 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
         var c2 = (this.params[i] >> 8) & 0xff;
         return [c1, c2];
     }
-    guessParam(p) {
+    guessParam(p: number) {
         var col = p % this.ncols;
         var row = Math.floor(p / this.ncols);
         var offset = col*this.w + row*(this.width*this.h);
-        var colors = this.allColors;
+        var colors = this.allColors!;
         var histo = new Uint32Array(256);
         // pixel overlap in 8x8 window
         var b = this.border; // border
@@ -236,7 +233,8 @@ abstract class TwoColor_Canvas extends ParamDitherCanvas {
     }
 }
 abstract class OneColor_Canvas extends TwoColor_Canvas {
-    bgcolor : number;
+    bgcolor : number = 0;
+
     init() {
         /*
         var choices = reducePaletteChoices(this.ref, this.pal, 2, 1, this.errfn);
@@ -247,7 +245,7 @@ abstract class OneColor_Canvas extends TwoColor_Canvas {
         this.bgcolor = 0;
         super.init();
     }
-    getValidColors(offset) {
+    getValidColors(offset: number) {
         return [this.bgcolor, super.getValidColors(offset)[0]];
     }
     updateParams(p: number, choices: {ind:number}[]) {
@@ -287,7 +285,7 @@ class Apple2_Canvas extends TwoColor_Canvas {
     w=7;
     h=1;
     allColors = [0,1,2,3,4,5];
-    guessParam(p) {
+    guessParam(p: number) {
         var offset = p * this.w;
         var colors = this.allColors;
         var histo = new Uint32Array(16);
@@ -300,7 +298,7 @@ class Apple2_Canvas extends TwoColor_Canvas {
         var hibit = histo[3]+histo[4] > histo[1]+histo[2];
         this.params[p] = hibit ? 1 : 0;
     }
-    getValidColors(offset) {
+    getValidColors(offset: number) {
         var i = Math.floor(offset / this.w);
         var hibit = (this.params[i] & 1) != 0;
         // hi bit set? (covers 2 bytes actually)
@@ -314,9 +312,9 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     w=4;
     h=8;
     allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-    bgcolor : number;
-    auxcolor : number;
-    bordercolor : number;
+    bgcolor : number = 0;
+    auxcolor : number = 0;
+    bordercolor : number = 0;
     // TODO: choose global colors before init?
     init() {
         // find global colors
@@ -332,7 +330,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         // +1 extra parameter for global colors
         this.params[this.params.length - 1] = this.bgcolor | (this.auxcolor << 4) | (this.bordercolor << 8);
     }
-    getValidColors(offset) {
+    getValidColors(offset: number) {
         var ncols = this.width / this.w;
         var col = Math.floor(offset / this.w) % ncols;
         var row = Math.floor(offset / (this.width*this.h));
@@ -342,7 +340,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         var c3 = (this.params[i] >> 8) & 0xf;
         return [this.bgcolor, c1, c2, c3];
     }
-    guessParam(p) {
+    guessParam(p: number) {
         if (p == this.params.length - 1) return; // don't mess with last param
         var ncols = this.width / this.w;
         var col = p % ncols;
@@ -368,7 +366,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         var ind3 = choices[2] && choices[2].ind;
         return this.params[p] = ind1 + (ind2<<4) + (ind3<<8);
     }
-    updateHisto(histo, colors, i) {
+    updateHisto(histo: Uint32Array, colors: number[], i: number) {
         // get current color (or reference for 1st time)
         var c1 = this.indexed[i]|0;
         histo[c1] += 100;
@@ -380,7 +378,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
 }
 // TODO: bordercolor and charcolor only first 8 colors
 class VIC20_Multi_Canvas extends VICII_Multi_Canvas {
-    getValidColors(offset) {
+    getValidColors(offset: number) {
         var ncols = this.width / this.w;
         var col = Math.floor(offset / this.w) % ncols;
         var row = Math.floor(offset / (this.width*this.h));
@@ -404,7 +402,7 @@ class NES_Canvas extends ParamDitherCanvas {
             this.guessParam(i);
         }
     }
-    getValidColors(offset) {
+    getValidColors(offset: number) {
         var ncols = this.width / this.w;
         var col = Math.floor(offset / this.w) % ncols;
         var row = Math.floor(offset / (this.width*this.h));
@@ -417,8 +415,9 @@ class NES_Canvas extends ParamDitherCanvas {
             case 2: return [0, 1, 2, 4];
             case 3: return [0, 1, 2, 3];
         }
+        throw new Error("invalid param " + c1);
     }
-    guessParam(p) {
+    guessParam(p: number) {
         var ncols = this.width / this.w;
         var col = p % ncols;
         var row = Math.floor(p / ncols);
@@ -469,7 +468,7 @@ class HAM6_Canvas extends DitheringCanvas {
 }
 
 //
-function getRGBADiff(rgbref, rgbimg) {
+function getRGBADiff(rgbref: number, rgbimg: number) {
     var err = [0,0,0];
     for (var i=0; i<3; i++) {
         var d = (rgbref & 0xff) - (rgbimg & 0xff);
@@ -479,7 +478,7 @@ function getRGBADiff(rgbref, rgbimg) {
     }
     return err;
 }
-function getRGBAErrorAbsolute(rgbref, rgbimg) {
+function getRGBAErrorAbsolute(rgbref: number, rgbimg: number) {
     var mag = 0;
     for (var i=0; i<3; i++) {
         var d = (rgbref & 0xff) - (rgbimg & 0xff);
@@ -490,7 +489,7 @@ function getRGBAErrorAbsolute(rgbref, rgbimg) {
     return Math.sqrt(mag);
 }
 // TODO???
-function getRGBAErrorHue(rgbref, rgbimg) {
+function getRGBAErrorHue(rgbref: number, rgbimg: number) {
     var r1 = ((rgbref>>0) & 0xff);
     var g1 = ((rgbref>>8) & 0xff);
     var b1 = ((rgbref>>16) & 0xff);
@@ -511,7 +510,7 @@ function getRGBAErrorHue(rgbref, rgbimg) {
     var mag2 = Math.sqrt(sqr(r1-r2) + sqr(g1-g2) + sqr(b1-b2))*256;
     return mag2;
 }
-function getRGBAErrorPerceptual(rgbref, rgbimg) {
+function getRGBAErrorPerceptual(rgbref: number, rgbimg: number) {
     var r1 = ((rgbref>>0) & 0xff);
     var g1 = ((rgbref>>8) & 0xff);
     var b1 = ((rgbref>>16) & 0xff);
@@ -524,7 +523,7 @@ function getRGBAErrorPerceptual(rgbref, rgbimg) {
     var b = b1 - b2;
     return Math.sqrt((((512+rmean)*r*r)/256) + 4*g*g + (((767-rmean)*b*b)/256));
 }
-function getRGBAErrorMax(rgbref, rgbimg) {
+function getRGBAErrorMax(rgbref: number, rgbimg: number) {
     var r1 = ((rgbref>>0) & 0xff);
     var g1 = ((rgbref>>8) & 0xff);
     var b1 = ((rgbref>>16) & 0xff);
@@ -533,7 +532,7 @@ function getRGBAErrorMax(rgbref, rgbimg) {
     var b2 = ((rgbimg>>16) & 0xff);
     return Math.max(Math.abs(r1-r2), Math.abs(g1-g2), Math.abs(b1-b2));
 }
-function intensity(rgb) {
+function intensity(rgb: number) {
     return getRGBAErrorPerceptual(0, rgb);
 }
 const ERROR_FUNCTIONS = {
@@ -543,7 +542,7 @@ const ERROR_FUNCTIONS = {
     'max': getRGBAErrorMax,
 }
 
-function getRGBAErrorArr(a,b) {
+function getRGBAErrorArr(a: number, b: number) {
     var err = [0,0,0];
     for (var i=0; i<3; i++) {
         err[i] = ((a & 0xff) - (b & 0xff));
@@ -580,7 +579,7 @@ function scoreRGBDistances(rgb:number, inds:number[], pal:Uint32Array, distfn:RG
 
 //
 
-function getHistogram(inds) {
+function getHistogram(inds: number[]) {
     var histo = new Uint32Array(256);
     inds.forEach((x) => histo[x]++);
     return getChoices(histo);
@@ -595,7 +594,7 @@ function getChoices(histo: Uint32Array) {
     choices.sort((a,b) => b.count - a.count);
     return choices;
 }
-function rgb2tuple(arr) {
+function rgb2tuple(arr: number[]) {
     return arr.map((x) => [(x>>0) & 0xff, (x>>8) & 0xff, (x>>16) & 0xff]);
 }
 
@@ -712,15 +711,15 @@ function reducePalette(imageData: Uint32Array,
 const MAX_ITERATE_COUNT = 75;
 
 interface DithertronInterface {
-    iterate();
+    iterate() : void;
 }
 
 class Dithertron {
-    sysparams : DithertronSettings;
-    dithcanv : DitheringCanvas;
-    sourceImageData : Uint32Array;
-    pixelsAvailable : (msg:PixelsAvailableMessage) => void;
-    timer;
+    sysparams : DithertronSettings | null = null;
+    dithcanv : DitheringCanvas | null = null;
+    sourceImageData : Uint32Array | null = null;
+    pixelsAvailable : ((msg:PixelsAvailableMessage) => void) | null = null;
+    timer : any;
 
     setSettings(sys : DithertronSettings) {
         this.sysparams = sys;
@@ -733,11 +732,13 @@ class Dithertron {
     iterate() : boolean {
         if (this.dithcanv == null) {
             var sys = this.sysparams;
+            if (!sys) throw new Error("no sysparams");
+            if (!this.sourceImageData) throw new Error("no sourceImageData");
             var pal = new Uint32Array(sys.pal);
-            var errfn = ERROR_FUNCTIONS[sys.errfn] || getRGBAErrorPerceptual;
+            var errfn = (ERROR_FUNCTIONS as any)[sys.errfn || 'perceptual'] || getRGBAErrorPerceptual;
             if (sys.reduce) {
                 pal = reducePalette(this.sourceImageData, pal, 
-                    sys.reduce, sys.paletteDiversity, errfn);
+                    sys.reduce, sys.paletteDiversity || 0, errfn);
             }
             if (sys.extraColors) {
                 let pal2 = new Uint32Array(pal.length + sys.extraColors);
@@ -745,11 +746,13 @@ class Dithertron {
                 pal = pal2;
             }
             var convFunction = emglobal[sys.conv];
+            if (!convFunction) throw new Error("no convFunction for " + sys.conv);
             this.dithcanv = new convFunction(this.sourceImageData, sys.width, pal);
+            if (!this.dithcanv) throw new Error("no convFunction() for " + sys.conv);
             this.dithcanv.errfn = errfn;
             this.dithcanv.noise = sys.noise ? (1 << sys.noise) : 0;
-            this.dithcanv.diffuse = sys.diffuse + 0;
-            this.dithcanv.ordered = sys.ordered + 0;
+            this.dithcanv.diffuse = (sys.diffuse || 0) + 0;
+            this.dithcanv.ordered = (sys.ordered || 0) + 0;
             this.dithcanv.ditherfn = sys.ditherfn || [];
             this.dithcanv.init();
         }
@@ -774,7 +777,7 @@ class Dithertron {
             //console.log(this.dithcanv.noise, this.dithcanv.changes, this.dithcanv.iterateCount);
         } else {
             this.stop();
-            console.log('stop', this.dithcanv.iterateCount);
+            console.log('stop', this.dithcanv?.iterateCount);
         }
     }
     reset() {
@@ -783,7 +786,7 @@ class Dithertron {
     }
     stop() {
         clearTimeout(this.timer);
-        this.timer = null;
+        this.timer = undefined;
     }
     start() {
         if (this.sysparams == null) return;
@@ -799,8 +802,8 @@ class Dithertron {
     }
 }
 
-declare function importScripts(path:string);
-declare function postMessage(msg);
+declare function importScripts(path:string):void;
+declare function postMessage(msg:any):void;
 
 var worker_dtron = new Dithertron();
 

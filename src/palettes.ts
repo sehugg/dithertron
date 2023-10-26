@@ -1,5 +1,5 @@
 // PALETTES
-function RGB(r,g,b) {
+function RGB(r:number,g:number,b:number) {
     return ((r&0xff)<<0) | ((g&0xff)<<8) | ((b&0xff)<<16);
 }
 const MONO_RGB = [
@@ -238,7 +238,7 @@ const MC6847_PALETTE1 = [
    RGB(0xd4, 0x7f, 0x00),    /* NTSC: RGB( 204,  45,  16), */  // orange  
 ];    
 
-function generateRGBPalette(rr,gg,bb) {
+function generateRGBPalette(rr:number,gg:number,bb:number) {
     var n = 1<<(rr+gg+bb);
     var rs = 255 / ((1<<rr)-1);
     var gs = 255 / ((1<<gg)-1);

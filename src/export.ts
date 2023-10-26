@@ -31,7 +31,7 @@ type PixelEditorImageFormat = {
     yremap?: [number,number,number]
     bitremap?: number[]
 };
-function remapBits(x: number, arr: number[]): number {
+function remapBits(x: number, arr?: number[]): number {
     if (!arr) return x;
     var y = 0;
     for (var i = 0; i < arr.length; i++) {
@@ -46,7 +46,7 @@ function remapBits(x: number, arr: number[]): number {
     }
     return y;
 }
-function convertImagesToWords(images: Uint8Array[], fmt: PixelEditorImageFormat): number[] {
+function convertImagesToWords(images: Uint8Array[], fmt: PixelEditorImageFormat): ArrayLike<number> {
     if (fmt.destfmt) fmt = fmt.destfmt;
     var width = fmt.w;
     var height = fmt.h;
@@ -79,7 +79,7 @@ function convertImagesToWords(images: Uint8Array[], fmt: PixelEditorImageFormat)
                 var color = imgdata[i++];
                 var ofs = remapBits(ofs0, fmt.remap);
                 if (fmt.bitremap) {
-                    for (var p = 0; p < fmt.bpp; p++) {
+                    for (var p = 0; p < (fmt.bpp || 1); p++) {
                         if (color & (1 << p))
                             words[ofs] |= 1 << fmt.bitremap[shift + p];
                     }
@@ -109,6 +109,7 @@ function concatArrays(arrays: Uint8Array[]): Uint8Array {
 }
 function exportFrameBuffer(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     var fmt = settings.exportFormat;
+    if (!fmt) throw "No export format";
     fmt.w = img.width;
     fmt.h = img.height;
     return new Uint8Array(convertImagesToWords([img.indexed], fmt));
@@ -179,6 +180,7 @@ function exportCharMemory(img: PixelsAvailableMessage,
     return char;
 }
 function exportC64Multi(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    if (!settings.block) throw "No block size";
     var w = settings.block.w;
     var h = settings.block.h;
     var cols = img.width / w;
@@ -197,6 +199,7 @@ function exportC64Multi(img: PixelsAvailableMessage, settings: DithertronSetting
     return concatArrays([char, screen, color, xtra]);
 }
 function exportC64Hires(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    if (!settings.block) throw "No block size";
     var w = settings.block.w;
     var h = settings.block.h;
     var cols = img.width / w;
@@ -229,6 +232,7 @@ function exportZXSpectrum(img: PixelsAvailableMessage, settings: DithertronSetti
     return concatArrays([char, screen]);
 }
 function exportTMS9918(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    if (!settings.block) throw "No block size";
     var w = settings.block.w;
     var h = settings.block.h;
     var cols = img.width / w;
@@ -265,6 +269,7 @@ function exportNES(img: PixelsAvailableMessage, settings: DithertronSettings): U
     return char;
 }
 function exportNES5Color(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    if (!settings.block) throw "No block size";
     var char = exportFrameBuffer(img, settings);
     // TODO: attr block format
     var fmt = { w: settings.block.w, h: settings.block.h, bpp: 2 };
@@ -321,13 +326,16 @@ function convertToSystemPalette(pal: Uint32Array, syspal: Uint32Array | number[]
 
 function getFilenamePrefix() {
     var fn = filenameLoaded || "image";
-    try { fn = fn.split('.').shift(); } catch (e) { } // remove extension
+    try { fn = fn.split('.').shift() || "image"; } catch (e) { } // remove extension
     return fn + "-" + dithertron.settings.id;
 }
 
 function getNativeFormatData() {
     var img = dithertron.lastPixels;
-    var fn = window[dithertron.settings.toNative];
+    // TODO: yukky way to lookup a global function...
+    let funcname = dithertron.settings.toNative;
+    if (!funcname) return null;
+    var fn = (window as any)[funcname];
     return img && fn && fn(img, dithertron.settings);
 }
 function downloadNativeFormat() {
@@ -362,18 +370,19 @@ function stringToByteArray(s: string): Uint8Array {
 }
 function getCodeConvertFunction(): () => string {
     var convertFuncName = 'getFileViewerCode_' + dithertron.settings.id.replace(/[^a-z0-9]/g, '_');
+    // TODO: yukky
     console.log(convertFuncName);
-    var convertFunc = window[convertFuncName];
+    var convertFunc = (window as any)[convertFuncName];
     return convertFunc;
 }
-async function gotoIDE(e) {
-    function addHiddenField(form, name, val) {
+async function gotoIDE() {
+    function addHiddenField(form:any, name:any, val:any) {
         $('<input type="hidden"/>').attr('name', name).val(val).appendTo(form);
     }
     if (confirm("Open code sample with image in 8bitworkshop?")) {
         //e.target.disabled = true;
         var platform_id = dithertron.settings.id.split('.')[0];
-        var form = $(document.forms['ideForm'] as HTMLFormElement);
+        var form = $((document.forms as any)['ideForm'] as HTMLFormElement);
         form.empty();
         if (platform_id == 'atari8') platform_id = 'atari8-800'; // TODO
         if (platform_id == 'cpc') platform_id = 'cpc.6128'; // TODO
