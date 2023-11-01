@@ -569,7 +569,16 @@ const SYSTEMS : (DithertronSettings|null)[] = [
         conv:'DitheringCanvas',
         pal:VCS_RGB,
         reduce:2,
-        toNative:'exportVCS48Pixel',
+    },
+    {
+        id:'pce.256x240',
+        name:'PC Engine 256x240',
+        width:256,
+        height:240,
+        scaleX:5/4,
+        conv:'DitheringCanvas',
+        pal:ATARIST_RGB,
+        reduce:16,
     },
 ];
 var SYSTEM_LOOKUP : {[id:string]:DithertronSettings} = {};
