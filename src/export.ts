@@ -413,7 +413,7 @@ Src equ $02
 Dest equ $04
 
 Start:
-    lda #$38   ; 25 rows, on, bitmap
+    lda #$3B   ; 25 rows, on, bitmap
     sta $d011  ; VIC control #1
     lda #$18   ; 40 column, multicolor
     sta $d016  ; VIC control #2
