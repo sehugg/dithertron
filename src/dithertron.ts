@@ -454,13 +454,14 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
         // rank all colors within the size of the block (and bordering values)
         var histo = new Uint32Array(16);
         // going to scan a pixel area that is the pixel (sub)block in size
-        // +/- 2 pixels sampled above/below
+        // +/- pixels sampled above/below
         var w = useWidth;
         var h = useHeight;
-        var b = 2; // search the border colors
-        for (var y=-b; y<h+b; y++) {
+        var xb = 2; // search the border colors (2 pixels on each side)
+        var yb = 0; // search the border colors (none for the y axis)
+        for (var y=-yb; y<h+yb; y++) {
             var o = index + y*this.width;  // adjust the image pixel offset accordingly
-            for (var x=-b; x<w+b; x++) {
+            for (var x=-xb; x<w+xb; x++) {
                 this.updateHisto(histo, this.allColors, o+x);
             }
         }
@@ -499,13 +500,14 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
         }
 
         if (isCalculatingCb) {
-            this.params[cbp] = ind1
+            this.params[cbp] = ind1;
 
             // after choosing a new cbp value the affected param colors
             // must be recalculated since they must now exclude the chosen
             // cb color (i.e. why waste param colors on a color that is
             // already available for all pixels in the color block)
-
+            // (i think we're going to re-run guessParam() in future iterations)
+            /*
             for (var y = 0; y < this.cbh; ++y) {
                 var o = (p - (p%this.w)) + (y * Math.floor(this.width / this.w));
                 for (var x = 0; x < this.cbw; ++x) {
@@ -513,7 +515,7 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
                     this.guessParam(o+x);
                 }
             }
-
+            */
             return cbColor;
         }
 

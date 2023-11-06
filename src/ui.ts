@@ -259,6 +259,8 @@ function decodeQueryString(qs : string) : {} {
 var EXAMPLE_IMAGES = [
     'benbenn.jpg',
     'cezanne2.jpg',
+    'colorroses.jpg',
+    'colorswirls.jpg',
     'coolcar.jpg',
     'darkbrewery.jpg',
     'dhuku.jpg',
