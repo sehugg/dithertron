@@ -27,7 +27,7 @@ interface DithertronSettings {
     noise?: number;
     paletteDiversity?: number;
     ditherfn?: DitherKernel;
-    block?: {w:number, h:number, colors:number};
+    block?: {w:number, h:number, colors:number, cbw?:number, cbh?:number};
     toNative?: string;
     exportFormat?: PixelEditorImageFormat;
 }
@@ -103,7 +103,7 @@ class DitheringCanvas {
     update(offset: number) {
         var errofs = offset*3;
         var rgbref = this.ref[offset];
-        // add cumulative error to pixel, clamp @ 0-255
+        // add cumulative error to pixel color, store into a clamped R,G, and B values (0-255) array
         var ko = 1;
         if (this.ordered > 0) {
             let x = (offset % this.width) & 3;
@@ -376,6 +376,207 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         histo[c2] += 1 + this.noise;
     }
 }
+
+class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
+    // FLI allows for the color choices of pixel values %01/%10 to change PER row as the
+    // screen address where the color information is stored is changable for each scan line
+    // BUT the color ram for the %11 is not an address that can be changed so the
+    // color ram applies to the entire 4x8 macro block
+
+    // pixel values:
+    // %00 = background color (global value)
+    // %01 = upper nybble of screen block (changable per row 4x1 block size)
+    // %10 = lower nybble of screen block (changable only at the 4x8 block size)
+    // %11 = lower nybble of color ram
+
+    w=4;
+    h=1;
+    // NOTE: cb = "color block"
+    cbw=4;
+    cbh=8;
+    cbOffset: number = 0    // the offset into the params array for the color block ram
+    allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+    bgcolor : number = 0;
+    auxcolor : number = 0;
+    bordercolor : number = 0;
+
+    logged : number = 0;
+
+    // TODO: choose global colors before init?
+    init() {
+        // find global colors
+        var choices = reducePaletteChoices(this.ref, this.pal, 3, 1, this.errfn);
+        this.bgcolor = choices[0] && choices[0].ind;
+        this.auxcolor = choices[1] && choices[1].ind;
+        this.bordercolor = choices[2] && choices[2].ind;
+        // fill params of subblocks
+        this.params = new Uint32Array((this.width/this.w * this.height/this.h) + (this.width/this.cbw * this.height/this.cbh) + 1);
+        // offset into the first byte of the color ram
+        this.cbOffset = (this.width/this.w * this.height/this.h);
+        for (var i=0; i<this.params.length-1; i++) { // -1 to not factor in the "extra" byte
+            this.guessParam(i);
+        }
+        // +1 extra parameter for global colors
+        this.params[this.params.length - 1] = this.bgcolor | (this.auxcolor << 4) | (this.bordercolor << 8);
+    }
+    getValidColors(index: number) {
+        var p = this.imageIndexToParamOffset(index);
+        var c1 = this.params[p] & 0xf;
+        var c2 = (this.params[p] >> 4) & 0xf;
+        var c3 = (this.params[p] >> 8) & 0xf;
+        var valid = [this.bgcolor, c1, c2, c3];
+        return valid;
+    }
+    guessParam(pUnknown: number) {
+        if (pUnknown == this.params.length - 1) return; // don't mess with last param
+
+        const useCbRam = true;
+
+        var isCalculatingCb = (pUnknown >= this.cbOffset);
+        if ((isCalculatingCb) && (!useCbRam))
+            return;
+
+        var index = this.paramOrCbParamOffsetToImageIndex(pUnknown);
+
+        var cbp = (isCalculatingCb ? pUnknown : this.imageIndexToCbParamOffset(index));
+        var p = (isCalculatingCb ? this.imageIndexToParamOffset(index) : pUnknown);
+
+        console.assert( (isCalculatingCb) || (p == pUnknown) );
+        console.assert( (!isCalculatingCb) || (cbp == pUnknown) );
+
+        var useWidth = this.w;
+        var useHeight = this.h;
+        if (isCalculatingCb) {
+            useWidth = this.cbw;
+            useHeight = this.cbh;
+        }
+
+        // rank all colors within the size of the block (and bordering values)
+        var histo = new Uint32Array(16);
+        // going to scan a pixel area that is the pixel (sub)block in size
+        // +/- 2 pixels sampled above/below
+        var w = useWidth;
+        var h = useHeight;
+        var b = 2; // search the border colors
+        for (var y=-b; y<h+b; y++) {
+            var o = index + y*this.width;  // adjust the image pixel offset accordingly
+            for (var x=-b; x<w+b; x++) {
+                this.updateHisto(histo, this.allColors, o+x);
+            }
+        }
+
+        // never choose the background color since it's always an available
+        // valid color for every pixel (i.e. why waste the screen ram or
+        // color block ram on a color that is always available everywhere)
+        histo[this.bgcolor] = 0;
+
+        let cbColor : number = 0;
+
+        if ((!isCalculatingCb) && (useCbRam)) {
+            // filter out the cb chosen color as there's no point in choosing the
+            // same color option twice since it's already valid for this pixel
+            // block area (just like the background color is valid)
+            histo[this.params[cbp] & 0xf] = 0;
+            // promote this value to the lower nybble of the 2nd least significant byte
+            // as this value is needed later
+            cbColor = this.params[cbp] & 0xf
+        }
+
+        // get best choices for sub-block
+        var choices = getChoices(histo);
+        var ind1 = choices[0] && choices[0].ind;
+        var ind2 = choices[1] && choices[1].ind;
+        var ind3 = choices[2] && choices[2].ind;
+        if (ind1 === undefined)
+            ind1 = this.bgcolor;
+        if (ind2 === undefined)
+            ind2 = this.bgcolor;
+        if (ind3 === undefined)
+            ind3 = this.bgcolor;
+
+        if (!useCbRam) {
+            cbColor = ind3;
+        }
+
+        if (isCalculatingCb) {
+            this.params[cbp] = ind1
+
+            // after choosing a new cbp value the affected param colors
+            // must be recalculated since they must now exclude the chosen
+            // cb color (i.e. why waste param colors on a color that is
+            // already available for all pixels in the color block)
+
+            for (var y = 0; y < this.cbh; ++y) {
+                var o = (p - (p%this.w)) + (y * Math.floor(this.width / this.w));
+                for (var x = 0; x < this.cbw; ++x) {
+                    console.assert(o+x < this.cbOffset);
+                    this.guessParam(o+x);
+                }
+            }
+
+            return cbColor;
+        }
+
+        // Store the chosen colors in the lower and upper nybble
+        // and put the chosen color block nybble into the low nybble of
+        // the 2nd least significant byte. Even though this routine does
+        // not use this value anywhere, the value is require on the export
+        // routine to determine when char data needs to pick the pixel
+        // index of %00 (background) %01 %10 (choice 1+2) and %11 meaning
+        // use the color block color as a choice. The export routine is
+        // unaware of the separated dedicated color block and only looks
+        // for the choice within the normal params area.
+        return this.params[p] = (ind1 & 0xf) | ((ind2 << 4) & 0xf0) | ((cbColor << 8) & 0xf00);
+    }
+    updateHisto(histo: Uint32Array, colors: number[], i: number) {
+        // get current color (or reference for 1st time)
+        var c1 = (i >= 0 && i < this.indexed.length ? this.indexed[i] : this.pal[this.bgcolor]);
+        histo[c1] += 100;
+        // get error color (TODO: why alt not img like 2-color kernels?)
+        var rgbcomp = (i >= 0 && i < this.indexed.length ? this.alt[i] : this.pal[this.bgcolor]);
+        var c2 = this.getClosest(rgbcomp, colors);
+        histo[c2] += 1 + this.noise;
+    }
+    paramOrCbParamOffsetToImageIndex(pUnknown: number): number {
+        var isCalculatingCb = (pUnknown >= this.cbOffset);
+        var useWidth = this.w;
+        var useHeight = this.h;
+        var useP = pUnknown;
+
+        if (isCalculatingCb) {
+            useWidth = this.cbw;
+            useHeight = this.cbh;
+            useP = (pUnknown - this.cbOffset);
+        }
+
+        var ncols = this.width / useWidth;     // number of pixels in a row
+        var col = useP % ncols;                // column for pixel in X direction
+        var row = Math.floor(useP / ncols);    // row for pixel in Y direction
+        // index is the starting offset representing the image's pixel X/Y
+        var index = (col*useWidth) + (row*this.width*useHeight);
+        console.assert(index < (this.width * this.height));
+        return index;
+    }
+
+    imageIndexToParamOffset(index: number): number {
+        var ncols = this.width / this.w;
+        var col = Math.floor(index / this.w) % ncols;
+        var row = Math.floor(index / (this.width * this.h));
+        var p = col + row * ncols;
+        console.assert(p < this.cbOffset);        
+        return p;
+    }
+    imageIndexToCbParamOffset(index: number): number {
+        var ncols = this.width / this.cbw;
+        var col = Math.floor(index / this.cbw) % ncols;
+        var row = Math.floor(index / (this.width * this.cbh));
+        var cbp = this.cbOffset + col + row * ncols;
+        console.assert(cbp >= this.cbOffset);
+        console.assert(cbp < this.params.length - 1); // -1 is for the extra byte
+        return cbp;
+    }
+}
+
 // TODO: bordercolor and charcolor only first 8 colors
 class VIC20_Multi_Canvas extends VICII_Multi_Canvas {
     getValidColors(offset: number) {
