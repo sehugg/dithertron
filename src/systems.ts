@@ -12,6 +12,17 @@ const SYSTEMS : (DithertronSettings|null)[] = [
         toNative:'exportC64Multi',
     },
     {
+        id:'c64.multi.fli',
+        name:'C-64 Multi FLI',
+        width:160,
+        height:200,
+        scaleX:0.936*2,
+        conv:'VICII_Multi_CanvasFLI',
+        pal:VIC_PAL_RGB,
+        block:{w:4,h:1,colors:4,cbw:4,cbh:8},
+        toNative:'exportC64Multi',
+    },
+    {
         id:'c64.hires',
         name:'C-64 Hires',
         width:320,

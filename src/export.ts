@@ -159,20 +159,19 @@ function exportCharMemory(img: PixelsAvailableMessage,
             var shift = (x & (w - 1)) * bpp;
             shift = 8 - bpp - shift; // reverse bits
             var palidx = img.indexed[i];
-            var idx = 0;
+            var idx = 0; // for bit pattern % 0 or %00
             var param = isvdp ? img.params[vdpofs] : img.params[charofs];
             if (bpp == 1) {
                 if (palidx == (param & 0xf))
-                    idx = 1;
+                    idx = 1; // for bit pattern %1
             } else {
-                if (palidx == (param & 0xf))
-                    idx = 2; // lower nibble
-                else if (palidx == ((param >> 4) & 0xf))
-                    idx = 1; // upper nibble
-                else if (palidx == ((param >> 8) & 0xf))
-                    idx = 3; // color ram
+                if (palidx == (param & 0xf)) // lower nibble
+                    idx = 2; // for bit pattern %10
+                else if (palidx == ((param >> 4) & 0xf)) // upper nibble
+                    idx = 1; // for bit pattern %01
+                else if (palidx == ((param >> 8) & 0xf)) // color block nibble
+                    idx = 3; // for bit pattern %11
             }
-            //if (i < 100) console.log(x,y,i,hex(param),palidx,ofs,idx,shift);
             char[ofs] |= idx << shift;
             i++;
         }
@@ -185,13 +184,50 @@ function exportC64Multi(img: PixelsAvailableMessage, settings: DithertronSetting
     var h = settings.block.h;
     var cols = img.width / w;
     var rows = img.height / h;
-    var screen = new Uint8Array(cols * rows);
-    var color = new Uint8Array(cols * rows);
-    for (var i = 0; i < screen.length; i++) {
-        screen[i] = img.params[i];
-        color[i] = img.params[i] >> 8;
+
+    var isUsingFli = !(settings.block.cbw === undefined);
+    var cbp : number = settings.block.cbw === undefined ? 0 : (cols * rows);
+    var cbw : number = settings.block.cbw === undefined ? w : settings.block.cbw;
+    var cbh : number = settings.block.cbh === undefined ? h : settings.block.cbh;
+
+    var cbcols = img.width / cbw;
+    var cbrows = img.height / cbh;
+
+    var screen = new Uint8Array(isUsingFli ? 0x2000 : (cols * rows));
+    var color = new Uint8Array(cbcols * cbrows);
+
+    // Normally in multi-color mode each screen pixel in a 4x8 block choses from two
+    // color options from screen ram which stores color palette choice one is the
+    // lower screen nybble and color choice two in the upper screen nybble. However,
+    // in FLI mode each pixel row gets a new choice of colors since on each scan line
+    // special code swaps the screen color ram pointer location to a new location in
+    // memory thus allowing for indepentent values per row.
+    if (isUsingFli) {
+        let cbOffset = ((img.width/w) * (img.height/h));
+        for (var i = 0; i < cbOffset; i++) {
+            let p = img.params[i];
+            let scrnofs = (Math.floor(i/40)&7)*0x400 + Math.floor(i/320)*40 + (i % 40);
+            //if (i < 500) console.log(scrnofs, i, hex(i), (Math.floor(i/40)&7), ((Math.floor(i/40)&7)*0x400), (Math.floor(i/320)), (i % 40), (Math.floor(i/320)*40 + (i % 40)));
+            //screen[scrnofs] = ((p & 0xf) << 4) | ((p & 0xf0) >> 4);
+            screen[scrnofs] = (p & 0xff);
+        }
+    } else {
+        for (var i = 0; i < screen.length; i++) {
+            screen[i] = img.params[i];
+        }
     }
-    var char = exportCharMemory(img, w, h);
+
+    for (var i = 0; i < color.length; i++) {
+        // The FLI version separates out the color block ram from the
+        // normal param area whereas the non-FLI version stores the
+        // color block in the 2nd most least significant byte's lower
+        // of each chosen color. In both cases, the color block area
+        // is exactly the same size since they represent the pixel index
+        // value choice of %11 and the color block ram is not relocatable
+        // on the C64 (unlike the screen ram color choices).
+        color[i] = (img.params[i + cbp] >> (isUsingFli ? 0 : 8)) & 0xf;
+    }
+    var char = exportCharMemory(img, w, cbh, isUsingFli ? 'fli': undefined);
     var xtraword = img.params[img.params.length - 1]; // background, border colors
     var xtra = new Uint8Array(2);
     xtra[0] = xtraword & 0xff;
@@ -217,7 +253,7 @@ function exportC64HiresFLI(img: PixelsAvailableMessage, settings: DithertronSett
     for (var i = 0; i < img.params.length; i++) {
         let p = img.params[i];
         let scrnofs = (Math.floor(i/40)&7)*0x400 + Math.floor(i/320)*40 + (i % 40);
-        screen[scrnofs] = ((p & 0xf) << 4) | ((p & 0xf00) >> 8);
+                screen[scrnofs] = ((p & 0xf) << 4) | ((p & 0xf00) >> 8);
     }
     var char = exportCharMemory(img, 8, 8, 'fli');
     return concatArrays([char, screen]);
@@ -954,7 +990,7 @@ Src equ $02
 Dest equ $04
 Start:
     sei	       ; disable interrupts
-    lda #$38   ; 25 rows, on, bitmap
+    lda #$3B   ; 25 rows, on, bitmap
     sta $d011  ; VIC control #1
     lda #$08   ; 40 column, single
     sta $d016  ; VIC control #2
@@ -1050,6 +1086,127 @@ LookupD018:
 ; bitmap data
 CharData equ .
 ScreenData equ CharData+8000
+ incbin "$DATAFILE"
+`;
+    return code;
+}
+
+function getFileViewerCode_c64_multi_fli(): string {
+    var code = `
+
+    processor 6502
+    include "basicheader.dasm"
+Src equ $02
+Dest equ $04
+Start:
+    sei	       ; disable interrupts
+    lda #$3B   ; 25 rows, on, bitmap
+    sta $d011  ; VIC control #1
+    lda #$18   ; 40 column, single
+    sta $d016  ; VIC control #2
+    lda #$00
+    sta $dd00  ; set VIC bank ($C000-$FFFF)
+    lda #$80
+    sta $d018
+    lda XtraData+0
+    sta $d020  ; border
+    sta $d021  ; background
+; copy char memory
+    lda #$00
+    sta $01    ; enable HIMEM RAM
+    lda #<CharData
+    sta Src
+    lda #>CharData
+    sta Src+1
+    lda #0
+    sta Dest
+    lda #$c0
+    sta Dest+1
+    ldx #$20
+    jsr CopyMem
+; copy screen memory
+    lda #<ScreenData
+    sta Src
+    lda #>ScreenData
+    sta Src+1
+    lda #0
+    sta Dest
+    lda #$e0
+    sta Dest+1
+    ldx #$20
+    jsr CopyMem
+    lda #$07
+    sta $01    ; enable ROM and $D000 I/O
+; copy color RAM
+    lda #<ColorData
+    sta Src
+    lda #>ColorData
+    sta Src+1
+    lda #$d8
+    sta Dest+1
+    ldx #4
+    jsr CopyMem
+; raster frame loop
+NextFrame:
+; wait for $d011
+Wait256:
+    bit $d011
+    bpl Wait256
+Wait0:
+    bit $d011
+    bmi Wait0
+; wait for line 49
+    ldx #49
+    lda $d018
+WaitLine:
+    cpx $d012
+    bne WaitLine
+; 63 (total) - 27 (loop) - 23 (DMA) = 4 (wait)
+NextLine:
+; change color RAM address
+    lda LookupD018-1,x
+    sta $d018      ; cycle through 0-7 color tables
+    lda LookupD011,x
+    sta $d011      ; force bad line
+    inx
+    cpx #250
+    bne NextLine
+; next frame
+    jmp NextFrame
+
+; copy data from Src to Dest
+; X = number of bytes * 256
+CopyMem:
+    ldy #0
+.Loop:
+    lda (Src),y
+    sta (Dest),y
+    iny
+    bne .Loop
+    inc Src+1
+    inc Dest+1
+    dex
+    bne .Loop
+RTS:
+    rts
+
+ .align $100
+ ; lookup table for $d011
+LookupD011:
+ .repeat 256/8
+ .byte $38,$39,$3a,$3b,$3c,$3d,$3e,$3f
+ .repend
+; lookup table for $d018
+LookupD018:
+ .repeat 256/8
+ .byte $80,$90,$a0,$b0,$c0,$d0,$e0,$f0
+ .repend
+ 
+; bitmap data
+CharData equ .
+ScreenData equ CharData+8000
+ColorData equ ScreenData+$2000
+XtraData equ ColorData+1000
  incbin "$DATAFILE"
 `;
     return code;
