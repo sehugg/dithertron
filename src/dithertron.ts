@@ -430,7 +430,8 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
     guessParam(pUnknown: number) {
         if (pUnknown == this.params.length - 1) return; // don't mess with last param
 
-        const useCbRam = true;
+        // freeze color block ram after a certain # of iterations
+        const useCbRam = this.iterateCount < MAX_ITERATE_COUNT/2;
 
         var isCalculatingCb = (pUnknown >= this.cbOffset);
         if ((isCalculatingCb) && (!useCbRam))
@@ -911,7 +912,7 @@ function reducePalette(imageData: Uint32Array,
 
 //
 
-const MAX_ITERATE_COUNT = 75;
+const MAX_ITERATE_COUNT = 100;
 
 interface DithertronInterface {
     iterate() : void;
