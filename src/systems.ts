@@ -8,7 +8,7 @@ const SYSTEMS : (DithertronSettings|null)[] = [
         scaleX:0.936*2,
         conv:'VICII_Multi_Canvas',
         pal:VIC_PAL_RGB,
-        block:{w:4,h:8,colors:4},
+        block:{w:4,h:8,colors:4,cbw:4,cbh:8},
         toNative:'exportC64Multi',
     },
     {
@@ -17,9 +17,10 @@ const SYSTEMS : (DithertronSettings|null)[] = [
         width:160,
         height:200,
         scaleX:0.936*2,
-        conv:'VICII_Multi_CanvasFLI',
+        conv:'VICII_Multi_Canvas',
         pal:VIC_PAL_RGB,
         block:{w:4,h:1,colors:4,cbw:4,cbh:8},
+        fli:{bug:false,blankLeft:false,blankRight:false,blankColumns:3},
         toNative:'exportC64Multi',
     },
     {

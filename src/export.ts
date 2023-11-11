@@ -139,7 +139,8 @@ function exportApple2HiresToHGR(img: PixelsAvailableMessage, settings: Dithertro
 function exportCharMemory(img: PixelsAvailableMessage, 
     w: number, 
     h: number, 
-    type?:'zx'|'fli') : Uint8Array 
+    type?:'zx'|'fli',
+    bgColor?:number) : Uint8Array 
 {
     var bpp = (w == 4) ? 2 : 1; // C64-multi vs C64-hires & ZX
     var i = 0;
@@ -172,6 +173,19 @@ function exportCharMemory(img: PixelsAvailableMessage,
                 else if (palidx == ((param >> 8) & 0xf)) // color block nibble
                     idx = 3; // for bit pattern %11
             }
+
+            // Force override that the color choice MUST be the background color
+            // if the palette index matches the background color even if one of
+            // the other colors might happen to be set to the background color too.
+            // This is requires as the FLI bug on C64s will choose the last color
+            // block color as 0xff (grey) even if another color is specified but
+            // will correctly choose the screen color if the pixel index is 0.
+            // But the right block color might be set to the background color too
+            // which would cause a match to the color block color/screen colors
+            // instead of the background color as required for the FLI bug.
+            if ((bgColor != undefined) && (bgColor === palidx))
+                idx = 0;
+
             char[ofs] |= idx << shift;
             i++;
         }
@@ -185,8 +199,8 @@ function exportC64Multi(img: PixelsAvailableMessage, settings: DithertronSetting
     var cols = img.width / w;
     var rows = img.height / h;
 
-    var isUsingFli = !(settings.block.cbw === undefined);
-    var cbp : number = settings.block.cbw === undefined ? 0 : (cols * rows);
+    var isUsingFli = !(settings.fli === undefined);
+    var cbOffset : number = (img.width/w * img.height/h);
     var cbw : number = settings.block.cbw === undefined ? w : settings.block.cbw;
     var cbh : number = settings.block.cbh === undefined ? h : settings.block.cbh;
 
@@ -203,17 +217,15 @@ function exportC64Multi(img: PixelsAvailableMessage, settings: DithertronSetting
     // special code swaps the screen color ram pointer location to a new location in
     // memory thus allowing for indepentent values per row.
     if (isUsingFli) {
-        let cbOffset = ((img.width/w) * (img.height/h));
         for (var i = 0; i < cbOffset; i++) {
             let p = img.params[i];
             let scrnofs = (Math.floor(i/40)&7)*0x400 + Math.floor(i/320)*40 + (i % 40);
             //if (i < 500) console.log(scrnofs, i, hex(i), (Math.floor(i/40)&7), ((Math.floor(i/40)&7)*0x400), (Math.floor(i/320)), (i % 40), (Math.floor(i/320)*40 + (i % 40)));
-            //screen[scrnofs] = ((p & 0xf) << 4) | ((p & 0xf0) >> 4);
             screen[scrnofs] = (p & 0xff);
         }
     } else {
         for (var i = 0; i < screen.length; i++) {
-            screen[i] = img.params[i];
+            screen[i] = (img.params[i] & 0xff);
         }
     }
 
@@ -225,13 +237,13 @@ function exportC64Multi(img: PixelsAvailableMessage, settings: DithertronSetting
         // is exactly the same size since they represent the pixel index
         // value choice of %11 and the color block ram is not relocatable
         // on the C64 (unlike the screen ram color choices).
-        color[i] = (img.params[i + cbp] >> (isUsingFli ? 0 : 8)) & 0xf;
+        color[i] = (img.params[i + cbOffset] & 0xf);
     }
-    var char = exportCharMemory(img, w, cbh, isUsingFli ? 'fli': undefined);
+    var char = exportCharMemory(img, w, cbh, isUsingFli ? 'fli': undefined, (img.params[img.params.length-1] & 0xf));
     var xtraword = img.params[img.params.length - 1]; // background, border colors
     var xtra = new Uint8Array(2);
-    xtra[0] = xtraword & 0xff;
-    xtra[1] = (xtraword << 8) & 0xff;
+    xtra[0] = xtraword & 0xff;          // background color
+    xtra[1] = (xtraword >> 8) & 0xff;   // border color
     return concatArrays([char, screen, color, xtra]);
 }
 function exportC64Hires(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
@@ -457,8 +469,9 @@ Start:
     sta $dd00  ; set VIC bank ($4000-$7FFF)
     lda #$80
     sta $d018  ; set VIC screen to $6000
-    lda XtraData+0
+    lda XtraData+1
     sta $d020  ; border
+    lda XtraData+0
     sta $d021  ; background
     lda #0
     sta Dest
@@ -1108,8 +1121,9 @@ Start:
     sta $dd00  ; set VIC bank ($C000-$FFFF)
     lda #$80
     sta $d018
-    lda XtraData+0
+    lda XtraData+1
     sta $d020  ; border
+    lda XtraData+0
     sta $d021  ; background
 ; copy char memory
     lda #$00
@@ -1161,7 +1175,7 @@ Wait0:
 WaitLine:
     cpx $d012
     bne WaitLine
-; 63 (total) - 27 (loop) - 23 (DMA) = 4 (wait)
+; PAL 63 (total) - 27 (loop) - 23 (DMA) = 4 (wait)
 NextLine:
 ; change color RAM address
     lda LookupD018-1,x

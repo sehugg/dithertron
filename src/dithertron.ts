@@ -28,6 +28,7 @@ interface DithertronSettings {
     paletteDiversity?: number;
     ditherfn?: DitherKernel;
     block?: {w:number, h:number, colors:number, cbw?:number, cbh?:number};
+    fli?: {bug:boolean, blankLeft:boolean, blankRight:boolean, blankColumns:number};
     toNative?: string;
     exportFormat?: PixelEditorImageFormat;
 }
@@ -57,6 +58,7 @@ const THRESHOLD_MAP_4X4 = [
 ];
 
 class DitheringCanvas {
+    sys:DithertronSettings;
     pal:Uint32Array;
     img:Uint32Array;
     ref:Uint32Array;
@@ -308,76 +310,8 @@ class Apple2_Canvas extends TwoColor_Canvas {
             return [0, 1, 2, 5];
     }
 }
-class VICII_Multi_Canvas extends ParamDitherCanvas {
-    w=4;
-    h=8;
-    allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-    bgcolor : number = 0;
-    auxcolor : number = 0;
-    bordercolor : number = 0;
-    // TODO: choose global colors before init?
-    init() {
-        // find global colors
-        var choices = reducePaletteChoices(this.ref, this.pal, 3, 1, this.errfn);
-        this.bgcolor = choices[0] && choices[0].ind;
-        this.auxcolor = choices[1] && choices[1].ind;
-        this.bordercolor = choices[2] && choices[2].ind;
-        // fill params of subblocks
-        this.params = new Uint32Array(this.width/this.w * this.height/this.h + 1);
-        for (var i=0; i<this.params.length-1; i++) {
-            this.guessParam(i);
-        }
-        // +1 extra parameter for global colors
-        this.params[this.params.length - 1] = this.bgcolor | (this.auxcolor << 4) | (this.bordercolor << 8);
-    }
-    getValidColors(offset: number) {
-        var ncols = this.width / this.w;
-        var col = Math.floor(offset / this.w) % ncols;
-        var row = Math.floor(offset / (this.width*this.h));
-        var i = col + row*ncols;
-        var c1 = this.params[i] & 0xf;
-        var c2 = (this.params[i] >> 4) & 0xf;
-        var c3 = (this.params[i] >> 8) & 0xf;
-        return [this.bgcolor, c1, c2, c3];
-    }
-    guessParam(p: number) {
-        if (p == this.params.length - 1) return; // don't mess with last param
-        var ncols = this.width / this.w;
-        var col = p % ncols;
-        var row = Math.floor(p / ncols);
-        var offset = col*this.w + row*this.width*this.h;
-        // rank all colors
-        var histo = new Uint32Array(16);
-        var w = this.w;
-        var h = this.h;
-        var b = 2; // border
-        for (var y=-b; y<h+b; y++) {
-            var o = offset + y*this.width;
-            for (var x=-b; x<w+b; x++) {
-                this.updateHisto(histo, this.allColors, o+x);
-            }
-        }
-        // don't worry about global colors
-        histo[this.bgcolor] = 0;
-        // get best choices for subblock
-        var choices = getChoices(histo);
-        var ind1 = choices[0] && choices[0].ind;
-        var ind2 = choices[1] && choices[1].ind;
-        var ind3 = choices[2] && choices[2].ind;
-        return this.params[p] = ind1 + (ind2<<4) + (ind3<<8);
-    }
-    updateHisto(histo: Uint32Array, colors: number[], i: number) {
-        // get current color (or reference for 1st time)
-        var c1 = this.indexed[i]|0;
-        histo[c1] += 100;
-        // get error color (TODO: why alt not img like 2-color kernels?)
-        var rgbcomp = this.alt[i]|0;
-        var c2 = this.getClosest(rgbcomp, colors);
-        histo[c2] += 1 + this.noise;
-    }
-}
 
-class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
+class VICII_Multi_Canvas extends ParamDitherCanvas {
     // FLI allows for the color choices of pixel values %01/%10 to change PER row as the
     // screen address where the color information is stored is changable for each scan line
     // BUT the color ram for the %11 is not an address that can be changed so the
@@ -389,26 +323,88 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
     // %10 = lower nybble of screen block (changable only at the 4x8 block size)
     // %11 = lower nybble of color ram
 
-    w=4;
-    h=1;
+    w:number;
+    h:number;
     // NOTE: cb = "color block"
-    cbw=4;
-    cbh=8;
-    cbOffset: number = 0    // the offset into the params array for the color block ram
+    //
+    // In multi-color mode, the pixel index color choices are either %00 for background,
+    // %10 lower nybble screen value, %01 for upper nybble screen value, and %11 for
+    // the color block. The color block values are kept as a separate set of parameters
+    // at the end of the screen color choice parameters as they are an entirely
+    // independent color choice data set which is immovable in memory (unlike screen
+    // ram which is address moveable). The block size of the color blocks (4x8) happen to
+    // be the same size as the screen color choice block sizes (4x8) in multi-color mode.
+    // However, in multi-color FLI mode the screen color choices have per row color
+    // choices (4x1) even though the color block sizes remain the same size (4x8).
+    //
+    // This the reason the color block parameters are split from the screen parameter
+    // color choices as they are not always a 1:1 pairing.
+    cbw:number;
+    cbh:number;    
+    cbOffset: number = 0;   // the offset into the params array for the color block ram
     allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
     bgcolor : number = 0;
     auxcolor : number = 0;
     bordercolor : number = 0;
 
-    logged : number = 0;
+    fliMode : boolean = false;
+
+    // FLI mode causes a VIC bug to appear coined the "fli bug". The issue is that
+    // when $D011 is forced into a "bad line" condition which forces the VIC to
+    // refetch color data and the CPU stalls the VIC long enough that exactly 3 character
+    // values wide lack proper color block data (they instead use left over color block
+    // data from the previous raster line).
+    //
+    // Whenever the vertical scroll register $D011 lower 3-bits match the current
+    // raster line number's lower 3 bits, the VIC is forced to re-fetch color block data.
+    // Under normal VIC/CPU conditions this happens every 8 raster lines because the
+    // vertical scroll value has 8 possible values and thus the raster line bits match
+    // the vertical scroll bits once in every 8 raster lines.
+    //
+    // Normally the VIC detects this condition while still inside the H-blank thus no
+    // problem occurs. However, the FLI logic needs to swap the $D011 register's scroll
+    // value every single scan line and re-adjust the screen data memory address, then
+    // loop. This forces the VIC to enter a "bad line" state at improper timing than
+    // normal conditions and the VIC must re-fetch the color block data. Worse, the
+    // CPU timings require the VIC wait a 3-cycle handff period prior to fetching the
+    // color block data. Thus while the VIC is waiting, it still needs to display some
+    // color (without having fetched the proper color). During this time the color block
+    // internal values are set to 0xff (which has a fixed color of light grey).
+    //
+    // Thus in FLI mode, one recommended solution is to "blank" out the first three columns
+    // with the background color on the left side of the screen. The right side is fine
+    // but it too can be blanked to have a most balanced and centered picture display.
+    fliBug : boolean = true;
+    fliBugCbColor : number = 8; // orange
+    fliBugChoiceColor : number = 15; // light grey
+    blankLeftScreenFliBugArea : boolean = false;
+    blankRightScreenMirrorFliBugArea : boolean = false;
+    blankFliBugColumnCount : number = 0;
+
+    // state machine for guessing
+    lastComputedCb : number = 0;
 
     // TODO: choose global colors before init?
     init() {
+        // adopt the system settings
+        this.w = this.sys.block.w;
+        this.h = this.sys.block.h;
+        this.cbw = this.sys.block.cbw === undefined ? this.w : this.sys.block.cbw;
+        this.cbh = this.sys.block.cbh === undefined ? this.h : this.sys.block.cbh;
+        if (this.sys.fli != undefined) {
+            this.fliMode = true;
+            this.fliBug = this.sys.fli.bug;
+            this.blankLeftScreenFliBugArea = this.sys.fli.blankLeft;
+            this.blankRightScreenMirrorFliBugArea = this.sys.fli.blankRight;
+            this.blankFliBugColumnCount = this.sys.fli.blankColumns;
+        }
+
         // find global colors
         var choices = reducePaletteChoices(this.ref, this.pal, 3, 1, this.errfn);
         this.bgcolor = choices[0] && choices[0].ind;
         this.auxcolor = choices[1] && choices[1].ind;
         this.bordercolor = choices[2] && choices[2].ind;
+
         // fill params of subblocks
         this.params = new Uint32Array((this.width/this.w * this.height/this.h) + (this.width/this.cbw * this.height/this.cbh) + 1);
         // offset into the first byte of the color ram
@@ -420,16 +416,37 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
         this.params[this.params.length - 1] = this.bgcolor | (this.auxcolor << 4) | (this.bordercolor << 8);
     }
     getValidColors(index: number) {
-        var p = this.imageIndexToParamOffset(index);
-        var c1 = this.params[p] & 0xf;
-        var c2 = (this.params[p] >> 4) & 0xf;
-        var c3 = (this.params[p] >> 8) & 0xf;
+        let [ncols, col] = this.imageIndexToImageColumnInfo(index);
+
+        let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(index);
+        if (blank)
+            return [this.bgcolor];
+
+        if (performBug) {
+            // the choices are terrible in the "bug" fli area
+            var valid = [this.bgcolor, this.fliBugChoiceColor, this.fliBugChoiceColor, this.fliBugCbColor];
+            return valid;
+        }
+
+        let p = this.imageIndexToParamOffset(index);
+        let c1 = this.params[p] & 0xf;
+        let c2 = (this.params[p] >> 4) & 0xf;
+        let c3 = (this.params[p] >> 8) & 0xf;
         var valid = [this.bgcolor, c1, c2, c3];
         return valid;
     }
     guessParam(pUnknown: number) {
-        if (pUnknown == this.params.length - 1) return; // don't mess with last param
+        // do not let the caller compute the parameters for anything other that the
+        // bitmap area, as the other paramters are for the color block or the extr data
+        // as these values are computed as a result of processing the bitmap data
+        if (pUnknown >= this.cbOffset)
+           return;
 
+        return this.actualGuessParam(pUnknown);
+    }
+    actualGuessParam(pUnknown: number) {
+
+        // does color block ram exist (presumption true is that it does/must exist, false to disable)
         const useCbRam = true;
 
         var isCalculatingCb = (pUnknown >= this.cbOffset);
@@ -440,6 +457,26 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
 
         var cbp = (isCalculatingCb ? pUnknown : this.imageIndexToCbParamOffset(index));
         var p = (isCalculatingCb ? this.imageIndexToParamOffset(index) : pUnknown);
+
+        if (!isCalculatingCb) {
+            // Whenever the color block color changes the surrounding pixels that also
+            // could reference that color block should be forced to NOT choose the same
+            // color as this color is always available in the color block, and choosing
+            // this same color in the color block would be wasted. As param colors are
+            // "guessed" in the order of the array, this ensures the color block is
+            // alays calculated BEFORE the pixel colors
+            //
+            // Extra logic filters out to only calculate for the first row of any color
+            // block area, and only calculate the color block is the current color block
+            // is different than the last computed color block.
+            if ((this.isImageIndexFirstRowOfColorBlock(index)) && (this.lastComputedCb != cbp)) {
+                this.actualGuessParam(cbp);
+            }
+        } else {
+            this.lastComputedCb = cbp;
+        }
+
+        let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(index);
 
         console.assert( (isCalculatingCb) || (p == pUnknown) );
         console.assert( (!isCalculatingCb) || (cbp == pUnknown) );
@@ -457,6 +494,7 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
         // +/- pixels sampled above/below
         var w = useWidth;
         var h = useHeight;
+
         var xb = 2; // search the border colors (2 pixels on each side)
         var yb = 0; // search the border colors (none for the y axis)
         for (var y=-yb; y<h+yb; y++) {
@@ -480,7 +518,7 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
             histo[this.params[cbp] & 0xf] = 0;
             // promote this value to the lower nybble of the 2nd least significant byte
             // as this value is needed later
-            cbColor = this.params[cbp] & 0xf
+            cbColor = this.params[cbp] & 0xf;
         }
 
         // get best choices for sub-block
@@ -498,25 +536,28 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
         if (!useCbRam) {
             cbColor = ind3;
         }
+    
+        if (leftBlank) {
+            // force the chosen colors to all be background in the FLI bug area
+            cbColor = ind1 = ind2 = ind3 = this.bgcolor;
+        } else if (rightBlank) {
+            cbColor = ind1 = ind2 = ind3 = this.bgcolor;
+        }
 
         if (isCalculatingCb) {
-            this.params[cbp] = ind1;
-
-            // after choosing a new cbp value the affected param colors
-            // must be recalculated since they must now exclude the chosen
-            // cb color (i.e. why waste param colors on a color that is
-            // already available for all pixels in the color block)
-            // (i think we're going to re-run guessParam() in future iterations)
-            /*
-            for (var y = 0; y < this.cbh; ++y) {
-                var o = (p - (p%this.w)) + (y * Math.floor(this.width / this.w));
-                for (var x = 0; x < this.cbw; ++x) {
-                    console.assert(o+x < this.cbOffset);
-                    this.guessParam(o+x);
-                }
+            if (performBug) {
+                ind1 = this.fliBugCbColor;
             }
-            */
+            this.params[cbp] = cbColor = ind1;
             return cbColor;
+        }
+
+        if (performBug) {
+            // the choices when in the fli "bug" area are terrible
+            // (because the VIC is unable to fetch the real colors
+            // during a "bad line" event)
+            ind1 = ind2 = this.fliBugChoiceColor;
+            cbColor = this.fliBugCbColor;
         }
 
         // Store the chosen colors in the lower and upper nybble
@@ -527,7 +568,7 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
         // index of %00 (background) %01 %10 (choice 1+2) and %11 meaning
         // use the color block color as a choice. The export routine is
         // unaware of the separated dedicated color block and only looks
-        // for the choice within the normal params area.
+        // for the color choices attached with each "normal" pixel param.
         return this.params[p] = (ind1 & 0xf) | ((ind2 << 4) & 0xf0) | ((cbColor << 8) & 0xf00);
     }
     updateHisto(histo: Uint32Array, colors: number[], i: number) {
@@ -560,6 +601,21 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
         return index;
     }
 
+    isImageIndexInFliBugBlankingArea(index: number): [boolean, boolean, boolean, boolean, number] {
+        let [ncols, col] = this.imageIndexToImageColumnInfo(index);
+
+        let bugLogic = (this.fliBug && ((col >= 0) && (col < this.blankFliBugColumnCount))) && (!this.blankLeftScreenFliBugArea);
+        let leftBlank = this.blankLeftScreenFliBugArea && ((col >= 0) && (col < this.blankFliBugColumnCount));
+        let rightBlank = this.blankLeftScreenFliBugArea && this.blankRightScreenMirrorFliBugArea && ((col >= (ncols - this.blankFliBugColumnCount)) && (col < ncols));
+        let blank = leftBlank || rightBlank;
+
+        return [bugLogic, blank, leftBlank, rightBlank, col];
+    }
+    imageIndexToImageColumnInfo(index: number): [number, number] {
+        var ncols = this.width / this.w;
+        var col = Math.floor(index / this.w) % ncols;
+        return [ncols, col];
+    }
     imageIndexToParamOffset(index: number): number {
         var ncols = this.width / this.w;
         var col = Math.floor(index / this.w) % ncols;
@@ -576,6 +632,11 @@ class VICII_Multi_CanvasFLI extends ParamDitherCanvas {
         console.assert(cbp >= this.cbOffset);
         console.assert(cbp < this.params.length - 1); // -1 is for the extra byte
         return cbp;
+    }
+    isImageIndexFirstRowOfColorBlock(index: number): boolean {
+        var ncols = this.width / this.w;
+        var row = Math.floor(index / (this.width * this.h));
+        return 0 == row % Math.floor(this.cbh / this.h);
     }
 }
 
@@ -952,6 +1013,7 @@ class Dithertron {
             if (!convFunction) throw new Error("no convFunction for " + sys.conv);
             this.dithcanv = new convFunction(this.sourceImageData, sys.width, pal);
             if (!this.dithcanv) throw new Error("no convFunction() for " + sys.conv);
+            this.dithcanv.sys = sys;
             this.dithcanv.errfn = errfn;
             this.dithcanv.noise = sys.noise ? (1 << sys.noise) : 0;
             this.dithcanv.diffuse = (sys.diffuse || 0) + 0;
