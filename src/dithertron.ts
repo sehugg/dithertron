@@ -972,7 +972,7 @@ function reducePalette(imageData: Uint32Array,
 
 //
 
-const MAX_ITERATE_COUNT = 75;
+const MAX_ITERATE_COUNT = 100;
 
 interface DithertronInterface {
     iterate() : void;
