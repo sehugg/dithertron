@@ -27,8 +27,26 @@ interface DithertronSettings {
     noise?: number;
     paletteDiversity?: number;
     ditherfn?: DitherKernel;
-    block?: {w:number, h:number, colors:number, cbw?:number, cbh?:number};
-    fli?: {bug:boolean, blankLeft:boolean, blankRight:boolean, blankColumns:number};
+    block?: {
+        background?: boolean,   // true=background color is available; false=not available (default=false)
+        w: number,
+        h: number,
+        colors: number,         // how many colors are available to choose per pixel
+        xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
+        yb?: number
+    };
+    cb?: {                      // color block (for mods with separated color blocks outside of the pixel color choice)
+        w: number,
+        h: number,
+        xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
+        yb?: number        
+    }
+    fli?: {
+        bug: boolean,
+        blankLeft: boolean,
+        blankRight: boolean,
+        blankColumns: number
+    };
     toNative?: string;
     exportFormat?: PixelEditorImageFormat;
 }
@@ -160,17 +178,11 @@ class DitheringCanvas {
 
 abstract class ParamDitherCanvas extends DitheringCanvas {
     params : Uint32Array = new Uint32Array(0);
-    abstract w : number;
-    abstract h : number;
 
     abstract guessParam(paramIndex: number) : void;
 
-    init() {
-        this.params = new Uint32Array(this.width*this.height/this.w);
-        for (var i=0; i<this.params.length; i++) {
-            this.guessParam(i);
-        }
-    }
+    abstract init();
+
     commit() {
         for (var i=0; i<this.params.length; i++) {
             this.guessParam(i);
@@ -178,8 +190,20 @@ abstract class ParamDitherCanvas extends DitheringCanvas {
     }
 }
 
+abstract class BasicParamDitherCanvas extends ParamDitherCanvas {
+    abstract w : number;
+    abstract h : number;
+
+    init() {
+        this.params = new Uint32Array(this.width*this.height/this.w);
+        for (var i=0; i<this.params.length; i++) {
+            this.guessParam(i);
+        }
+    }
+}
+
 // TODO: both colors affected by bright bit
-abstract class TwoColor_Canvas extends ParamDitherCanvas {
+abstract class TwoColor_Canvas extends BasicParamDitherCanvas {
     ncols : number = 0;
     nrows : number = 0;
     border : number = 0;
@@ -267,10 +291,6 @@ class VDPMode2_Canvas extends TwoColor_Canvas {
     w=8;
     h=1;
 }
-class C64HiresFLI_Canvas extends TwoColor_Canvas {
-    w=8;
-    h=1;
-}
 class VCSColorPlayfield_Canvas extends TwoColor_Canvas {
     w=40;
     h=1;
@@ -311,20 +331,44 @@ class Apple2_Canvas extends TwoColor_Canvas {
     }
 }
 
-class VICII_Multi_Canvas extends ParamDitherCanvas {
+namespace VICII_Canvas_Details {
+    export interface UseBlockInfo {
+        w: number;
+        h: number;
+        xb?: number;
+        yb?: number;
+    };
+    
+    export let prepare = function(defaults: UseBlockInfo, block?: UseBlockInfo) : UseBlockInfo {
+        if (block === undefined) {
+            return prepare(defaults, defaults);
+        }
+        let result : UseBlockInfo = { ...block };
+        result.xb = (block.xb === undefined ? 0: block.xb);
+        result.yb = (block.yb === undefined ? 0: block.yb);
+        return result;
+    }
+}
+
+class VICII_Canvas extends ParamDitherCanvas {
     // FLI allows for the color choices of pixel values %01/%10 to change PER row as the
     // screen address where the color information is stored is changable for each scan line
     // BUT the color ram for the %11 is not an address that can be changed so the
     // color ram applies to the entire 4x8 macro block
 
-    // pixel values:
+    // pixel values (for multi-mode):
     // %00 = background color (global value)
-    // %01 = upper nybble of screen block (changable per row 4x1 block size)
+    // %01 = upper nybble of screen block (changable per row 4x8 block size, 4x1 in FLI)
     // %10 = lower nybble of screen block (changable only at the 4x8 block size)
     // %11 = lower nybble of color ram
 
-    w:number;
-    h:number;
+    // pixel values (for hires-mode):
+    // %0 = background color choice (stored in screen lower nybble, changeable per 8x8 block, 8x1 in FLI)
+    // %1 = color choice (stored in screen upper nybble, changeable per 8x8 block, 8x1 in FLI)
+    b: VICII_Canvas_Details.UseBlockInfo;
+    colors: number;
+    background: boolean;
+
     // NOTE: cb = "color block"
     //
     // In multi-color mode, the pixel index color choices are either %00 for background,
@@ -339,13 +383,14 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     //
     // This the reason the color block parameters are split from the screen parameter
     // color choices as they are not always a 1:1 pairing.
-    cbw:number;
-    cbh:number;    
+    useCb: boolean;
+    cb: VICII_Canvas_Details.UseBlockInfo;
     cbOffset: number = 0;   // the offset into the params array for the color block ram
+
+    bitsPerColor: number;
+    pixelsPerByte: number;
+
     allColors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-    bgcolor : number = 0;
-    auxcolor : number = 0;
-    bordercolor : number = 0;
 
     fliMode : boolean = false;
 
@@ -381,16 +426,26 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
     blankRightScreenMirrorFliBugArea : boolean = false;
     blankFliBugColumnCount : number = 0;
 
+    // values chosen base on image
+    bgcolor: number = 0;
+    auxcolor: number = 0;
+    bordercolor: number = 0;
+
     // state machine for guessing
-    lastComputedCb : number = 0;
+    lastComputedCb: number = 0;
 
     // TODO: choose global colors before init?
     init() {
         // adopt the system settings
-        this.w = this.sys.block.w;
-        this.h = this.sys.block.h;
-        this.cbw = this.sys.block.cbw === undefined ? this.w : this.sys.block.cbw;
-        this.cbh = this.sys.block.cbh === undefined ? this.h : this.sys.block.cbh;
+        this.b = VICII_Canvas_Details.prepare(this.sys.block, this.sys.block);
+        this.cb = VICII_Canvas_Details.prepare(this.sys.block, this.sys.cb);
+
+        this.useCb = this.sys.cb === undefined ? false : true;
+        this.colors = this.sys.block.colors;
+
+        // assume the background color is choosable (unless overridden)
+        this.background = this.sys.block.background === undefined ? false : this.sys.block.background;
+
         if (this.sys.fli != undefined) {
             this.fliMode = true;
             this.fliBug = this.sys.fli.bug;
@@ -405,10 +460,36 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         this.auxcolor = choices[1] && choices[1].ind;
         this.bordercolor = choices[2] && choices[2].ind;
 
+        if ((this.fliMode) && ((this.fliBug) || (this.blankLeftScreenFliBugArea) || (this.blankRightScreenMirrorFliBugArea)))  {
+            if (!this.background) {
+                this.bgcolor = this.fliBugChoiceColor;
+                this.bordercolor = this.fliBugChoiceColor;
+            } else {
+                this.bordercolor = this.bgcolor;
+            }
+        }
+
+        this.bitsPerColor = Math.floor(Math.log2(this.colors));
+        this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
+
+        // offset into the first byte of the color ram (which is after the screen data)
+        this.cbOffset = (this.width/this.b.w * this.height/this.b.h);
+        this.params = new Uint32Array(this.cbOffset + ((this.width/this.cb.w * this.height/this.cb.h) * (this.useCb ? 1 : 0)) + 1);
+
+        // console.log(
+        //     this.b,
+        //     this.cb,
+        //     this.bitsPerColor,
+        //     this.pixelsPerByte,
+        //     this.useCb,
+        //     this.colors,
+        //     this.background,
+        //     this.bgcolor, this.auxcolor, this.bordercolor,
+        //     this.width, this.height,
+        //     this.cbOffset,
+        //     this.params.length);
+
         // fill params of subblocks
-        this.params = new Uint32Array((this.width/this.w * this.height/this.h) + (this.width/this.cbw * this.height/this.cbh) + 1);
-        // offset into the first byte of the color ram
-        this.cbOffset = (this.width/this.w * this.height/this.h);
         for (var i=0; i<this.params.length-1; i++) { // -1 to not factor in the "extra" byte
             this.guessParam(i);
         }
@@ -425,7 +506,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         if (performBug) {
             // the choices are terrible in the "bug" fli area
             var valid = [this.bgcolor, this.fliBugChoiceColor, this.fliBugChoiceColor, this.fliBugCbColor];
-            return valid;
+            return valid.slice(this.background ? 0 : 1, (this.background ? 0 : 1) + this.colors);
         }
 
         let p = this.imageIndexToParamOffset(index);
@@ -433,7 +514,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         let c2 = (this.params[p] >> 4) & 0xf;
         let c3 = (this.params[p] >> 8) & 0xf;
         var valid = [this.bgcolor, c1, c2, c3];
-        return valid;
+        return valid.slice(this.background ? 0 : 1, (this.background ? 0 : 1) + this.colors);
     }
     guessParam(pUnknown: number) {
         // do not let the caller compute the parameters for anything other that the
@@ -445,18 +526,19 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         return this.actualGuessParam(pUnknown);
     }
     actualGuessParam(pUnknown: number) {
+        console.assert(pUnknown < this.params.length - 1);
 
         // does color block ram exist (presumption true is that it does/must exist, false to disable)
-        const useCbRam = true;
+        const calculateCb = this.useCb && (this.iterateCount < MAX_ITERATE_COUNT/2);
 
-        var isCalculatingCb = (pUnknown >= this.cbOffset);
-        if ((isCalculatingCb) && (!useCbRam))
+        let isCalculatingCb = (pUnknown >= this.cbOffset);
+        if ((isCalculatingCb) && (!calculateCb))
             return;
 
-        var index = this.paramOrCbParamOffsetToImageIndex(pUnknown);
+        let index = this.paramOrCbParamOffsetToImageIndex(pUnknown);
 
-        var cbp = (isCalculatingCb ? pUnknown : this.imageIndexToCbParamOffset(index));
-        var p = (isCalculatingCb ? this.imageIndexToParamOffset(index) : pUnknown);
+        let cbp = (isCalculatingCb ? pUnknown : this.imageIndexToCbParamOffset(index));
+        let p = (isCalculatingCb ? this.imageIndexToParamOffset(index) : pUnknown);
 
         if (!isCalculatingCb) {
             // Whenever the color block color changes the surrounding pixels that also
@@ -469,7 +551,7 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
             // Extra logic filters out to only calculate for the first row of any color
             // block area, and only calculate the color block is the current color block
             // is different than the last computed color block.
-            if ((this.isImageIndexFirstRowOfColorBlock(index)) && (this.lastComputedCb != cbp)) {
+            if (calculateCb && (this.isImageIndexFirstRowOfColorBlock(index)) && (this.lastComputedCb != cbp)) {
                 this.actualGuessParam(cbp);
             }
         } else {
@@ -481,37 +563,30 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         console.assert( (isCalculatingCb) || (p == pUnknown) );
         console.assert( (!isCalculatingCb) || (cbp == pUnknown) );
 
-        var useWidth = this.w;
-        var useHeight = this.h;
-        if (isCalculatingCb) {
-            useWidth = this.cbw;
-            useHeight = this.cbh;
-        }
+        let useB = isCalculatingCb ? this.cb : this.b;
 
         // rank all colors within the size of the block (and bordering values)
-        var histo = new Uint32Array(16);
-        // going to scan a pixel area that is the pixel (sub)block in size
-        // +/- pixels sampled above/below
-        var w = useWidth;
-        var h = useHeight;
+        let histo = new Uint32Array(16);
 
-        var xb = 2; // search the border colors (2 pixels on each side)
-        var yb = 0; // search the border colors (none for the y axis)
-        for (var y=-yb; y<h+yb; y++) {
-            var o = index + y*this.width;  // adjust the image pixel offset accordingly
-            for (var x=-xb; x<w+xb; x++) {
-                this.updateHisto(histo, this.allColors, o+x);
+        // going to scan a pixel area that is the pixel (sub)block in size
+        // +/- pixels bleeding left/right and above/below
+        let [xStart,yStart] = this.paramOrCbParamOffsetToXy(p);
+
+        for (let y = yStart - useB.yb; y < yStart + useB.h + useB.yb; y++) {
+            for (let x = xStart - useB.xb; x < xStart + useB.w + useB.xb; x++) {
+                this.updateHisto(histo, this.allColors, x, y);
             }
         }
 
-        // never choose the background color since it's always an available
+        // never choose the background color if it's always an available
         // valid color for every pixel (i.e. why waste the screen ram or
         // color block ram on a color that is always available everywhere)
-        histo[this.bgcolor] = 0;
+        if (this.background)
+            histo[this.bgcolor] = 0;
 
         let cbColor : number = 0;
 
-        if ((!isCalculatingCb) && (useCbRam)) {
+        if ((!isCalculatingCb) && (this.useCb)) {
             // filter out the cb chosen color as there's no point in choosing the
             // same color option twice since it's already valid for this pixel
             // block area (just like the background color is valid)
@@ -522,10 +597,10 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         }
 
         // get best choices for sub-block
-        var choices = getChoices(histo);
-        var ind1 = choices[0] && choices[0].ind;
-        var ind2 = choices[1] && choices[1].ind;
-        var ind3 = choices[2] && choices[2].ind;
+        let choices = getChoices(histo);
+        let ind1 = choices[0] && choices[0].ind;
+        let ind2 = choices[1] && choices[1].ind;
+        let ind3 = choices[2] && choices[2].ind;
         if (ind1 === undefined)
             ind1 = this.bgcolor;
         if (ind2 === undefined)
@@ -533,15 +608,19 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         if (ind3 === undefined)
             ind3 = this.bgcolor;
 
-        if (!useCbRam) {
+        if (!this.useCb) {
             cbColor = ind3;
         }
-    
+
         if (leftBlank) {
             // force the chosen colors to all be background in the FLI bug area
             cbColor = ind1 = ind2 = ind3 = this.bgcolor;
+            if (!this.background)
+                ind1 = ind2 = this.fliBugChoiceColor;
         } else if (rightBlank) {
             cbColor = ind1 = ind2 = ind3 = this.bgcolor;
+            if (!this.background)
+                ind1 = ind2 = this.fliBugChoiceColor;
         }
 
         if (isCalculatingCb) {
@@ -571,32 +650,27 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         // for the color choices attached with each "normal" pixel param.
         return this.params[p] = (ind1 & 0xf) | ((ind2 << 4) & 0xf0) | ((cbColor << 8) & 0xf00);
     }
-    updateHisto(histo: Uint32Array, colors: number[], i: number) {
+    updateHisto(histo: Uint32Array, colors: number[], x: number, y: number) {
+        let i = this.xyToImageIndex(x, y);
+
         // get current color (or reference for 1st time)
-        var c1 = (i >= 0 && i < this.indexed.length ? this.indexed[i] : this.pal[this.bgcolor]);
+        let c1 = ((i === undefined) ? this.pal[this.bgcolor] : this.indexed[i]);
         histo[c1] += 100;
         // get error color (TODO: why alt not img like 2-color kernels?)
-        var rgbcomp = (i >= 0 && i < this.indexed.length ? this.alt[i] : this.pal[this.bgcolor]);
-        var c2 = this.getClosest(rgbcomp, colors);
+        let rgbcomp = ((i === undefined) ? this.pal[this.bgcolor] : this.alt[i]);
+        let c2 = this.getClosest(rgbcomp, colors);
         histo[c2] += 1 + this.noise;
     }
     paramOrCbParamOffsetToImageIndex(pUnknown: number): number {
-        var isCalculatingCb = (pUnknown >= this.cbOffset);
-        var useWidth = this.w;
-        var useHeight = this.h;
-        var useP = pUnknown;
+        let isCalculatingCb = (pUnknown >= this.cbOffset);
+        let useB = (isCalculatingCb ? this.cb : this.b);
+        let useP = (isCalculatingCb ? (pUnknown - this.cbOffset) : pUnknown);
 
-        if (isCalculatingCb) {
-            useWidth = this.cbw;
-            useHeight = this.cbh;
-            useP = (pUnknown - this.cbOffset);
-        }
-
-        var ncols = this.width / useWidth;     // number of pixels in a row
+        var ncols = this.width / useB.w;     // number of pixels in a row
         var col = useP % ncols;                // column for pixel in X direction
         var row = Math.floor(useP / ncols);    // row for pixel in Y direction
         // index is the starting offset representing the image's pixel X/Y
-        var index = (col*useWidth) + (row*this.width*useHeight);
+        var index = (col*useB.w) + (row*this.width*useB.h);
         console.assert(index < (this.width * this.height));
         return index;
     }
@@ -612,40 +686,58 @@ class VICII_Multi_Canvas extends ParamDitherCanvas {
         return [bugLogic, blank, leftBlank, rightBlank, col];
     }
     imageIndexToImageColumnInfo(index: number): [number, number] {
-        var ncols = this.width / this.w;
-        var col = Math.floor(index / this.w) % ncols;
+        let ncols = this.width / this.b.w;
+        let col = Math.floor(index / this.b.w) % ncols;
         return [ncols, col];
     }
+
+    paramOrCbParamOffsetToXy(pUnknown: number): [number, number] {
+        let imageIndex = this.paramOrCbParamOffsetToImageIndex(pUnknown);
+        return this.imageIndexToXY(imageIndex);
+    }
+
+    imageIndexToXY(index: number): [number, number] {
+        return [index % this.width, Math.floor(index / this.width)];
+    }
+    xyToImageIndex(x: number, y: number): number | undefined {
+        if ((x < 0) || (y < 0))
+           return undefined;
+        if ((x >= this.width) || (y >= this.height))
+           return undefined;
+        return y*this.width + x;
+    }
     imageIndexToParamOffset(index: number): number {
-        var ncols = this.width / this.w;
-        var col = Math.floor(index / this.w) % ncols;
-        var row = Math.floor(index / (this.width * this.h));
-        var p = col + row * ncols;
+        let [ncols, col] = this.imageIndexToImageColumnInfo(index);
+        let row = Math.floor(index / (this.width * this.b.h));
+        let p = col + row * ncols;
         console.assert(p < this.cbOffset);        
         return p;
     }
     imageIndexToCbParamOffset(index: number): number {
-        var ncols = this.width / this.cbw;
-        var col = Math.floor(index / this.cbw) % ncols;
-        var row = Math.floor(index / (this.width * this.cbh));
+        if (!this.useCb)
+            return this.cbOffset;
+
+        var ncols = this.width / this.cb.w;
+        var col = Math.floor(index / this.cb.w) % ncols;
+        var row = Math.floor(index / (this.width * this.cb.h));
         var cbp = this.cbOffset + col + row * ncols;
         console.assert(cbp >= this.cbOffset);
         console.assert(cbp < this.params.length - 1); // -1 is for the extra byte
         return cbp;
     }
     isImageIndexFirstRowOfColorBlock(index: number): boolean {
-        var ncols = this.width / this.w;
-        var row = Math.floor(index / (this.width * this.h));
-        return 0 == row % Math.floor(this.cbh / this.h);
+        var ncols = this.width / this.b.w;
+        var row = Math.floor(index / (this.width * this.b.h));
+        return 0 == row % Math.floor(this.cb.h / this.b.h);
     }
 }
 
 // TODO: bordercolor and charcolor only first 8 colors
-class VIC20_Multi_Canvas extends VICII_Multi_Canvas {
+class VIC20_Multi_Canvas extends VICII_Canvas {
     getValidColors(offset: number) {
-        var ncols = this.width / this.w;
-        var col = Math.floor(offset / this.w) % ncols;
-        var row = Math.floor(offset / (this.width*this.h));
+        var ncols = this.width / this.b.w;
+        var col = Math.floor(offset / this.b.w) % ncols;
+        var row = Math.floor(offset / (this.width*this.b.h));
         var i = col + row*ncols;
         var c1 = this.params[i] & 0xf;
         return [this.bgcolor, this.auxcolor, this.bordercolor, c1];
@@ -656,7 +748,7 @@ class VIC20_Multi_Canvas extends VICII_Multi_Canvas {
     }
 }
 
-class NES_Canvas extends ParamDitherCanvas {
+class NES_Canvas extends BasicParamDitherCanvas {
     w=16;
     h=16;
     allColors = [0,1,2,3,4];
