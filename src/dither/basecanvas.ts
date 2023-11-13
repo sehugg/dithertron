@@ -195,24 +195,24 @@ export abstract class TwoColor_Canvas extends BasicParamDitherCanvas {
 }
 
 export abstract class OneColor_Canvas extends TwoColor_Canvas {
-    bgcolor: number = 0;
+    bgColor: number = 0;
 
     init() {
         /*
         var choices = reducePaletteChoices(this.ref, this.pal, 2, 1, this.errfn);
-        this.bgcolor = choices[choices.length-1].ind;
-        this.allColors = [1,2,3,4,5,6,7].filter(x => x != this.bgcolor);
-        console.log(this.bgcolor, this.allColors);
+        this.bgColor = choices[choices.length-1].ind;
+        this.allColors = [1,2,3,4,5,6,7].filter(x => x != this.bgColor);
+        console.log(this.bgColor, this.allColors);
         */
-        this.bgcolor = 0;
+        this.bgColor = 0;
         super.init();
     }
     getValidColors(offset: number) {
-        return [this.bgcolor, super.getValidColors(offset)[0]];
+        return [this.bgColor, super.getValidColors(offset)[0]];
     }
     updateParams(p: number, choices: { ind: number }[]) {
         for (let c of choices) {
-            if (c.ind != this.bgcolor) {
+            if (c.ind != this.bgColor) {
                 this.params[p] = c.ind;
                 break;
             }

@@ -189,7 +189,7 @@ export function exportC64Multi(img: PixelsAvailableMessage, settings: Dithertron
     // lower screen nybble and color choice two in the upper screen nybble. However,
     // in FLI mode each pixel row gets a new choice of colors since on each scan line
     // special code swaps the screen color ram pointer location to a new location in
-    // memory thus allowing for indepentent values per row.
+    // memory thus allowing for independent values per row.
     if (isUsingFli) {
         for (let i = 0; i < cbOffset; i++) {
             let p = img.params[i];
@@ -216,7 +216,7 @@ export function exportC64Multi(img: PixelsAvailableMessage, settings: Dithertron
     let char = exportCharMemory(img, w, cbh, isUsingFli ? 'fli' : undefined, (img.params[img.params.length - 1] & 0xf));
     let xtraword = img.params[img.params.length - 1]; // background, border colors
     let xtra = new Uint8Array(2);
-    xtra[0] = xtraword & 0xff;          // background color
+    xtra[0] = xtraword & 0xff;          // background color (and high nybble aux)
     xtra[1] = (xtraword >> 8) & 0xff;   // border color
     return concatArrays([char, screen, color, xtra]);
 }
@@ -252,6 +252,64 @@ export function exportC64HiresFLI(img: PixelsAvailableMessage, settings: Dithert
     xtra[0] = xtraword & 0xff;          // background color
     xtra[1] = (xtraword >> 8) & 0xff;   // border color
     let char = exportCharMemory(img, 8, 8, 'fli');
+    return concatArrays([char, screen, xtra]);
+}
+
+export function exportVicHires(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    // TODO:Test this with actual asm code, consider this pre-experimental and likely to fail in practice
+    if (!settings.block) throw "No block size";
+    let w = settings.block.w;
+    let h = settings.block.h;
+    let cols = img.width / w;
+    let rows = img.height / h;
+    let screen = new Uint8Array(cols * rows);
+    for (let i = 0; i < screen.length; i++) {
+        let p = img.params[i];
+        screen[i] = ((p & 0x0f) << 4) | ((p & 0xf0) >> 4);
+    }
+    // see exportVicMulti for more details
+    let char = exportCharMemory(img, w, h);
+    let xtra = new Uint8Array(2);
+    let xtraword = img.params[img.params.length - 1]; // background, border colors
+    xtra[0] = xtraword & 0xff;          // background color (and high nybble aux)
+    xtra[1] = (xtraword >> 8) & 0xff;   // border color
+    return concatArrays([char, screen, xtra]);
+}
+
+export function exportVicMulti(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    // TODO:Test this with actual asm code, consider this pre-experimental and likely to fail in practice
+    if (!settings.block) throw "No block size";
+
+    let w = settings.block.w;
+    let h = settings.block.h;
+    let cols = img.width / w;
+    let rows = img.height / h;
+
+    let screen = new Uint8Array(cols * rows);
+
+    // From wiki entry that best describes:
+    // The VIC-20 lacks any true graphic mode, but a 22×11 text mode with 200 definable characters of
+    // 8×16 bits each arranged as a matrix of 20×10 characters is usually used instead,
+    // giving a 3:2(NTSC)/5:3(PAL) pixel aspect ratio, 160×160 pixels, 8-color "high-res mode" or
+    // a 3:1(NTSC)/10:3(PAL) pixel aspect ratio, 80×160 pixels, 10-color "multicolor mode".
+    //
+    // In the 8-color high-res mode, every 8×8 pixels can have the background color (shared for the
+    // entire screen) or a free foreground color, both selectable among the first eight colors of the
+    // palette. In the 10-color multicolor mode, a single pixel of every 4×8 block (a character cell)
+    // may have any of four colors: the background color, the auxiliary color (both shared for the
+    // entire screen and selectable among the entire palette), the same color as the overscan border
+    // (also a shared color) or a free foreground color, both selectable among the first eight colors
+    // of the palette.
+    for (let i = 0; i < screen.length; i++) {
+        screen[i] = (img.params[i] & 0xff);
+    }
+
+    let char = exportCharMemory(img, w, h);
+    let xtraword = img.params[img.params.length - 1]; // background, border colors
+    let xtra = new Uint8Array(3);
+    xtra[0] = xtraword & 0x0f;          // background color
+    xtra[1] = (xtraword >> 8) & 0x0f;   // border color
+    xtra[2] = (xtraword >> 4) & 0x0f;   // aux color
     return concatArrays([char, screen, xtra]);
 }
 
