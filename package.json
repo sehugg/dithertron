@@ -14,6 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/jquery": "^3.5.0",
+    "@types/pica": "^9.0.4",
     "bootstrap": "^4.5.0",
     "bootstrap-slider": "^11.0.2",
     "cropper": "^4.1.0",

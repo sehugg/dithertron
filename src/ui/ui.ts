@@ -4,11 +4,11 @@ import { DitherSetting, DithertronSettings, PixelsAvailableMessage } from "../co
 import * as exportfuncs from "../export/exportfuncs";
 import * as fileviewers from "../export/fileviewers";
 
-declare var Cropper;
-declare var pica;
-declare var saveAs;
+import Cropper from 'cropperjs';
+import pica from 'pica';
+import { saveAs } from 'file-saver';
 
-var cropper;
+var cropper : Cropper;
 
 var brightSlider = document.getElementById('brightSlider') as HTMLInputElement;
 var contrastSlider = document.getElementById('contrastSlider') as HTMLInputElement;
@@ -233,7 +233,7 @@ function setTargetSystem(sys: DithertronSettings) {
     $("#downloadNativeBtn").css('display', sys.toNative ? 'inline' : 'none');
     $("#gotoIDE").css('display', getCodeConvertFunction() ? 'inline' : 'none');
     if (cropper) {
-        loadSourceImage(cropper.url);
+        loadSourceImage((cropper as any).url); // TODO?
     }
     updateURL();
 }
