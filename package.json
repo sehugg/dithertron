@@ -1,10 +1,13 @@
 {
   "name": "dithertron",
-  "version": "1.1.20",
+  "version": "1.1.21",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "tsbuild": "tsc",
+    "build": "npm run esbuild-worker && npm run esbuild-ui",
+    "esbuild-worker": "esbuild src/worker/worker.ts --bundle --sourcemap --target=es2017 --outfile=./gen/worker.js",
+    "esbuild-ui": "esbuild src/ui/ui.ts --loader:.asm=text --format=esm --bundle --minify --sourcemap --target=es2017 --outfile=./gen/ui.js --external:path --external:fs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

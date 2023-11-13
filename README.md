@@ -79,7 +79,7 @@ npm i
 ~~~~
 Build:
 ~~~~
-./node_modules/.bin/tsc
+npm run build
 ~~~~
 
 Then open `index.html` in browser.
@@ -95,6 +95,18 @@ TODO
 * Refresh retains mode settings
 * Custom width and height (crop rect for non-full-screen)
 * Faster closest color lookup
+
+## License
+
+Copyright © 2016-2023 [Steven Hugg](https://github.com/sehugg).
+
+This project is [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) licensed.
+
+Dependencies retain their original licenses.
+
+All exported code is licensed under
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
 
 SAMPLE IMAGES
 -------------
