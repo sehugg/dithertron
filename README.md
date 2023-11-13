@@ -81,8 +81,12 @@ Build:
 ~~~~
 npm run build
 ~~~~
+Watch:
+~~~~
+make watch
+~~~~
 
-Then open `index.html` in browser.
+Then open `http://localhost:8189` in browser.
 
 
 TODO
