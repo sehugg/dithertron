@@ -23,6 +23,7 @@
     "pica": "^9.0.0"
   },
   "devDependencies": {
+    "esbuild": "^0.19.5",
     "typescript": "^5.0.4"
   }
 }
