@@ -17,6 +17,22 @@ export type PixelEditorImageFormat = {
     bitremap?: number[]
 };
 
+export interface PaletteRange {
+    min: number;
+    max: number;
+};
+
+export interface PaletteChoices {
+    background?: boolean,           // true=background color is available to select; false=not available (default=false)
+    aux?: boolean,                  // true=auxiliary color is available to select; false=not available (default=false)
+    border?: boolean,               // true=border (overscan) color is available to select; false=not available (default=false)
+    colors?: number,                // how many individual per pixel color choices are available (default=block.colors - background?1:0 - aux?1:0 -border?1:0)
+    backgroundRange?: PaletteRange, // what part of the palette is available for the background (default=entire range)
+    auxRange?: PaletteRange,        // what part of the palette is available for the aux (default=entire range)
+    borderRange?: PaletteRange,     // what part of the palette is available for the border (default=entire range)
+    colorsRange?: PaletteRange      // what part of the palette is available for individual colors (default=entire range)
+};
+
 export interface DithertronSettings {
     id: string;
     name: string;
@@ -35,19 +51,19 @@ export interface DithertronSettings {
     paletteDiversity?: number;
     ditherfn?: DitherKernel;
     block?: {
-        background?: boolean,   // true=background color is available; false=not available (default=false)
         w: number,
         h: number,
-        colors: number,         // how many colors are available to choose per pixel
+        colors: number,         // how many colors are available to choose per pixel (regardless of the palette size)
         xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
         yb?: number
     };
+    paletteChoices?: PaletteChoices;
     cb?: {                      // color block (for mods with separated color blocks outside of the pixel color choice)
         w: number,
         h: number,
         xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
         yb?: number        
-    }
+    };
     fli?: {
         bug: boolean,
         blankLeft: boolean,
