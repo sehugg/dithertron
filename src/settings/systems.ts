@@ -11,6 +11,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
         block: { w:4, h:8, colors:4, xb:1, yb:2 },
+        cell: {w: 4, h: 8, msbToLsb: true },
         paletteChoices:{background: true},        
         cb: { w: 4, h: 8, xb: 1, yb: 2 },
         toNative: 'exportC64Multi',
@@ -25,6 +26,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.VIC_PAL_RGB,
         block: { w: 4, h: 1, colors: 4, xb: 1 },
         paletteChoices:{ background: true },
+        cell: {w: 4, h: 8, msbToLsb: true },
         cb: { w: 4, h: 8, xb: 1, yb: 2 },
         fli: { bug: false, blankLeft: false, blankRight: false, blankColumns: 3 },
         toNative: 'exportC64Multi',
@@ -38,6 +40,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
         block: { w: 4, h: 1, colors: 4, xb: 1 },
+        cell: {w: 4, h: 8, msbToLsb: true },
         paletteChoices: { background: true },
         cb: { w: 4, h: 8, xb: 1, yb: 2 },
         fli: { bug: true, blankLeft: false, blankRight: false, blankColumns: 3 },
@@ -52,6 +55,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
         block: { w: 4, h: 1, colors: 4, xb: 1 },
+        cell: {w: 4, h: 8, msbToLsb: true },
         paletteChoices: { background: true },
         cb: { w: 4, h: 8, xb: 1, yb: 2 },
         fli: { bug: false, blankLeft: true, blankRight: false, blankColumns: 3 },
@@ -66,6 +70,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
         block: { w: 4, h: 1, colors: 4, xb: 1 },
+        cell: {w: 4, h: 8, msbToLsb: true },
         paletteChoices: { background:true },
         cb: { w: 4, h: 8, xb: 1, yb: 2 },
         fli: { bug: false, blankLeft: true, blankRight: true, blankColumns: 3 },
@@ -80,6 +85,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
         block: { w: 8, h: 8, colors: 2 },
+        cell: {w: 8, h: 8, msbToLsb: true },
         toNative: 'exportC64Hires',
     },
     {
@@ -91,8 +97,9 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
         block: { w: 8, h: 1, colors: 2 },
+        cell: {w: 8, h: 8, msbToLsb: true },
         fli: { bug: false, blankLeft: false, blankRight: false, blankColumns: 3 },
-        toNative: 'exportC64HiresFLI',
+        toNative: 'exportC64Hires',
     },
     {
         id: 'c64.hires.fli.bug',
@@ -103,8 +110,9 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
         block: { w: 8, h: 1, colors: 2 },
+        cell: {w: 8, h: 8, msbToLsb: true },
         fli: { bug: true, blankLeft: false, blankRight: false, blankColumns: 3 },
-        toNative: 'exportC64HiresFLI',
+        toNative: 'exportC64Hires',
     },
     {
         id: 'c64.hires.fli.blank',
@@ -115,8 +123,9 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
         block: { w: 8, h: 1, colors: 2 },
+        cell: {w: 8, h: 8, msbToLsb: true },
         fli: { bug: false, blankLeft: true, blankRight: true, blankColumns: 3 },
-        toNative: 'exportC64HiresFLI',
+        toNative: 'exportC64Hires',
     },
     {
         id: 'vic20.hires',
@@ -127,6 +136,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC20_PAL_RGB,
         block: { w: 8, h: 8, colors: 2 },           // can choose the background, or one foreground color
+        cell: {w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             background: true,                       // pixels can choose the background color
             backgroundRange: { min: 0, max: 7 },    // (but with a reduced color palette)
@@ -143,6 +153,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC20_PAL_RGB,
         block: { w: 4, h: 8, colors: 4 },           // can choose background, aux, border and one foreground color
+        cell: {w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             background: true,                       // pixels can choose the background color
             backgroundRange: { min: 0, max: 15 },

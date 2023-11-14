@@ -183,7 +183,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
         // find global colors
         this.prepareGlobalColorChoices();
 
-        this.bitsPerColor = Math.floor(Math.log2(this.colors));
+        this.bitsPerColor = Math.ceil(Math.log2(this.colors));
         this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
 
         // offset into the first byte of the color ram (which is after the screen data)
