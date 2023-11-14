@@ -18,7 +18,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'c64.multi.fli',
-        name: 'C-64 Multi FLI',
+        name: 'C-64 Multi FLI (w/o bug)',
         width: 160,
         height: 200,
         scaleX: 0.936 * 2,
@@ -33,7 +33,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'c64.multi.fli.bug',
-        name: 'C-64 Multi FLI (with FLI Bug)',
+        name: 'C-64 Multi FLI (with bug)',
         width: 160,
         height: 200,
         scaleX: 0.936 * 2,
@@ -90,7 +90,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'c64.hires.fli',
-        name: 'C-64 Hires FLI',
+        name: 'C-64 Hires FLI (w/o bug)',
         width: 320,
         height: 200,
         scaleX: 0.936,
@@ -103,7 +103,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'c64.hires.fli.bug',
-        name: 'C-64 Hires FLI (Bug)',
+        name: 'C-64 Hires FLI (with bug)',
         width: 320,
         height: 200,
         scaleX: 0.936,
@@ -128,44 +128,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportC64Hires',
     },
     {
-        id: 'vic20.hires',
-        name: 'VIC-20 Hires',
-        width: 160,
-        height: 160,
-        scaleX: 1.5,
-        conv: 'VICII_Canvas',
-        pal: palettes.VIC20_PAL_RGB,
-        block: { w: 8, h: 8, colors: 2 },           // can choose the background, or one foreground color
-        cell: {w: 8, h: 8, msbToLsb: true },
-        paletteChoices: {
-            background: true,                       // pixels can choose the background color
-            backgroundRange: { min: 0, max: 7 },    // (but with a reduced color palette)
-            colorsRange: { min: 0, max: 7 }         // pixels can only choose from a reduced color palette
-        },
-        toNative:'exportVicHires',
-    },
-    {
-        id: 'vic20.multi',
-        name: 'VIC-20 Multi',
-        width: 80,
-        height: 160,
-        scaleX: 3,
-        conv: 'VICII_Canvas',
-        pal: palettes.VIC20_PAL_RGB,
-        block: { w: 4, h: 8, colors: 4 },           // can choose background, aux, border and one foreground color
-        cell: {w: 8, h: 8, msbToLsb: true },
-        paletteChoices: {
-            background: true,                       // pixels can choose the background color
-            backgroundRange: { min: 0, max: 15 },
-            aux: true,                              // pixels can choose the aux color
-            auxRange: { min: 0, max: 15},
-            border: true,                           // pixels can choose the border color
-            borderRange: { min: 0, max: 7 },        // (but with a reduced palette)
-            colorsRange: { min: 0, max: 7 }         // a reduced palette applies to the pixel colors
-        },
-        toNative:'exportVicMulti',
-    },
-    {
         id: 'nes',
         name: 'NES (4 color, 240 tiles)',
         width: 160,
@@ -188,7 +150,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'apple2.hires',
-        name: 'Apple ][ Hires',
+        name: 'Apple ][ (Hires)',
         width: 140,
         height: 192,
         scaleX: 2,
@@ -199,7 +161,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'atari8.d',
-        name: 'Atari ANTIC D',
+        name: 'Atari ANTIC (Mode D)',
         width: 160,
         height: 96,
         scaleX: 0.8571,
@@ -211,7 +173,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'atari8.f.10',
-        name: 'Atari ANTIC F/10',
+        name: 'Atari ANTIC (Mode F/10)',
         width: 80,
         height: 192,
         scaleX: 0.8571 * 4,
@@ -234,7 +196,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'vcs.color',
-        name: 'Atari VCS Color',
+        name: 'Atari VCS (Color)',
         width: 40,
         height: 192,
         scaleX: 6,
@@ -289,8 +251,47 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         exportFormat: { bpp: 2, yremap: [3, 80, 2048], bitremap: [7, 3, 6, 2, 5, 1, 4, 0] }
     },
 
+    // null == separator, systems with runnable source code are above
     null,
 
+    {
+        id: 'vic20.hires',
+        name: 'VIC-20 Hires',
+        width: 160,
+        height: 160,
+        scaleX: 1.5,
+        conv: 'VICII_Canvas',
+        pal: palettes.VIC20_PAL_RGB,
+        block: { w: 8, h: 8, colors: 2 },           // can choose the background, or one foreground color
+        cell: {w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            background: true,                       // pixels can choose the background color
+            backgroundRange: { min: 0, max: 7 },    // (but with a reduced color palette)
+            colorsRange: { min: 0, max: 7 }         // pixels can only choose from a reduced color palette
+        },
+        toNative:'exportVicHires',
+    },
+    {
+        id: 'vic20.multi',
+        name: 'VIC-20 Multi',
+        width: 80,
+        height: 160,
+        scaleX: 3,
+        conv: 'VICII_Canvas',
+        pal: palettes.VIC20_PAL_RGB,
+        block: { w: 4, h: 8, colors: 4 },           // can choose background, aux, border and one foreground color
+        cell: {w: 4, h: 8, msbToLsb: true },
+        paletteChoices: {
+            background: true,                       // pixels can choose the background color
+            backgroundRange: { min: 0, max: 15 },
+            aux: true,                              // pixels can choose the aux color
+            auxRange: { min: 0, max: 15},
+            border: true,                           // pixels can choose the border color
+            borderRange: { min: 0, max: 7 },        // (but with a reduced palette)
+            colorsRange: { min: 0, max: 7 }         // a reduced palette applies to the pixel colors
+        },
+        toNative:'exportVicMulti',
+    },
     {
         id: 'nes4f',
         name: 'NES (4 color, full screen)',
@@ -363,17 +364,8 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.TELETEXT_RGB,
     },
     {
-        id: 'apple2.dblhires',
-        name: 'Apple ][ Double-Hires',
-        width: 140,
-        height: 192,
-        scaleX: 2,
-        conv: 'DitheringCanvas',
-        pal: palettes.AP2LORES_RGB,
-    },
-    {
         id: 'apple2.lores',
-        name: 'Apple ][ Lores',
+        name: 'Apple ][ (Lores)',
         width: 40,
         height: 48,
         scaleX: 1.5,
@@ -381,6 +373,15 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.AP2LORES_RGB,
         toNative: 'exportFrameBuffer',
         exportFormat: { bpp: 4 },
+    },
+    {
+        id: 'apple2.dblhires',
+        name: 'Apple ][ (Double-Hires)',
+        width: 140,
+        height: 192,
+        scaleX: 2,
+        conv: 'DitheringCanvas',
+        pal: palettes.AP2LORES_RGB,
     },
     {
         id: 'appleiigs.320.16',
@@ -410,7 +411,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'x86.cga.04h.1',
-        name: 'PC CGA Mode 04h (palette 1)',
+        name: 'PC CGA (Mode 04h, palette 1)',
         width: 320,
         height: 200,
         scaleX: 200 / 320 * 1.37,
@@ -421,7 +422,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'x86.cga.04h.1B',
-        name: 'PC CGA Mode 04h (bright 1)',
+        name: 'PC CGA (Mode 04h, bright 1)',
         width: 320,
         height: 200,
         scaleX: 200 / 320 * 1.37,
@@ -432,7 +433,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'x86.cga.04h.2',
-        name: 'PC CGA Mode 04h (palette 2)',
+        name: 'PC CGA (Mode 04h, palette 2)',
         width: 320,
         height: 200,
         scaleX: 200 / 320 * 1.37,
@@ -443,7 +444,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'x86.cga.04h.2B',
-        name: 'PC CGA Mode 04h (bright 2)',
+        name: 'PC CGA (Mode 04h, bright 2)',
         width: 320,
         height: 200,
         scaleX: 200 / 320 * 1.37,
@@ -454,7 +455,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'x86.cga.05h',
-        name: 'PC CGA Mode 05h',
+        name: 'PC CGA (Mode 05h)',
         width: 320,
         height: 200,
         scaleX: 200 / 320 * 1.37,
@@ -465,7 +466,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'x86.cga.05h.B',
-        name: 'PC CGA Mode 05h (bright)',
+        name: 'PC CGA (Mode 05h, bright)',
         width: 320,
         height: 200,
         scaleX: 200 / 320 * 1.37,
@@ -476,7 +477,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'x86.ega.0dh',
-        name: 'PC EGA Mode 0Dh',
+        name: 'PC EGA (Mode 0Dh)',
         width: 320,
         height: 200,
         scaleX: 200 / 320 * 1.37,
@@ -487,7 +488,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'x86.ega.10h',
-        name: 'PC EGA Mode 10h',
+        name: 'PC EGA (Mode 10h)',
         width: 640,
         height: 350,
         scaleX: 350 / 640 * 1.37,
@@ -544,7 +545,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     */
     {
         id: 'amiga.lores',
-        name: 'Amiga Lores',
+        name: 'Amiga (Lores)',
         width: 320,
         height: 256,
         conv: 'DitheringCanvas',
@@ -555,7 +556,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'amiga.lores.ham6',
-        name: 'Amiga Lores HAM6',
+        name: 'Amiga (Lores, HAM6)',
         width: 320,
         height: 256,
         conv: 'HAM6_Canvas',
@@ -567,7 +568,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'cx16.lores',
-        name: 'Commander X16 Lores',
+        name: 'Commander X16 (Lores)',
         width: 320,
         height: 240,
         scaleX: 1,
@@ -577,7 +578,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'cx16.hires',
-        name: 'Commander X16 Hires (cropped)',
+        name: 'Commander X16 (Hires, cropped)',
         width: 640,
         height: 400,
         scaleX: 1,
@@ -618,7 +619,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'MC6847.CG2.palette0',
-        name: 'MC6847 CG2 (palette 0)',
+        name: 'MC6847 (CG2, palette 0)',
         width: 128,
         height: 64,
         scaleX: 1 / 1.3,
@@ -629,7 +630,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'MC6847.CG2.palette1',
-        name: 'MC6847 CG2 (palette 1)',
+        name: 'MC6847 (CG2, palette 1)',
         width: 128,
         height: 64,
         scaleX: 1 / 1.3,
@@ -640,7 +641,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'MC6847.CG3.palette0',
-        name: 'MC6847 CG3 (palette 0)',
+        name: 'MC6847 (CG3, palette 0)',
         width: 128,
         height: 96,
         scaleX: 1 / 1.3 * 96 / 64,
@@ -651,7 +652,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'MC6847.CG3.palette1',
-        name: 'MC6847 CG3 (palette 1)',
+        name: 'MC6847 (CG3, palette 1)',
         width: 128,
         height: 96,
         scaleX: 1 / 1.3 * 96 / 64,
@@ -662,7 +663,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'MC6847.CG6.palette0',
-        name: 'MC6847 CG6 (palette 0)',
+        name: 'MC6847 (CG6, palette 0)',
         width: 128,
         height: 192,
         scaleX: 1 / 1.3 * 192 / 64,
@@ -673,7 +674,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'MC6847.CG6.palette1',
-        name: 'MC6847 CG6 (palette 1)',
+        name: 'MC6847 (CG6, palette 1)',
         width: 128,
         height: 192,
         scaleX: 1 / 1.3 * 192 / 64,
@@ -684,7 +685,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'vcs.48',
-        name: 'Atari VCS 48x48 bitmap',
+        name: 'Atari VCS (48x48 bitmap)',
         width: 48,
         height: 48,
         conv: 'DitheringCanvas',
@@ -693,7 +694,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'pce.256x240',
-        name: 'PC Engine 256x240',
+        name: 'PC Engine (256x240)',
         width: 256,
         height: 240,
         scaleX: 5 / 4,

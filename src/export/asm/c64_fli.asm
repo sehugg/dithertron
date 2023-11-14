@@ -17,7 +17,7 @@ Use8BitWorkshopEmulator equ 1
 UseInitTables equ 0
 
 ; This code is extremely similar between multi-color
-; graphics mode and hires graphcis mode. Setting
+; graphics mode and hires graphics mode. Setting
 ; to 1 enables the multi-color graphics code, otherwise
 ; set to 0 for hires graphics mode.
 UseMultiColorGraphics equ $USE_MULTI_MODE
