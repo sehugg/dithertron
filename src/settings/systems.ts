@@ -119,42 +119,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportC64HiresFLI',
     },
     {
-        id: 'vic20.hires',
-        name: 'VIC-20 Hires',
-        width: 160,
-        height: 160,
-        scaleX: 1.5,
-        conv: 'VICII_Canvas',
-        pal: palettes.VIC20_PAL_RGB,
-        block: { w: 8, h: 8, colors: 2 },           // can choose the background, or one foreground color
-        paletteChoices: {
-            background: true,                       // pixels can choose the background color
-            backgroundRange: { min: 0, max: 7 },    // (but with a reduced color palette)
-            colorsRange: { min: 0, max: 7 }         // pixels can only choose from a reduced color palette
-        },
-        toNative:'exportVicHires',
-    },
-    {
-        id: 'vic20.multi',
-        name: 'VIC-20 Multi',
-        width: 80,
-        height: 160,
-        scaleX: 3,
-        conv: 'VICII_Canvas',
-        pal: palettes.VIC20_PAL_RGB,
-        block: { w: 4, h: 8, colors: 4 },           // can choose background, aux, border and one foreground color
-        paletteChoices: {
-            background: true,                       // pixels can choose the background color
-            backgroundRange: { min: 0, max: 15 },
-            aux: true,                              // pixels can choose the aux color
-            auxRange: { min: 0, max: 15},
-            border: true,                           // pixels can choose the border color
-            borderRange: { min: 0, max: 7 },        // (but with a reduced palette)
-            colorsRange: { min: 0, max: 7 }         // a reduced palette applies to the pixel colors
-        },
-        toNative:'exportVicMulti',
-    },
-    {
         id: 'nes',
         name: 'NES (4 color, 240 tiles)',
         width: 160,
@@ -177,7 +141,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'apple2.hires',
-        name: 'Apple ][ Hires',
+        name: 'Apple ][ (Hires)',
         width: 140,
         height: 192,
         scaleX: 2,
@@ -278,8 +242,45 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         exportFormat: { bpp: 2, yremap: [3, 80, 2048], bitremap: [7, 3, 6, 2, 5, 1, 4, 0] }
     },
 
+    // null == separator, systems with runnable source code are above
     null,
 
+    {
+        id: 'vic20.hires',
+        name: 'VIC-20 Hires',
+        width: 160,
+        height: 160,
+        scaleX: 1.5,
+        conv: 'VICII_Canvas',
+        pal: palettes.VIC20_PAL_RGB,
+        block: { w: 8, h: 8, colors: 2 },           // can choose the background, or one foreground color
+        paletteChoices: {
+            background: true,                       // pixels can choose the background color
+            backgroundRange: { min: 0, max: 7 },    // (but with a reduced color palette)
+            colorsRange: { min: 0, max: 7 }         // pixels can only choose from a reduced color palette
+        },
+        toNative:'exportVicHires',
+    },
+    {
+        id: 'vic20.multi',
+        name: 'VIC-20 Multi',
+        width: 80,
+        height: 160,
+        scaleX: 3,
+        conv: 'VICII_Canvas',
+        pal: palettes.VIC20_PAL_RGB,
+        block: { w: 4, h: 8, colors: 4 },           // can choose background, aux, border and one foreground color
+        paletteChoices: {
+            background: true,                       // pixels can choose the background color
+            backgroundRange: { min: 0, max: 15 },
+            aux: true,                              // pixels can choose the aux color
+            auxRange: { min: 0, max: 15},
+            border: true,                           // pixels can choose the border color
+            borderRange: { min: 0, max: 7 },        // (but with a reduced palette)
+            colorsRange: { min: 0, max: 7 }         // a reduced palette applies to the pixel colors
+        },
+        toNative:'exportVicMulti',
+    },
     {
         id: 'nes4f',
         name: 'NES (4 color, full screen)',
@@ -352,17 +353,8 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.TELETEXT_RGB,
     },
     {
-        id: 'apple2.dblhires',
-        name: 'Apple ][ Double-Hires',
-        width: 140,
-        height: 192,
-        scaleX: 2,
-        conv: 'DitheringCanvas',
-        pal: palettes.AP2LORES_RGB,
-    },
-    {
         id: 'apple2.lores',
-        name: 'Apple ][ Lores',
+        name: 'Apple ][ (Lores)',
         width: 40,
         height: 48,
         scaleX: 1.5,
@@ -370,6 +362,15 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.AP2LORES_RGB,
         toNative: 'exportFrameBuffer',
         exportFormat: { bpp: 4 },
+    },
+    {
+        id: 'apple2.dblhires',
+        name: 'Apple ][ (Double-Hires)',
+        width: 140,
+        height: 192,
+        scaleX: 2,
+        conv: 'DitheringCanvas',
+        pal: palettes.AP2LORES_RGB,
     },
     {
         id: 'appleiigs.320.16',
@@ -533,7 +534,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     */
     {
         id: 'amiga.lores',
-        name: 'Amiga Lores',
+        name: 'Amiga (Lores)',
         width: 320,
         height: 256,
         conv: 'DitheringCanvas',
@@ -544,7 +545,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'amiga.lores.ham6',
-        name: 'Amiga Lores (HAM6)',
+        name: 'Amiga (Lores, HAM6)',
         width: 320,
         height: 256,
         conv: 'HAM6_Canvas',
