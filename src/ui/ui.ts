@@ -236,6 +236,7 @@ function setTargetSystem(sys: DithertronSettings) {
         loadSourceImage((cropper as any).url); // TODO?
     }
     updateURL();
+    repopulateSystemSelector(sys);
 }
 
 function getFilenamePrefix() {
@@ -356,6 +357,35 @@ const EXAMPLE_IMAGES = [
     'vangogh.jpg',
 ];
 
+function repopulateSystemSelector(currentSystem: DithertronSettings) {
+    const sel = $("#targetFormatSelect");
+    sel.empty();
+    let [currentParentName, currentSubtypeName] = currentSystem.name.split(' (');
+    let allParents = new Set<String>();
+    let optgroup = null;
+    SYSTEMS.forEach(sys => {
+        if (sys == null) {
+            sel.append($("<option disabled></option>"));
+        } else {
+            // does it have a subtype?
+            let [parentName, subtypeName] = sys.name.split(' (');
+            let opt = $("<option />").text(sys.name).val(sys.id);
+            if (parentName == currentParentName) {
+                if (!optgroup) {
+                    optgroup = $("<optgroup />").attr("label", currentParentName);
+                    sel.append(optgroup);
+                }
+                optgroup.append(opt);
+            } else if (!allParents.has(parentName)) {
+                let opt = $("<option />").text(parentName).val(sys.id);
+                sel.append(opt);
+            }
+            allParents.add(parentName);
+        }
+    });
+    sel.val(currentSystem.id);
+}
+
 export function startUI() {
 
     window.addEventListener('load', function () {
@@ -373,6 +403,7 @@ export function startUI() {
         EXAMPLE_IMAGES.forEach((filename) => {
             $('<a class="dropdown-item" href="#"></a>').text(filename).appendTo("#examplesMenu");
         });
+
         $("#examplesMenu").click((e) => {
             var filename = $(e.target).text();
             filenameLoaded = presetLoaded = filename;
@@ -380,10 +411,6 @@ export function startUI() {
             imageUpload.value = "";
         });
 
-        SYSTEMS.forEach(sys => {
-            var opt = sys ? $("<option />").text(sys.name).val(sys.id) : $("<option disabled></option>");
-            $("#targetFormatSelect").append(opt);
-        });
         ALL_DITHER_SETTINGS.forEach((dset, index) => {
             var opt = $("<option />").text(dset.name).val(index);
             $("#diffuseTypeSelect").append(opt);
@@ -406,10 +433,11 @@ export function startUI() {
             */
         }
 
-        var qs = decodeQueryString(window.location.hash.substring(1));
-        var sys = qs['sys'] || 'c64.multi';
-        $('#targetFormatSelect').val(sys);
-        setTargetSystem(SYSTEM_LOOKUP[sys]);
+        const qs = decodeQueryString(window.location.hash.substring(1));
+        const currentSystemId = qs['sys'] || SYSTEMS[0].id;
+        const currentSystem = SYSTEM_LOOKUP[currentSystemId];
+        setTargetSystem(currentSystem);
+
         filenameLoaded = presetLoaded = qs['image'] || "seurat.jpg";
         loadSourceImage("images/" + filenameLoaded);
 
