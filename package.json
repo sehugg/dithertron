@@ -1,0 +1,33 @@
+{
+  "name": "dithertron",
+  "version": "1.2.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "tsbuild": "tsc",
+    "build": "make copylibs && npm run esbuild-worker && npm run esbuild-ui",
+    "clean": "rm -fr ./gen",
+    "esbuild-worker": "esbuild src/worker/worker.ts --bundle --sourcemap --target=es2017 --outfile=./gen/worker.js",
+    "esbuild-ui": "esbuild src/ui/ui.ts --loader:.asm=text --format=esm --bundle --minify --sourcemap --target=es2017 --outfile=./gen/ui.js --external:path --external:fs",
+    "test": "npx nightwatch --test test/test.js --headless"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/jquery": "^3.5.0",
+    "@types/pica": "^9.0.4",
+    "bootstrap": "^4.5.0",
+    "bootstrap-slider": "^11.0.2",
+    "cropper": "^4.1.0",
+    "file-saver": "^2.0.2",
+    "font-awesome": "^4.7.0",
+    "jquery": "^3.5.0",
+    "pica": "^9.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.5",
+    "express": "^4.18.2",
+    "nightwatch": "^3.3.0",
+    "typescript": "^5.0.4"
+  }
+}

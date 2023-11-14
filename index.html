@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="lib/jquery.min.js"></script>
+    <script src="lib/bootstrap.bundle.min.js"></script>
+    <script src="lib/bootstrap-slider.min.js"></script>
+    <!-- css -->
+    <link rel="stylesheet" href="lib/font-awesome.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="lib/bootstrap.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="lib/cropper.min.css">
+    <link rel="stylesheet" href="lib/bootstrap-slider.min.css">
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- twitter tags-->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@8bitworkshop">
+    <meta name="twitter:creator" content="@8bitworkshop">
+    <meta name="twitter:image" content="https://8bitworkshop.com/blog/images/ide/dithertron-compare.png">
+    <meta name="twitter:title" content="Dithertron by 8bitworkshop">
+    <meta name="twitter:description" content="Crop, reduce, and dither images to 8-bit retro formats.">
+    <title>Dithertron</title>
+    <!-- google analytics -->
+    <script>
+        window.ga = window.ga || function () { (ga.q = ga.q || []).push(arguments) }; ga.l = +new Date;
+        if (window.location.host.endsWith('8bitworkshop.com')) {
+            ga('create', 'UA-54497476-9', 'auto');
+            ga('set', 'anonymizeIp', true);
+            ga('send', 'pageview', location.pathname);
+        }
+    </script>
+    <script async src='https://www.google-analytics.com/analytics.js'></script>
+    <!-- Sentry error reporting -->
+    <script
+    src="https://js.sentry-cdn.com/628f9569422c43a7a69e4f5fad1d6bb7.min.js"
+    crossorigin="anonymous"
+    ></script>
+    <script>
+    if (window.Sentry) Sentry.onLoad(function() {
+        Sentry.init({
+            sampleRate: window.location.host.endsWith('8bitworkshop.com') ? 0.5 : 0.05,
+        });
+    });
+    </script>
+    <!-- local CSS -->
+    <style type="text/css" media="screen">
+        body {
+            background: #999;
+        }
+
+        img.crop {
+            display: block;
+            max-width: 100%;
+        }
+
+        .emuvideo {
+            display: block;
+            width: 90%;
+            margin: auto;
+            background: #000;
+            pointer-events: auto;
+        }
+        #booksMenu {
+            background-color: #666;
+            border-radius: 0.5em;
+        }
+        #booksMenu > a {
+            color: #fff;
+        }
+        #examplesMenu {
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<!-- body -->
+
+<body>
+    <div class="container-xl">
+
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://github.com/sehugg/dithertron#dithertron"
+                            target="_github">README</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="mx-auto order-0">
+                <a class="navbar-brand mx-auto" href="#">D I T H E R T R O N</a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".dual-collapse2">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+            <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item dropdown" id="booksMenu">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            📚 Books <span class="caret"></span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
+                            <a class="dropdown-item dropdown-link book-vcs" target="_book_a2600"
+                                href="https://www.amazon.com/gp/product/1541021304/ref=as_li_qf_sp_asin_il_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=B01N4DSRIZ">
+                                <img src="images/books/book_a2600.png" />
+                                &nbsp;&nbsp;<span class="book-title">Making Games For The Atari 2600</span>
+                            </a>
+                            <a class="dropdown-item dropdown-link book-arcade" target="_book_arcade"
+                                href="https://www.amazon.com/gp/product/1545484759/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1545484759">
+                                <img src="images/books/book_arcade.png" />
+                                &nbsp;&nbsp;<span class="book-title">Making 8-bit Arcade Games in C</span>
+                            </a>
+                            <a class="dropdown-item dropdown-link book-verilog" target="_book_verilog"
+                                href="https://www.amazon.com/gp/product/1728619440/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1728619440">
+                                <img src="images/books/book_verilog.png" />
+                                &nbsp;&nbsp;<span class="book-title">Designing Video Game Hardware in Verilog</span>
+                            </a>
+                            <a class="dropdown-item dropdown-link book-nes" target="_book_nes"
+                                href="https://www.amazon.com/gp/product/1075952727/ref=as_li_tl?ie=UTF8&camp=1789&creative=9325&creativeASIN=1075952727">
+                                <img src="images/books/book_nes.png" />
+                                &nbsp;&nbsp;<span class="book-title">Making Games For The NES</span>
+                            </a>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="dropdown show alert alert-info">
+                    <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Select an example
+                    </a> or upload an image.
+                    <div class="dropdown-menu" aria-labelledby="dropdownMenuLink" id="examplesMenu">
+                    </div>
+                    <p></p>
+                    <input type="file" id="imageUpload">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="alert alert-info">
+                    Convert to:
+                    <select id="targetFormatSelect" title="Select the target format"></select>
+                    <br>
+                    <small><span id="targetFormatInfo"></span></small>
+                    <br>
+                    <div>
+                        <button id="downloadImageBtn" type="button" class="btn btn-secondary btn-sm"
+                            title="Download a PNG image">PNG <i class="fa fa-download"></i></button>
+                        <button id="downloadNativeBtn" type="button" class="btn btn-secondary btn-sm"
+                            title="Download a binary file in the target format">BIN <i
+                                class="fa fa-download"></i></button>
+                        <button id="gotoIDE" type="button" class="btn btn-secondary btn-sm"
+                            title="Open in 8bitworkshop">Open in 8bitworkshop <i class="fa fa-share"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <img class="crop" id="srcimage">
+            </div>
+            <div class="col-md-6">
+                <div>
+                    <canvas id="destcanvas" class="emuvideo"></canvas>
+                </div>
+                <div id="paletteSwatches" class="mt-3 d-flex justify-content-center flex-wrap">
+                </div>
+                <div class="alert alert-secondary mt-3">
+                    <div class="row align-items-center" id="brightSection">
+                        <label for="brightSlider" class="col-sm-3 col-form-label">Bright:</label>
+                        <div class="col-sm-5 col-md-5">
+                            <input type="range" id="brightSlider" data-provide="slider" data-slider-min="0"
+                                data-slider-max="100" data-slider-value="50" />
+                        </div>
+                    </div>
+                    <div class="row align-items-center" id="contrastSection">
+                        <label for="contrastSlider" class="col-sm-3 col-form-label">Contrast:</label>
+                        <div class="col-sm-5 col-md-5">
+                            <input type="range" id="contrastSlider" data-provide="slider" data-slider-min="0"
+                                data-slider-max="100" data-slider-value="50" />
+                        </div>
+                    </div>
+                    <div class="row align-items-center" id="saturationSection">
+                        <label for="saturationSlider" class="col-sm-3 col-form-label">Color:</label>
+                        <div class="col-sm-5 col-md-5">
+                            <input type="range" id="saturationSlider" data-provide="slider" data-slider-min="0"
+                                data-slider-max="100" data-slider-value="50" />
+                        </div>
+                        <div class="col-lg-5 col-xl-4">
+                            <small><select id="errorFuncSelect"></select></small>
+                        </div>
+                    </div>
+                    <div class="row align-items-center" id="diversitySection">
+                        <label for="diversitySlider" class="col-sm-3 col-form-label">Diversity:</label>
+                        <div class="col-sm-5 col-md-5">
+                            <input type="range" id="diversitySlider" data-provide="slider" data-slider-min="0"
+                                data-slider-max="100" data-slider-value="60" />
+                        </div>
+                    </div>
+                    <div class="row align-items-center" id="diffuseSection">
+                        <label for="diffuseSlider" class="col-sm-3 col-form-label">Diffusion:</label>
+                        <div class="col-sm-5 col-md-5">
+                            <input type="range" id="diffuseSlider" data-provide="slider" data-slider-min="0"
+                                data-slider-max="100" data-slider-value="75" />
+                        </div>
+                        <div class="col-lg-5 col-xl-4">
+                            <small><select id="diffuseTypeSelect"></select></small>
+                        </div>
+                    </div>
+                    <div class="row align-items-center" id="diffuseSection">
+                        <label for="orderedSlider" class="col-sm-3 col-form-label">Ordered:</label>
+                        <div class="col-sm-5 col-md-5">
+                            <input type="range" id="orderedSlider" data-provide="slider" data-slider-min="0"
+                                data-slider-max="100" data-slider-value="0" />
+                        </div>
+                    </div>
+                    <div class="row align-items-center" id="noiseSection">
+                        <label for="noiseSlider" class="col-sm-3 col-form-label">Noise:</label>
+                        <div class="col-sm-5 col-md-5">
+                            <input type="range" id="noiseSlider" data-provide="slider" data-slider-min="0"
+                                data-slider-max="10" data-slider-value="5" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- hidden canvas-->
+        <canvas id="resizecanvas" style="display:none">
+            <!-- hidden form -->
+            <FORM action="https://8bitworkshop.com/redir.html" method="GET" id="ideForm" target="_ide">
+            </FORM>
+            <script>
+                if (window.location.host == ('localhost:8000')) {
+                    document.forms['ideForm'].action = '/';
+                }
+            </script>
+    </div>
+    <!-- local scripts-->
+    <script src="gen/ui.js" type="module"></script>
+
+</body>
+</html>
