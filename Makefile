@@ -16,3 +16,12 @@ copylibs:
 	@cp node_modules/bootstrap/dist/css/bootstrap.min.css ./lib/
 	@cp node_modules/cropperjs/dist/cropper.min.css ./lib/
 	@cp node_modules/bootstrap-slider/dist/css/bootstrap-slider.min.css ./lib/
+
+build:
+	npm run build
+
+TMP=./tmp/dist
+
+distro: build
+	rm -fr $(TMP) && mkdir -p $(TMP)
+	cp -rp index.html gen images lib $(TMP)
