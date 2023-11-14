@@ -4,3 +4,4 @@ node_modules/
 gen/
 logs/
 tests_output/
+lib/
