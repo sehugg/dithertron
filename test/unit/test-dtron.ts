@@ -32,7 +32,7 @@ async function fetchImageData(url: string, system: DithertronSettings): Promise<
 async function loadDither(sysid: string, imagename: string) {
   const dt = new Dithertron();
   const sys = SYSTEM_LOOKUP[sysid];
-  t.ok(sys != null, "system '" + sysid + "' does not exist");
+  t.ok(sys != null);
   dt.setSettings(sys);
   const imagedata = await fetchImageData('./images/' + imagename, sys);
   dt.setSourceImage(imagedata);
@@ -52,8 +52,8 @@ async function doDither(dt: Dithertron, testid: string) {
   while (dt.iterate() && iters < MAX_ITERS) {
     iters++;
   }
-  t.ok(dt.dithcanv != null, "dithcanv is null");
-  t.ok(dt.dithcanv?.img != null, "dithcanv.img is null");
+  t.ok(dt.dithcanv != null);
+  t.ok(dt.dithcanv?.img != null);
   console.log(dt.sysparams?.id, iters, "iterations");
   // save image to file
   if (dt.dithcanv?.img != null) {
@@ -67,18 +67,24 @@ async function doDither(dt: Dithertron, testid: string) {
     } catch (err) { }
     fs.writeFileSync('./tests_output/' + testid + '.jpg', jpegImageData.data);
   }
+  t.ok(dt.timer == null, "timer should not be started");
   return { dt, testid, iters };
 }
 
-t.test("Can instantiate Dithertron", async t => {
-  // no diffusion
-  var { dt, testid, iters } = await startDither('c64.multi', 'seurat.jpg');
-  t.ok(iters < 10);
-  // with diffusion
-  dt.sysparams.diffuse = 0.25;
-  dt.sysparams.ditherfn = kernels.SIERRALITE;
-  var { iters } = await doDither(dt, testid + '-2');
-  t.ok(iters < 25);
-  t.end();
+t.test("Can dither c64.multi", async t => {
+  var dt = await loadDither('c64.multi', 'seurat.jpg');
+  t.test("No diffusion", async t => {
+    // no diffusion
+    var { iters } = await doDither(dt, 'c64.multi-1');
+    t.ok(iters < 10, "less than 10 iterations");
+    t.end();
+  });
+  t.test("With some diffusion", async t => {
+    // with diffusion
+    dt.sysparams.diffuse = 0.25;
+    dt.sysparams.ditherfn = kernels.SIERRALITE;
+    var { iters } = await doDither(dt, 'c64.multi-2');
+    t.ok(iters < 25, "less than 25 iterations");
+    t.end();
+  });
 });
-
