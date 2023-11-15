@@ -3,6 +3,7 @@ import { DitherSetting, DithertronSettings, PixelsAvailableMessage } from "../co
 
 import * as exportfuncs from "../export/exportfuncs";
 import * as fileviewers from "../export/fileviewers";
+import * as kernels from "../dither/kernels";
 
 import Cropper from 'cropperjs';
 import pica from 'pica';
@@ -60,33 +61,19 @@ export const dithertron = new ProxyDithertron(worker);
 var filenameLoaded: string;
 var presetLoaded: string;
 
-// DITHER SETTINGS
-const DITHER_FLOYD = [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]];
-const DITHER_FALSEFLOYD = [[1, 0, 3 / 8], [0, 1, 3 / 8], [1, 1, 2 / 8]];
-const DITHER_ATKINSON = [[1, 0, 1 / 6], [2, 0, 1 / 6], [-1, 1, 1 / 6], [0, 1, 1 / 6], [1, 1, 1 / 6], [0, 2, 1 / 6]];
-const DITHER_SIERRA2 = [[1, 0, 4 / 16], [2, 0, 3 / 16], [-2, 1, 1 / 16], [-1, 1, 2 / 16], [0, 1, 3 / 16], [1, 1, 2 / 16], [2, 1, 1 / 16]];
-const DITHER_SIERRALITE = [[1, 0, 2 / 4], [-1, 1, 1 / 4], [0, 1, 1 / 4]];
-const DITHER_STUCKI = [[1, 0, 8 / 42], [2, 0, 4 / 42], [-2, 1, 2 / 42], [1, -1, 4 / 42], [0, 1, 8 / 42], [1, 1, 4 / 42], [2, 1, 2 / 42], [-2, 2, 1 / 42], [-1, 2, 2 / 42], [0, 2, 4 / 42], [1, 2, 2 / 42], [2, 2, 1 / 42]];
-const DITHER_TWOD = [[1, 0, 0.5], [0, 1, 0.5]];
-const DITHER_RIGHT = [[1, 0, 1.0]];
-const DITHER_DOWN = [[0, 1, 1.0]];
-const DITHER_DOUBLE_DOWN = [[0, 1, 2 / 4], [0, 2, 1 / 4], [1, 2, 1 / 4]];
-const DITHER_DIAG = [[1, 1, 1.0]];
-const DITHER_VDIAMOND = [[0, 1, 6 / 16], [-1, 1, 3 / 16], [1, 1, 3 / 16], [-2, 2, 1 / 16], [0, 2, 2 / 16], [2, 2, 1 / 16]];
-
 const ALL_DITHER_SETTINGS: DitherSetting[] = [
-    { name: "Floyd-Steinberg", kernel: DITHER_FLOYD },
-    { name: "False Floyd", kernel: DITHER_FALSEFLOYD },
-    { name: "Atkinson", kernel: DITHER_ATKINSON },
-    { name: "Sierra 2", kernel: DITHER_SIERRA2 },
-    { name: "Sierra Lite", kernel: DITHER_SIERRALITE },
-    { name: "Stucki", kernel: DITHER_STUCKI },
-    { name: "Two-D", kernel: DITHER_TWOD },
-    { name: "Right", kernel: DITHER_RIGHT },
-    { name: "Down", kernel: DITHER_DOWN },
-    { name: "Double Down", kernel: DITHER_DOUBLE_DOWN },
-    { name: "Diagonal", kernel: DITHER_DIAG },
-    { name: "Diamond", kernel: DITHER_VDIAMOND },
+    { name: "Floyd-Steinberg", kernel: kernels.FLOYD },
+    { name: "False Floyd", kernel: kernels.FALSEFLOYD },
+    { name: "Atkinson", kernel: kernels.ATKINSON },
+    { name: "Sierra 2", kernel: kernels.SIERRA2 },
+    { name: "Sierra Lite", kernel: kernels.SIERRALITE },
+    { name: "Stucki", kernel: kernels.STUCKI },
+    { name: "Two-D", kernel: kernels.TWOD },
+    { name: "Right", kernel: kernels.RIGHT },
+    { name: "Down", kernel: kernels.DOWN },
+    { name: "Double Down", kernel: kernels.DOUBLE_DOWN },
+    { name: "Diagonal", kernel: kernels.DIAG },
+    { name: "Diamond", kernel: kernels.VDIAMOND },
 ];
 
 const ERROR_FUNCS = [

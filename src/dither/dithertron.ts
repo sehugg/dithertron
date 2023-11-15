@@ -1,6 +1,7 @@
 
 import { ERROR_FUNCTIONS, getRGBAErrorPerceptual, reducePalette } from '../common/color';
 import { DithertronSettings, PixelsAvailableMessage } from '../common/types';
+import { SYSTEMS } from '../settings/systems';
 import * as canvas from './canvas';
 
 /*
@@ -18,14 +19,14 @@ export interface DithertronInterface {
 }
 
 export class Dithertron implements DithertronInterface {
-    sysparams: DithertronSettings | null = null;
+    sysparams: DithertronSettings = SYSTEMS[0];
     dithcanv: canvas.DitheringCanvas | null = null;
     sourceImageData: Uint32Array | null = null;
     pixelsAvailable: ((msg: PixelsAvailableMessage) => void) | null = null;
     timer: any;
 
     setSettings(sys: DithertronSettings) {
-        this.sysparams = sys;
+        this.sysparams = Object.assign({}, sys); // clone settings
         this.reset();
     }
     setSourceImage(imageData: Uint32Array) {
