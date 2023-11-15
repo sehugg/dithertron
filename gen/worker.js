@@ -454,13 +454,6 @@
       this.h = 1;
     }
   };
-  var ZXSpectrum_Canvas = class extends TwoColor_Canvas {
-    constructor() {
-      super(...arguments);
-      this.w = 8;
-      this.h = 8;
-    }
-  };
   var Compucolor_Canvas = class extends TwoColor_Canvas {
     constructor() {
       super(...arguments);
@@ -515,6 +508,8 @@
       super(...arguments);
       this.paletteChoices = {};
       this.cbOffset = 0;
+      // the offset into the params array for the color block ram
+      this.extra = 0;
       this.fliMode = false;
       // FLI mode causes a VIC bug to appear coined the "fli bug". The issue is that
       // when $D011 is forced into a "bad line" condition which forces the VIC to
@@ -563,6 +558,7 @@
       this.cb = VICII_Canvas_Details.prepare(this.sys.block, this.sys.cb);
       this.useCb = this.sys.cb === void 0 ? false : true;
       this.colors = this.sys.block.colors;
+      this.extra = this.sys.param === void 0 ? 0 : this.sys.param.extra;
       this.preparePaletteChoices(this.sys.paletteChoices);
       if (this.sys.fli != void 0) {
         this.fliMode = true;
@@ -572,14 +568,15 @@
         this.blankFliBugColumnCount = this.sys.fli.blankColumns;
       }
       this.prepareGlobalColorChoices();
-      this.bitsPerColor = Math.floor(Math.log2(this.colors));
+      this.bitsPerColor = Math.ceil(Math.log2(this.colors));
       this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
       this.cbOffset = this.width / this.b.w * this.height / this.b.h;
-      this.params = new Uint32Array(this.cbOffset + this.width / this.cb.w * this.height / this.cb.h * (this.useCb ? 1 : 0) + 1);
-      for (var i = 0; i < this.params.length - 1; i++) {
+      this.params = new Uint32Array(this.cbOffset + this.width / this.cb.w * this.height / this.cb.h * (this.useCb ? 1 : 0) + this.extra);
+      for (var i = 0; i < this.params.length - this.extra; i++) {
         this.guessParam(i);
       }
-      this.params[this.params.length - 1] = this.bgColor | this.auxColor << 4 | this.borderColor << 8;
+      if (this.extra > 0)
+        this.params[this.params.length - this.extra] = this.bgColor | this.auxColor << 4 | this.borderColor << 8;
     }
     preparePixelPaletteChoices() {
       let count = this.paletteChoices.colorsRange.max - this.paletteChoices.colorsRange.min + 1;
@@ -749,7 +746,7 @@
       return this.actualGuessParam(pUnknown);
     }
     actualGuessParam(pUnknown) {
-      console.assert(pUnknown < this.params.length - 1);
+      console.assert(pUnknown < this.params.length - this.extra);
       const calculateCb = this.useCb && this.iterateCount < MAX_ITERATE_COUNT / 2;
       let isCalculatingCb = pUnknown >= this.cbOffset;
       if (isCalculatingCb && !calculateCb)
@@ -882,13 +879,92 @@
       var row = Math.floor(index / (this.width * this.cb.h));
       var cbp = this.cbOffset + col + row * ncols;
       console.assert(cbp >= this.cbOffset);
-      console.assert(cbp < this.params.length - 1);
+      console.assert(cbp < this.params.length - this.extra);
       return cbp;
     }
     isImageIndexFirstRowOfColorBlock(index) {
       var ncols = this.width / this.b.w;
       var row = Math.floor(index / (this.width * this.b.h));
       return 0 == row % Math.floor(this.cb.h / this.b.h);
+    }
+  };
+  var ZXSpectrum_Canvas = class extends TwoColor_Canvas {
+    init() {
+      this.darkColors = range(0, Math.floor(this.pal.length / 2));
+      this.brightColors = range(Math.floor(this.pal.length / 2), this.pal.length);
+      this.w = this.sys.block.w;
+      this.h = this.sys.block.h;
+      this.paletteRange = { min: 0, max: this.pal.length };
+      this.paletteRange = this.sys.paletteChoices === void 0 ? this.paletteRange : this.sys.paletteChoices.colorsRange === void 0 ? this.paletteRange : this.sys.paletteChoices.colorsRange;
+      this.aux = this.sys.paletteChoices === void 0 ? false : this.sys.paletteChoices.aux === void 0 ? false : this.sys.paletteChoices.aux;
+      this.xb = this.sys.cb === void 0 ? this.border : this.sys.cb.xb;
+      this.yb = this.sys.cb === void 0 ? this.border : this.sys.cb.yb;
+      this.xb = this.xb === void 0 ? this.border : this.xb;
+      this.yb = this.yb === void 0 ? this.border : this.yb;
+      this.darkPalette = this.pal.slice(0, Math.floor(this.pal.length / 2));
+      this.brightPalette = this.pal.slice(Math.floor(this.pal.length / 2), this.pal.length);
+      super.init();
+    }
+    guessParam(p) {
+      let col = p % this.ncols;
+      let row = Math.floor(p / this.ncols);
+      let offset = col * this.w + row * (this.width * this.h);
+      let calculateHistoForCell = (colors, min, max) => {
+        let histo = new Uint32Array(Math.floor(this.pal.length));
+        for (let y = -this.yb; y < this.h + this.yb; y++) {
+          let o = offset + y * this.width;
+          for (let x = -this.xb; x < this.w + this.xb; x++) {
+            let c1 = this.indexed[o + x] | 0;
+            if (c1 < min || c1 > max)
+              histo[c1 ^ 8] += 100;
+            else
+              histo[c1] += 100;
+            let c2 = this.getClosest(this.alt[o + x] | 0, colors);
+            histo[c2] += 1 + this.noise;
+          }
+        }
+        let choices = getChoices(histo);
+        return choices;
+      };
+      let scoreChoices = (choices, palette) => {
+        let overallScore = 0;
+        for (let y = -this.yb; y < this.h + this.yb; y++) {
+          let o = offset + y * this.width;
+          for (let x = -this.xb; x < this.w + this.xb; x++) {
+            let smallest = NaN;
+            for (let c = 0; c < choices.length; ++c) {
+              let score = this.errfn(this.ref[o + x], palette[choices[c].ind]);
+              if (score < smallest || Number.isNaN(smallest))
+                smallest = score;
+            }
+            overallScore += smallest;
+          }
+        }
+        return overallScore;
+      };
+      let choices1 = calculateHistoForCell(this.darkColors, this.darkColors[0], this.darkColors[this.darkColors.length - 1]).slice(0, 2);
+      let choices2 = calculateHistoForCell(this.brightColors, this.brightColors[0], this.brightColors[this.brightColors.length - 1]).slice(0, 2);
+      if (choices1.length < 2)
+        choices1.push(choices1[0]);
+      if (choices2.length < 2)
+        choices2.push(choices2[0]);
+      console.assert(choices1.length >= 2);
+      console.assert(choices2.length >= 2);
+      let score1 = scoreChoices(choices1, this.pal);
+      let score2 = scoreChoices(choices2, this.pal);
+      let result = score2 < score1 ? choices2 : choices1;
+      if (result[0].ind < this.paletteRange.min || result[0].ind > this.paletteRange.max) {
+        result = score2 < score1 ? choices1 : choices2;
+      }
+      console.assert(result[0].ind >= this.paletteRange.min);
+      console.assert(result[0].ind <= this.paletteRange.max);
+      console.assert(result[1].ind >= this.paletteRange.min);
+      console.assert(result[1].ind <= this.paletteRange.max);
+      if (this.aux) {
+        result[0].ind = result[0].ind ^ 8;
+        result[1].ind = result[1].ind ^ 8;
+      }
+      this.updateParams(p, result);
     }
   };
   var NES_Canvas = class extends BasicParamDitherCanvas {
