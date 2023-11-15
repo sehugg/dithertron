@@ -25,12 +25,14 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm run tsbuild
+    - run: make setup
     - run: npm run build
     - run: make watch &
     - run: npm test
     - run: make distro
     - name: Deploy
-      uses: JamesIves/github-pages-deploy-action@v4.2.5
+      uses: JamesIves/github-pages-deploy-action@v4
+      if: github.actor == 'sehugg'
       with:
         branch: gh-pages
         folder: tmp/dist
