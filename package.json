@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "tsbuild": "tsc",
-    "build": "npm run esbuild-worker && npm run esbuild-ui",
+    "build": "make copylibs && npm run esbuild-worker && npm run esbuild-ui",
     "clean": "rm -fr ./gen",
     "esbuild-worker": "esbuild src/worker/worker.ts --bundle --sourcemap --target=es2017 --outfile=./gen/worker.js",
     "esbuild-ui": "esbuild src/ui/ui.ts --loader:.asm=text --format=esm --bundle --minify --sourcemap --target=es2017 --outfile=./gen/ui.js --external:path --external:fs",

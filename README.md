@@ -16,8 +16,7 @@ it might help to reduce the Dither parameter, otherwise the dither errors will a
 and create blocky splotches.
 
 
-How To Use
-----------
+## How To Use
 
 1. Upload an image, or select an example image from the pulldown.
 
@@ -28,8 +27,7 @@ How To Use
 4. Download the final image (PNG), download a binary file, or open an image viewer code sample in 8bitworkshop.
 
 
-Graphics Formats
-----------------
+## Graphics Formats
 
 These formats will export a sample 8bitworkshop project that displays the image:
 
@@ -70,8 +68,13 @@ Other formats:
 * Amiga Lores HAM6 - 320 x 256, 4096 colors via HAM
 
 
-Development
------
+## Development
+
+To clone just the main branch:
+
+```sh
+git clone -b master --single-branch git@github.com:sehugg/8bitworkshop.git
+```
 
 Install modules:
 ~~~~
@@ -88,9 +91,10 @@ make watch
 
 Then open `http://localhost:8189` in browser.
 
+Dev version: https://sehugg.github.io/dithertron
 
-TODO
-----
+
+## TODO
 
 * Palette editing
 * Search for optimal crop window
@@ -112,8 +116,7 @@ All exported code is licensed under
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
 
 
-SAMPLE IMAGES
--------------
+## Sample Images
 
 https://www.pexels.com/photo/dreamy-black-woman-in-bright-headscarf-near-rough-wall-4615699/
 https://www.pexels.com/photo/creative-graffiti-wall-with-portrait-of-frida-kahlo-6424244/
