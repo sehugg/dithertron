@@ -218,6 +218,1435 @@
     return choices;
   }
 
+  // src/settings/palettes.ts
+  function RGB(r, g, b) {
+    return (r & 255) << 0 | (g & 255) << 8 | (b & 255) << 16;
+  }
+  var MONO_RGB = [
+    RGB(0, 0, 0),
+    RGB(255, 255, 255)
+  ];
+  var CMYK_RGB = [
+    RGB(0, 0, 0),
+    RGB(255, 128, 64),
+    RGB(64, 255, 128),
+    RGB(128, 64, 255),
+    RGB(255, 255, 255)
+  ];
+  var VIC_NTSC_RGB = [
+    0,
+    16777215,
+    RGB(163, 64, 69),
+    RGB(125, 235, 228),
+    RGB(174, 70, 186),
+    RGB(94, 202, 84),
+    RGB(60, 57, 200),
+    RGB(255, 255, 111),
+    RGB(174, 96, 47),
+    RGB(110, 73, 0),
+    RGB(232, 122, 128),
+    RGB(92, 92, 92),
+    RGB(143, 143, 143),
+    RGB(179, 255, 167),
+    RGB(129, 126, 255),
+    RGB(199, 199, 199)
+  ];
+  var VIC_PAL_RGB = [
+    RGB(0, 0, 0),
+    RGB(255, 255, 255),
+    RGB(129, 51, 56),
+    RGB(117, 206, 200),
+    RGB(142, 60, 151),
+    RGB(86, 172, 77),
+    RGB(46, 44, 155),
+    RGB(237, 241, 113),
+    RGB(142, 80, 41),
+    RGB(85, 56, 0),
+    RGB(196, 108, 113),
+    RGB(74, 74, 74),
+    RGB(123, 123, 123),
+    RGB(169, 255, 159),
+    RGB(112, 109, 235),
+    RGB(178, 178, 178)
+  ];
+  var VIC20_PAL_RGB = [
+    RGB(0, 0, 0),
+    RGB(255, 255, 255),
+    RGB(120, 41, 34),
+    RGB(135, 214, 221),
+    RGB(170, 95, 182),
+    RGB(85, 160, 73),
+    RGB(64, 49, 141),
+    RGB(191, 206, 114),
+    RGB(170, 116, 73),
+    RGB(234, 180, 137),
+    RGB(184, 105, 98),
+    RGB(199, 255, 255),
+    RGB(234, 159, 246),
+    RGB(148, 224, 137),
+    RGB(128, 113, 204),
+    RGB(255, 255, 178)
+  ];
+  var TMS9918_RGB = [
+    RGB(0, 0, 0),
+    RGB(0, 0, 0),
+    RGB(33, 200, 66),
+    RGB(94, 220, 120),
+    RGB(84, 85, 237),
+    RGB(125, 118, 252),
+    RGB(212, 82, 77),
+    RGB(66, 235, 245),
+    RGB(252, 85, 84),
+    RGB(255, 121, 120),
+    RGB(212, 193, 84),
+    RGB(230, 206, 128),
+    RGB(33, 176, 59),
+    RGB(201, 91, 186),
+    RGB(204, 204, 204),
+    RGB(255, 255, 255)
+  ];
+  var NES_RGB = [
+    5395026,
+    11796480,
+    10485760,
+    11599933,
+    7602281,
+    91,
+    95,
+    6208,
+    12048,
+    543240,
+    26368,
+    1196544,
+    7153664,
+    0,
+    0,
+    0,
+    12899815,
+    16728064,
+    14421538,
+    16729963,
+    14090399,
+    6818519,
+    6588,
+    21681,
+    27227,
+    35843,
+    43776,
+    2918400,
+    10777088,
+    0,
+    0,
+    0,
+    16316664,
+    16755516,
+    16742785,
+    16735173,
+    16730354,
+    14633471,
+    4681215,
+    46327,
+    57599,
+    58229,
+    259115,
+    7911470,
+    15065624,
+    7895160,
+    0,
+    0,
+    16777215,
+    16773822,
+    16300216,
+    16300248,
+    16758527,
+    16761855,
+    13095423,
+    10148607,
+    8973816,
+    8650717,
+    12122296,
+    16119980,
+    16777136,
+    16308472,
+    0,
+    0
+  ];
+  var AP2HIRES_RGB = [
+    RGB(0, 0, 0),
+    RGB(255, 68, 253),
+    RGB(20, 245, 60),
+    RGB(20, 207, 253),
+    RGB(255, 106, 60),
+    RGB(255, 255, 255)
+  ];
+  var AP2LORES_RGB = [
+    RGB(0, 0, 0),
+    RGB(227, 30, 96),
+    RGB(96, 78, 189),
+    RGB(255, 68, 253),
+    RGB(0, 163, 96),
+    RGB(156, 156, 156),
+    RGB(20, 207, 253),
+    RGB(208, 195, 255),
+    RGB(96, 114, 3),
+    RGB(255, 106, 60),
+    RGB(156, 156, 156),
+    RGB(255, 160, 208),
+    RGB(20, 245, 60),
+    RGB(208, 221, 141),
+    RGB(114, 255, 208),
+    RGB(255, 255, 255)
+  ];
+  var ASTROCADE_RGB = [0, 2368548, 4737096, 7171437, 9539985, 11974326, 14342874, 16777215, 12255269, 14680137, 16716142, 16725394, 16734903, 16744155, 16753663, 16762879, 11534409, 13959277, 16318866, 16721334, 16730842, 16740095, 16749311, 16758783, 10420330, 12779662, 15138995, 16718039, 16727291, 16736767, 16745983, 16755199, 8847495, 11206827, 13631696, 15994612, 16724735, 16733951, 16743423, 16752639, 6946975, 9306307, 11731175, 14092287, 16461055, 16732415, 16741631, 16751103, 4784304, 7143637, 9568505, 11929087, 14297599, 16731647, 16741119, 16750335, 2425019, 4784352, 7209215, 9570047, 12004095, 14372863, 16741375, 16750847, 191, 2359523, 4718847, 7146495, 9515263, 11949311, 14318079, 16752127, 187, 224, 2294015, 4658431, 7092735, 9461247, 11895551, 14264063, 176, 213, 249, 2367999, 4736511, 7105279, 9539327, 11908095, 159, 195, 3303, 209151, 2577919, 4946431, 7380735, 9749247, 135, 171, 7888, 17140, 681983, 3050495, 5484543, 7853311, 106, 3470, 12723, 22231, 31483, 1548031, 3916799, 6285311, 73, 8557, 17810, 27318, 36570, 373759, 2742271, 5176575, 4389, 13641, 23150, 32402, 41911, 51163, 2026495, 4456447, 9472, 18724, 27976, 37485, 46737, 56246, 1834970, 4194303, 14080, 23296, 32803, 42055, 51564, 60816, 2031541, 4456409, 18176, 27648, 36864, 46116, 55624, 392556, 2752401, 5177269, 21760, 30976, 40192, 49667, 58919, 1572683, 3932016, 6291348, 24320, 33536, 43008, 52224, 716810, 3079982, 5504851, 7864183, 25856, 35328, 44544, 250368, 2619136, 4980503, 7405371, 9764703, 26624, 35840, 45312, 2413824, 4782336, 7143173, 9568041, 11927374, 26112, 35584, 2338560, 4707328, 7141376, 9502464, 11927326, 14286659, 24832, 2393344, 4762112, 7196160, 9564928, 11992832, 14352155, 16711487, 2447360, 4815872, 7250176, 9618688, 12052992, 14417664, 16776990, 16777027, 4803328, 7172096, 9606144, 11974912, 14343424, 16776965, 16777001, 16777038, 6962176, 9330688, 11764992, 14133504, 16502272, 16773655, 16777019, 16777055, 8858112, 11226880, 13660928, 16029440, 16759818, 16769070, 16777043, 16777079, 10426112, 12794624, 15163392, 16745475, 16754727, 16764235, 16773488, 16777108, 11534848, 13969152, 16337664, 16740388, 16749640, 16759148, 16768401, 16777141, 12255232, 14684928, 16725795, 16735047, 16744556, 16753808, 16763317, 16772569];
+  var VCS_RGB = [
+    0,
+    0,
+    4210752,
+    4210752,
+    7105644,
+    7105644,
+    9474192,
+    9474192,
+    11579568,
+    11579568,
+    13158600,
+    13158600,
+    14474460,
+    14474460,
+    16053492,
+    16053492,
+    17476,
+    17476,
+    1074276,
+    1074276,
+    2393220,
+    2393220,
+    3448992,
+    3448992,
+    4241592,
+    4241592,
+    5296336,
+    5296336,
+    6088936,
+    6088936,
+    6880508,
+    6880508,
+    10352,
+    10352,
+    1328260,
+    1328260,
+    2645144,
+    2645144,
+    3963052,
+    3963052,
+    5016764,
+    5016764,
+    6070476,
+    6070476,
+    6862044,
+    6862044,
+    7915756,
+    7915756,
+    6276,
+    6276,
+    1586328,
+    1586328,
+    3166380,
+    3166380,
+    4745408,
+    4745408,
+    6062288,
+    6062288,
+    7378144,
+    7378144,
+    8431852,
+    8431852,
+    9747708,
+    9747708,
+    136,
+    136,
+    2105500,
+    2105500,
+    3947696,
+    3947696,
+    5789888,
+    5789888,
+    7368912,
+    7368912,
+    8947936,
+    8947936,
+    10526956,
+    10526956,
+    11842812,
+    11842812,
+    6029432,
+    6029432,
+    7610508,
+    7610508,
+    8928416,
+    8928416,
+    10246320,
+    10246320,
+    11563200,
+    11563200,
+    12616912,
+    12616912,
+    13671644,
+    13671644,
+    14725356,
+    14725356,
+    7864392,
+    7864392,
+    9445472,
+    9445472,
+    10763384,
+    10763384,
+    12081292,
+    12081292,
+    13398176,
+    13398176,
+    14451892,
+    14451892,
+    15506628,
+    15506628,
+    16560340,
+    16560340,
+    8650772,
+    8650772,
+    9969712,
+    9969712,
+    11287628,
+    11287628,
+    12605544,
+    12605544,
+    13660284,
+    13660284,
+    14715028,
+    14715028,
+    15507624,
+    15507624,
+    16561340,
+    16561340,
+    8912896,
+    8912896,
+    10231836,
+    10231836,
+    11550776,
+    11550776,
+    12606544,
+    12606544,
+    13661288,
+    13661288,
+    14716028,
+    14716028,
+    15508624,
+    15508624,
+    16562340,
+    16562340,
+    8132608,
+    8132608,
+    9451548,
+    9451548,
+    11031608,
+    11031608,
+    12349520,
+    12349520,
+    13404264,
+    13404264,
+    14457980,
+    14457980,
+    15512720,
+    15512720,
+    16566436,
+    16566436,
+    6040576,
+    6040576,
+    7883804,
+    7883804,
+    9463864,
+    9463864,
+    11306064,
+    11306064,
+    12622952,
+    12622952,
+    13939836,
+    13939836,
+    15256720,
+    15256720,
+    16572580,
+    16572580,
+    2898944,
+    2898944,
+    4742172,
+    4742172,
+    6585400,
+    6585400,
+    8428624,
+    8428624,
+    9745512,
+    9745512,
+    11325564,
+    11325564,
+    12641424,
+    12641424,
+    13958308,
+    13958308,
+    15360,
+    15360,
+    2120736,
+    2120736,
+    4226112,
+    4226112,
+    6069340,
+    6069340,
+    7648372,
+    7648372,
+    9228428,
+    9228428,
+    10806436,
+    10806436,
+    12123320,
+    12123320,
+    14356,
+    14356,
+    1858612,
+    1858612,
+    3701840,
+    3701840,
+    5281900,
+    5281900,
+    6861956,
+    6861956,
+    8178844,
+    8178844,
+    9495732,
+    9495732,
+    10812616,
+    10812616,
+    12332,
+    12332,
+    1855564,
+    1855564,
+    3436648,
+    3436648,
+    5016708,
+    5016708,
+    6596764,
+    6596764,
+    7913652,
+    7913652,
+    8967372,
+    8967372,
+    10284256,
+    10284256,
+    10308,
+    10308,
+    1591396,
+    1591396,
+    3172484,
+    3172484,
+    4490400,
+    4490400,
+    5807288,
+    5807288,
+    7124176,
+    7124176,
+    8178920,
+    8178920,
+    9232636,
+    9232636
+  ];
+  var CGA_RGB = [
+    0,
+    11141120,
+    43520,
+    11184640,
+    170,
+    11141290,
+    21930,
+    11184810,
+    5592405,
+    16733525,
+    5635925,
+    16777045,
+    5592575,
+    16733695,
+    5636095,
+    16777215
+  ];
+  var CGA_RGB_1 = [0, 43520, 170, 21930];
+  var CGA_RGB_2 = [0, 11184640, 11141290, 11184810];
+  var CGA_RGB_3 = [0, 11184640, 170, 11184810];
+  var CGA_RGB_1H = [0, 5635925, 5592575, 5636095];
+  var CGA_RGB_2H = [0, 16777045, 16733695, 16777215];
+  var CGA_RGB_3H = [0, 16776960, 5592575, 16777215];
+  var SMS_RGB = generateRGBPalette(2, 2, 2);
+  var WILLIAMS_RGB = generateRGBPalette(3, 3, 2);
+  var ATARIST_RGB = generateRGBPalette(3, 3, 3);
+  var TELETEXT_RGB = generateRGBPalette(1, 1, 1);
+  var ZXSPECTRUM_RGB = [
+    // GRB
+    RGB(0, 0, 0),
+    // 0x00 Black            // dark palette
+    RGB(1, 0, 206),
+    // 0x01 Blue
+    RGB(207, 1, 0),
+    // 0x02 Red
+    RGB(207, 1, 206),
+    // 0x03 Magenta
+    RGB(0, 207, 21),
+    // 0x04 Green
+    RGB(1, 207, 207),
+    // 0x05 Cyan
+    RGB(207, 207, 21),
+    // 0x06 Yellow
+    RGB(207, 207, 207),
+    // 0x07 White
+    RGB(0, 0, 0),
+    // 0x08 "Bright" Black   // bright palette
+    RGB(2, 0, 253),
+    // 0x09 Bright Blue
+    RGB(255, 2, 1),
+    // 0x0A Bright Red
+    RGB(255, 2, 253),
+    // 0x0B Bright Magenta
+    RGB(0, 255, 28),
+    // 0x0C Bright Green
+    RGB(2, 255, 255),
+    // 0x0D Bright Cyan
+    RGB(255, 255, 29),
+    // 0x0E Bright Yellow
+    RGB(255, 255, 255)
+    // 0x0F Bright White
+  ];
+  var AMSTRAD_CPC_RGB = [
+    0,
+    8388752,
+    16711680,
+    128,
+    8388736,
+    16711808,
+    255,
+    8388863,
+    16711935,
+    32768,
+    8421376,
+    16744448,
+    32896,
+    8421504,
+    16744576,
+    33023,
+    8421631,
+    16744703,
+    65280,
+    8453888,
+    16776960,
+    65408,
+    8454016,
+    16777088,
+    65535,
+    8454143,
+    16777215
+  ];
+  var PICO8_RGB = [
+    0,
+    //0, 0, 0 black
+    1911635,
+    //29, 43, 83 dark-blue
+    8267091,
+    //126, 37, 83 dark-purple
+    34641,
+    //0, 135, 81 dark-green
+    11227702,
+    //171, 82, 54 brown
+    6248271,
+    //95, 87, 79 dark-gray
+    12764103,
+    //194, 195, 199 light-gray
+    16773608,
+    //255, 241, 232 white
+    16711757,
+    //255, 0, 77 red
+    16753408,
+    //255, 163, 0 orange
+    16772135,
+    //255, 236, 39 yellow
+    58422,
+    //0, 228, 54 green
+    2731519,
+    //41, 173, 255 blue
+    8615580,
+    //131, 118, 156 indigo
+    16742312,
+    //255, 119, 168 pink
+    16764074
+    //255, 204, 170 peach
+  ];
+  var TIC80_RGB = [
+    1313820,
+    4465716,
+    3159149,
+    5130831,
+    8735792,
+    3433764,
+    13649480,
+    7696737,
+    5864910,
+    13794604,
+    8754593,
+    7186988,
+    13806233,
+    7193290,
+    14341214,
+    14610134
+  ];
+  var CHANNELF_RGB = [
+    // background
+    /*
+    0xe0e0e0,
+    0x101010,
+    0x91ffa6,
+    0xced0ff,
+    */
+    // foreground
+    16579836,
+    16724307,
+    183389,
+    4931571
+  ];
+  var GAMEBOY_GREEN_RGB = [
+    997391,
+    3170864,
+    1027212,
+    1035436
+  ];
+  var RGB_444 = generateRGBPalette(4, 4, 4);
+  var AMIGA_OCS_COLOR_RGB = RGB_444;
+  var IIGS_COLOR_RGB = RGB_444;
+  var GAMEGEAR_COLOR_RGB = RGB_444;
+  var MC6847_PALETTE0 = [
+    RGB(48, 210, 0),
+    /* NTSC: RGB( 28, 213,  16), */
+    // green 
+    RGB(245, 245, 128),
+    /* NTSC: RGB(226, 219,  15), */
+    // yellow
+    RGB(76, 58, 180),
+    /* NTSC: RGB(  3,  32, 255), */
+    // blue  
+    RGB(154, 50, 54)
+    /* NTSC: RGB(226,  32,  10), */
+    // red   
+  ];
+  var MC6847_PALETTE1 = [
+    RGB(216, 216, 216),
+    /* NTSC: RGB( 205, 219, 224), */
+    // buff    
+    RGB(65, 175, 113),
+    /* NTSC: RGB(  22, 208, 226), */
+    // cyan    
+    RGB(216, 110, 240),
+    /* NTSC: RGB( 203,  57, 226), */
+    // magenta 
+    RGB(212, 127, 0)
+    /* NTSC: RGB( 204,  45,  16), */
+    // orange  
+  ];
+  function generateRGBPalette(rr, gg, bb) {
+    var n = 1 << rr + gg + bb;
+    var rs = 255 / ((1 << rr) - 1);
+    var gs = 255 / ((1 << gg) - 1);
+    var bs = 255 / ((1 << bb) - 1);
+    var pal = new Uint32Array(n);
+    for (var i = 0; i < n; i++) {
+      var r = i & (1 << rr) - 1;
+      var g = i >> rr & (1 << gg) - 1;
+      var b = i >> rr + gg & (1 << bb) - 1;
+      pal[i] = RGB(r * rs, g * gs, b * bs);
+    }
+    return pal;
+  }
+
+  // src/settings/systems.ts
+  var SYSTEMS = [
+    {
+      id: "c64.multi",
+      name: "C-64 Multi",
+      width: 160,
+      height: 200,
+      scaleX: 0.936 * 2,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 4, h: 8, colors: 4, xb: 1, yb: 2 },
+      cell: { w: 4, h: 8, msbToLsb: true },
+      paletteChoices: { background: true },
+      cb: { w: 4, h: 8, xb: 1, yb: 2 },
+      param: { extra: 1 },
+      toNative: "exportC64Multi"
+    },
+    {
+      id: "c64.multi.fli",
+      name: "C-64 Multi FLI (w/o bug)",
+      width: 160,
+      height: 200,
+      scaleX: 0.936 * 2,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 4, h: 1, colors: 4, xb: 1 },
+      paletteChoices: { background: true },
+      cell: { w: 4, h: 8, msbToLsb: true },
+      cb: { w: 4, h: 8, xb: 1, yb: 2 },
+      param: { extra: 1 },
+      fli: { bug: false, blankLeft: false, blankRight: false, blankColumns: 3 },
+      toNative: "exportC64Multi"
+    },
+    {
+      id: "c64.multi.fli.bug",
+      name: "C-64 Multi FLI (with bug)",
+      width: 160,
+      height: 200,
+      scaleX: 0.936 * 2,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 4, h: 1, colors: 4, xb: 1 },
+      cell: { w: 4, h: 8, msbToLsb: true },
+      paletteChoices: { background: true },
+      cb: { w: 4, h: 8, xb: 1, yb: 2 },
+      param: { extra: 1 },
+      fli: { bug: true, blankLeft: false, blankRight: false, blankColumns: 3 },
+      toNative: "exportC64Multi"
+    },
+    {
+      id: "c64.multi.fli.blank.left",
+      name: "C-64 Multi FLI (Left blank)",
+      width: 160,
+      height: 200,
+      scaleX: 0.936 * 2,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 4, h: 1, colors: 4, xb: 1 },
+      cell: { w: 4, h: 8, msbToLsb: true },
+      paletteChoices: { background: true },
+      cb: { w: 4, h: 8, xb: 1, yb: 2 },
+      param: { extra: 1 },
+      fli: { bug: false, blankLeft: true, blankRight: false, blankColumns: 3 },
+      toNative: "exportC64Multi"
+    },
+    {
+      id: "c64.multi.fli.blank",
+      name: "C-64 Multi FLI (L/R blank)",
+      width: 160,
+      height: 200,
+      scaleX: 0.936 * 2,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 4, h: 1, colors: 4, xb: 1 },
+      cell: { w: 4, h: 8, msbToLsb: true },
+      paletteChoices: { background: true },
+      cb: { w: 4, h: 8, xb: 1, yb: 2 },
+      param: { extra: 1 },
+      fli: { bug: false, blankLeft: true, blankRight: true, blankColumns: 3 },
+      toNative: "exportC64Multi"
+    },
+    {
+      id: "c64.hires",
+      name: "C-64 Hires",
+      width: 320,
+      height: 200,
+      scaleX: 0.936,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      param: { extra: 1 },
+      toNative: "exportC64Hires"
+    },
+    {
+      id: "c64.hires.fli",
+      name: "C-64 Hires FLI (w/o bug)",
+      width: 320,
+      height: 200,
+      scaleX: 0.936,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 8, h: 1, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      param: { extra: 1 },
+      fli: { bug: false, blankLeft: false, blankRight: false, blankColumns: 3 },
+      toNative: "exportC64Hires"
+    },
+    {
+      id: "c64.hires.fli.bug",
+      name: "C-64 Hires FLI (with bug)",
+      width: 320,
+      height: 200,
+      scaleX: 0.936,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 8, h: 1, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      param: { extra: 1 },
+      fli: { bug: true, blankLeft: false, blankRight: false, blankColumns: 3 },
+      toNative: "exportC64Hires"
+    },
+    {
+      id: "c64.hires.fli.blank",
+      name: "C-64 Hires FLI (L/R blank)",
+      width: 320,
+      height: 200,
+      scaleX: 0.936,
+      conv: "VICII_Canvas",
+      pal: VIC_PAL_RGB,
+      block: { w: 8, h: 1, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      param: { extra: 1 },
+      fli: { bug: false, blankLeft: true, blankRight: true, blankColumns: 3 },
+      toNative: "exportC64Hires"
+    },
+    {
+      id: "nes",
+      name: "NES (4 color, 240 tiles)",
+      width: 160,
+      height: 96,
+      scaleX: 8 / 7,
+      conv: "DitheringCanvas",
+      pal: NES_RGB,
+      reduce: 4,
+      toNative: "exportNES"
+    },
+    {
+      id: "msx",
+      name: "MSX/Coleco (TMS9918A)",
+      width: 256,
+      height: 192,
+      conv: "VDPMode2_Canvas",
+      pal: TMS9918_RGB,
+      block: { w: 8, h: 1, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      toNative: "exportTMS9918"
+    },
+    {
+      id: "apple2.hires",
+      name: "Apple ][ (Hires)",
+      width: 140,
+      height: 192,
+      scaleX: 2,
+      conv: "Apple2_Canvas",
+      pal: AP2HIRES_RGB,
+      block: { w: 7, h: 1, colors: 4 },
+      toNative: "exportApple2HiresToHGR"
+    },
+    {
+      id: "atari8.d",
+      name: "Atari ANTIC (Mode D)",
+      width: 160,
+      height: 96,
+      scaleX: 0.8571,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 4,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 2, brev: true }
+    },
+    {
+      id: "atari8.f.10",
+      name: "Atari ANTIC (Mode F/10)",
+      width: 80,
+      height: 192,
+      scaleX: 0.8571 * 4,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 9,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 4, brev: true }
+    },
+    {
+      id: "vcs",
+      name: "Atari VCS",
+      width: 40,
+      height: 192,
+      scaleX: 6,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 2,
+      toNative: "exportVCSPlayfield"
+    },
+    {
+      id: "vcs.color",
+      name: "Atari VCS (Color)",
+      width: 40,
+      height: 192,
+      scaleX: 6,
+      conv: "VCSColorPlayfield_Canvas",
+      pal: VCS_RGB,
+      toNative: "exportVCSPlayfield"
+    },
+    {
+      id: "astrocade",
+      name: "Bally Astrocade",
+      width: 160,
+      height: 98,
+      scaleX: 1,
+      conv: "DitheringCanvas",
+      pal: ASTROCADE_RGB,
+      reduce: 4,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 2, brev: true }
+    },
+    {
+      id: "zx",
+      name: "ZX Spectrum",
+      width: 256,
+      height: 192,
+      conv: "ZXSpectrum_Canvas",
+      pal: ZXSPECTRUM_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      toNative: "exportZXSpectrum"
+    },
+    {
+      id: "zx.dark",
+      name: "ZX Spectrum (dark only)",
+      width: 256,
+      height: 192,
+      conv: "ZXSpectrum_Canvas",
+      pal: ZXSPECTRUM_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: { colorsRange: { min: 0, max: 7 } },
+      toNative: "exportZXSpectrum"
+    },
+    {
+      id: "zx.bright",
+      name: "ZX Spectrum (bright only)",
+      width: 256,
+      height: 192,
+      conv: "ZXSpectrum_Canvas",
+      pal: ZXSPECTRUM_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: { colorsRange: { min: 8, max: 15 } },
+      toNative: "exportZXSpectrum"
+    },
+    {
+      id: "zx.dark.bright",
+      name: "ZX Spectrum (dark made bright only)",
+      width: 256,
+      height: 192,
+      conv: "ZXSpectrum_Canvas",
+      pal: ZXSPECTRUM_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: { aux: true, colorsRange: { min: 0, max: 7 } },
+      // aux is used to signal the special mode
+      toNative: "exportZXSpectrum"
+    },
+    {
+      id: "zx.bright.dark",
+      name: "ZX Spectrum (bright made dark only)",
+      width: 256,
+      height: 192,
+      conv: "ZXSpectrum_Canvas",
+      pal: ZXSPECTRUM_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: { aux: true, colorsRange: { min: 8, max: 15 } },
+      // aux is used to signal the special mode
+      toNative: "exportZXSpectrum"
+    },
+    {
+      id: "cpc.mode0",
+      name: "Amstrad CPC (mode 0)",
+      width: 160,
+      height: 200,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: AMSTRAD_CPC_RGB,
+      reduce: 16,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 4, yremap: [3, 80, 2048], bitremap: [7, 3, 5, 1, 6, 2, 4, 0] }
+    },
+    {
+      id: "cpc.mode1",
+      name: "Amstrad CPC (mode 1)",
+      width: 320,
+      height: 200,
+      scaleX: 1,
+      conv: "DitheringCanvas",
+      pal: AMSTRAD_CPC_RGB,
+      reduce: 4,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 2, yremap: [3, 80, 2048], bitremap: [7, 3, 6, 2, 5, 1, 4, 0] }
+    },
+    // null == separator, systems with runnable source code are above
+    null,
+    {
+      id: "vic20.hires",
+      name: "VIC-20 Hires",
+      width: 160,
+      height: 160,
+      scaleX: 1.5,
+      conv: "VICII_Canvas",
+      pal: VIC20_PAL_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      // can choose the background, or one foreground color
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        background: true,
+        // pixels can choose the background color
+        backgroundRange: { min: 0, max: 7 },
+        // (but with a reduced color palette)
+        colorsRange: { min: 0, max: 7 }
+        // pixels can only choose from a reduced color palette
+      },
+      toNative: "exportVicHires"
+    },
+    {
+      id: "vic20.multi",
+      name: "VIC-20 Multi",
+      width: 80,
+      height: 160,
+      scaleX: 3,
+      conv: "VICII_Canvas",
+      pal: VIC20_PAL_RGB,
+      block: { w: 4, h: 8, colors: 4 },
+      // can choose background, aux, border and one foreground color
+      cell: { w: 4, h: 8, msbToLsb: true },
+      paletteChoices: {
+        background: true,
+        // pixels can choose the background color
+        backgroundRange: { min: 0, max: 15 },
+        aux: true,
+        // pixels can choose the aux color
+        auxRange: { min: 0, max: 15 },
+        border: true,
+        // pixels can choose the border color
+        borderRange: { min: 0, max: 7 },
+        // (but with a reduced palette)
+        colorsRange: { min: 0, max: 7 }
+        // a reduced palette applies to the pixel colors
+      },
+      toNative: "exportVicMulti"
+    },
+    {
+      id: "nes4f",
+      name: "NES (4 color, full screen)",
+      width: 256,
+      height: 240,
+      scaleX: 8 / 7,
+      conv: "DitheringCanvas",
+      pal: NES_RGB,
+      reduce: 4,
+      toNative: "exportNES"
+    },
+    {
+      id: "nes5f",
+      name: "NES (5 color, full screen)",
+      width: 256,
+      height: 240,
+      scaleX: 8 / 7,
+      conv: "NES_Canvas",
+      pal: NES_RGB,
+      reduce: 5,
+      toNative: "exportNES"
+    },
+    {
+      id: "atari7800.160a",
+      name: "Atari 7800 (160A)",
+      width: 160,
+      height: 240,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 4
+    },
+    {
+      id: "atari7800.160b",
+      name: "Atari 7800 (160B)",
+      width: 160,
+      height: 240,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 12
+    },
+    {
+      id: "sms",
+      name: "Sega Master System",
+      width: 176,
+      // only 488 unique tiles max, otherwise 256x240
+      height: 144,
+      scaleX: 8 / 7,
+      conv: "DitheringCanvas",
+      pal: SMS_RGB,
+      reduce: 16
+    },
+    {
+      id: "sms-gg",
+      name: "Sega GameGear",
+      width: 160,
+      height: 144,
+      scaleX: 1.2,
+      conv: "DitheringCanvas",
+      pal: GAMEGEAR_COLOR_RGB,
+      reduce: 16
+    },
+    {
+      id: "bbcmicro.mode2",
+      name: "BBC Micro (mode 2)",
+      width: 160,
+      height: 256,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: TELETEXT_RGB
+    },
+    {
+      id: "apple2.lores",
+      name: "Apple ][ (Lores)",
+      width: 40,
+      height: 48,
+      scaleX: 1.5,
+      conv: "DitheringCanvas",
+      pal: AP2LORES_RGB,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 4 }
+    },
+    {
+      id: "apple2.dblhires",
+      name: "Apple ][ (Double-Hires)",
+      width: 140,
+      height: 192,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: AP2LORES_RGB
+    },
+    {
+      id: "appleiigs.320.16",
+      name: "Apple IIGS (16 colors)",
+      width: 320,
+      height: 200,
+      conv: "DitheringCanvas",
+      pal: IIGS_COLOR_RGB,
+      reduce: 16
+    },
+    {
+      id: "channelf",
+      name: "Fairchild Channel F",
+      width: 102,
+      height: 58,
+      conv: "DitheringCanvas",
+      pal: CHANNELF_RGB,
+      reduce: 4
+      // TODO: https://geeks-world.github.io/articles/467811/index.html
+    },
+    {
+      id: "mac",
+      name: "Mac 128K",
+      width: 512,
+      height: 342,
+      conv: "DitheringCanvas",
+      pal: MONO_RGB
+    },
+    {
+      id: "x86.cga.04h.1",
+      name: "PC CGA (Mode 04h, palette 1)",
+      width: 320,
+      height: 200,
+      scaleX: 200 / 320 * 1.37,
+      conv: "DitheringCanvas",
+      pal: CGA_RGB_1,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 1, np: 2 }
+    },
+    {
+      id: "x86.cga.04h.1B",
+      name: "PC CGA (Mode 04h, bright 1)",
+      width: 320,
+      height: 200,
+      scaleX: 200 / 320 * 1.37,
+      conv: "DitheringCanvas",
+      pal: CGA_RGB_1H,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 1, np: 2 }
+    },
+    {
+      id: "x86.cga.04h.2",
+      name: "PC CGA (Mode 04h, palette 2)",
+      width: 320,
+      height: 200,
+      scaleX: 200 / 320 * 1.37,
+      conv: "DitheringCanvas",
+      pal: CGA_RGB_2,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 1, np: 2 }
+    },
+    {
+      id: "x86.cga.04h.2B",
+      name: "PC CGA (Mode 04h, bright 2)",
+      width: 320,
+      height: 200,
+      scaleX: 200 / 320 * 1.37,
+      conv: "DitheringCanvas",
+      pal: CGA_RGB_2H,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 1, np: 2 }
+    },
+    {
+      id: "x86.cga.05h",
+      name: "PC CGA (Mode 05h)",
+      width: 320,
+      height: 200,
+      scaleX: 200 / 320 * 1.37,
+      conv: "DitheringCanvas",
+      pal: CGA_RGB_3,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 1, np: 2 }
+    },
+    {
+      id: "x86.cga.05h.B",
+      name: "PC CGA (Mode 05h, bright)",
+      width: 320,
+      height: 200,
+      scaleX: 200 / 320 * 1.37,
+      conv: "DitheringCanvas",
+      pal: CGA_RGB_3H,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 1, np: 2 }
+    },
+    {
+      id: "x86.ega.0dh",
+      name: "PC EGA (Mode 0Dh)",
+      width: 320,
+      height: 200,
+      scaleX: 200 / 320 * 1.37,
+      conv: "DitheringCanvas",
+      pal: CGA_RGB,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 1, np: 4 }
+    },
+    {
+      id: "x86.ega.10h",
+      name: "PC EGA (Mode 10h)",
+      width: 640,
+      height: 350,
+      scaleX: 350 / 640 * 1.37,
+      conv: "DitheringCanvas",
+      pal: CGA_RGB,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 1, np: 4 }
+    },
+    {
+      id: "williams",
+      name: "Williams Arcade",
+      width: 304,
+      height: 256,
+      conv: "DitheringCanvas",
+      pal: WILLIAMS_RGB,
+      reduce: 16
+    },
+    {
+      id: "pico8",
+      name: "PICO-8",
+      width: 128,
+      height: 128,
+      conv: "DitheringCanvas",
+      pal: PICO8_RGB
+    },
+    {
+      id: "tic80",
+      name: "TIC-80",
+      width: 240,
+      height: 136,
+      conv: "DitheringCanvas",
+      pal: TIC80_RGB
+    },
+    {
+      id: "gb",
+      name: "Game Boy Classic",
+      width: 160,
+      height: 144,
+      scaleX: 10 / 9,
+      conv: "DitheringCanvas",
+      pal: GAMEBOY_GREEN_RGB
+    },
+    /*
+    {
+        id:'gbc',
+        name:'Game Boy Color',
+        width:160,
+        height:144,
+        aspect:1,
+        conv:'DitheringCanvas',
+        pal:GAMEBOY_COLOR_RGB,
+        reduce:32,
+    },
+    */
+    {
+      id: "amiga.lores",
+      name: "Amiga (Lores)",
+      width: 320,
+      height: 256,
+      conv: "DitheringCanvas",
+      pal: AMIGA_OCS_COLOR_RGB,
+      reduce: 32
+      //toNative:'exportFrameBuffer',
+      //exportFormat:{bpp:1,brev:true,np:5},
+    },
+    {
+      id: "amiga.lores.ham6",
+      name: "Amiga (Lores, HAM6)",
+      width: 320,
+      height: 256,
+      conv: "HAM6_Canvas",
+      pal: AMIGA_OCS_COLOR_RGB,
+      reduce: 16,
+      extraColors: 48
+      //toNative:'exportFrameBuffer',
+      //exportFormat:{bpp:1,brev:true,np:6},
+    },
+    {
+      id: "cx16.lores",
+      name: "Commander X16 (Lores)",
+      width: 320,
+      height: 240,
+      scaleX: 1,
+      conv: "DitheringCanvas",
+      pal: AMIGA_OCS_COLOR_RGB,
+      reduce: 256
+    },
+    {
+      id: "cx16.hires",
+      name: "Commander X16 (Hires, cropped)",
+      width: 640,
+      height: 400,
+      scaleX: 1,
+      conv: "DitheringCanvas",
+      pal: AMIGA_OCS_COLOR_RGB,
+      reduce: 16
+    },
+    {
+      id: "compucolor",
+      name: "Compucolor",
+      width: 160,
+      height: 192,
+      scaleX: 1.6,
+      conv: "Compucolor_Canvas",
+      pal: ZXSPECTRUM_RGB,
+      block: { w: 2, h: 4, colors: 2 }
+    },
+    // https://www.bighole.nl//pub/mirror/homepage.ntlworld.com/kryten_droid/teletext/spec/teletext_spec_1974.htm
+    {
+      id: "teletext",
+      name: "Teletext",
+      width: 40 * 2,
+      height: 24 * 3,
+      scaleX: 4 / 3,
+      conv: "Teletext_Canvas",
+      pal: TELETEXT_RGB,
+      block: { w: 2, h: 3, colors: 2 }
+    },
+    {
+      id: "atarist",
+      name: "Atari ST",
+      width: 320,
+      height: 200,
+      scaleX: 1,
+      conv: "DitheringCanvas",
+      pal: ATARIST_RGB,
+      reduce: 16
+    },
+    {
+      id: "MC6847.CG2.palette0",
+      name: "MC6847 (CG2, palette 0)",
+      width: 128,
+      height: 64,
+      scaleX: 1 / 1.3,
+      conv: "DitheringCanvas",
+      pal: MC6847_PALETTE0,
+      reduce: 4,
+      toNative: "exportMC6847"
+    },
+    {
+      id: "MC6847.CG2.palette1",
+      name: "MC6847 (CG2, palette 1)",
+      width: 128,
+      height: 64,
+      scaleX: 1 / 1.3,
+      conv: "DitheringCanvas",
+      pal: MC6847_PALETTE1,
+      reduce: 4,
+      toNative: "exportMC6847"
+    },
+    {
+      id: "MC6847.CG3.palette0",
+      name: "MC6847 (CG3, palette 0)",
+      width: 128,
+      height: 96,
+      scaleX: 1 / 1.3 * 96 / 64,
+      conv: "DitheringCanvas",
+      pal: MC6847_PALETTE0,
+      reduce: 4,
+      toNative: "exportMC6847"
+    },
+    {
+      id: "MC6847.CG3.palette1",
+      name: "MC6847 (CG3, palette 1)",
+      width: 128,
+      height: 96,
+      scaleX: 1 / 1.3 * 96 / 64,
+      conv: "DitheringCanvas",
+      pal: MC6847_PALETTE1,
+      reduce: 4,
+      toNative: "exportMC6847"
+    },
+    {
+      id: "MC6847.CG6.palette0",
+      name: "MC6847 (CG6, palette 0)",
+      width: 128,
+      height: 192,
+      scaleX: 1 / 1.3 * 192 / 64,
+      conv: "DitheringCanvas",
+      pal: MC6847_PALETTE0,
+      reduce: 4,
+      toNative: "exportMC6847"
+    },
+    {
+      id: "MC6847.CG6.palette1",
+      name: "MC6847 (CG6, palette 1)",
+      width: 128,
+      height: 192,
+      scaleX: 1 / 1.3 * 192 / 64,
+      conv: "DitheringCanvas",
+      pal: MC6847_PALETTE1,
+      reduce: 4,
+      toNative: "exportMC6847"
+    },
+    {
+      id: "vcs.48",
+      name: "Atari VCS (48x48 bitmap)",
+      width: 48,
+      height: 48,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 2
+    },
+    {
+      id: "pce.256x240",
+      name: "PC Engine (256x240)",
+      width: 256,
+      height: 240,
+      scaleX: 5 / 4,
+      conv: "DitheringCanvas",
+      pal: ATARIST_RGB,
+      reduce: 16
+    }
+  ];
+  var SYSTEM_LOOKUP = {};
+  SYSTEMS.forEach((sys) => {
+    if (sys)
+      SYSTEM_LOOKUP[sys.id || sys.name] = sys;
+  });
+
   // src/dither/canvas.ts
   var canvas_exports = {};
   __export(canvas_exports, {
@@ -1048,18 +2477,16 @@
   var MAX_ITERATE_COUNT = 100;
   var Dithertron = class {
     constructor() {
-      this.sysparams = null;
+      this.sysparams = SYSTEMS[0];
       this.dithcanv = null;
       this.sourceImageData = null;
       this.pixelsAvailable = null;
     }
     setSettings(sys) {
-      this.sysparams = sys;
-      this.reset();
+      this.sysparams = Object.assign({}, sys);
     }
     setSourceImage(imageData) {
       this.sourceImageData = imageData;
-      this.reset();
     }
     iterate() {
       if (this.dithcanv == null) {
@@ -1122,8 +2549,11 @@
         console.log("stop", (_a = this.dithcanv) == null ? void 0 : _a.iterateCount);
       }
     }
-    reset() {
+    clear() {
       this.dithcanv = null;
+    }
+    restart() {
+      this.clear();
       this.start();
     }
     stop() {
@@ -1152,8 +2582,8 @@
     if (e && e.data) {
       console.log(e.data.cmd);
       switch (e.data.cmd) {
-        case "reset":
-          return worker_dtron.reset();
+        case "restart":
+          return worker_dtron.restart();
         case "setSettings":
           return worker_dtron.setSettings(e.data.data);
         case "setSourceImage":
