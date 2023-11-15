@@ -82,7 +82,7 @@ npm i
 ~~~~
 Build:
 ~~~~
-make setup
+make setup      (or "make setupwin" on Windows)
 npm run build
 ~~~~
 Watch:
