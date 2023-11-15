@@ -42,7 +42,7 @@ async function loadDither(sysid: string, imagename: string) {
 async function startDither(sysid: string, imgfilename: string) {
   const dt = await loadDither(sysid, imgfilename);
   const testid = sysid + '-' + imgfilename.split('.')[0];
-  return doDither(dt, testid);
+  return await doDither(dt, testid);
 }
 
 async function doDither(dt: Dithertron, testid: string) {

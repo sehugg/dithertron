@@ -6,3 +6,4 @@ logs/
 tests_output/
 lib/
 tmp/
+.tap/
