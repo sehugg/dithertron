@@ -98,6 +98,24 @@ export function getFileViewerCode_zx() {
     return code;
 }
 
+export function getFileViewerCode_zx_dark() {
+    return getFileViewerCode_zx(); 
+}
+
+export function getFileViewerCode_zx_bright() {
+    return getFileViewerCode_zx(); 
+}
+
+export function getFileViewerCode_zx_dark_bright() {
+    return getFileViewerCode_zx(); 
+}
+
+export function getFileViewerCode_zx_bright_dark() {
+    return getFileViewerCode_zx(); 
+}
+
+
+
 // https://www.cpcwiki.eu/index.php/BIOS_Screen_Functions
 // http://www.cpcmania.com/Docs/Programming/Painting_pixels_introduction_to_video_memory.htm
 // https://www.cpcwiki.eu/index.php/CPC_Palette

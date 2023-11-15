@@ -112,23 +112,19 @@ export function exportApple2HiresToHGR(img: PixelsAvailableMessage, settings: Di
 
 export function exportCharMemory(img: PixelsAvailableMessage,
     w: number,
-    h: number,
-    type?: 'zx' | 'fli'): Uint8Array {
+    h: number): Uint8Array {
     var bpp = (w == 4) ? 2 : 1; // C64-multi vs C64-hires & ZX
     var i = 0;
     var cols = img.width / w;
     var rows = img.height / h;
     var char = new Uint8Array(img.width * img.height * bpp / 8);
     var isvdp = char.length == img.params.length; // VDP mode (8x1 cells)
-    if (type == 'fli') isvdp = true;
     console.log('isvdp', isvdp, w, h, bpp, cols, rows);
     for (var y = 0; y < img.height; y++) {
         for (var x = 0; x < img.width; x++) {
             var vdpofs = Math.floor(x / w) + y * cols;
             var charofs = Math.floor(x / w) + Math.floor(y / h) * cols;
             var ofs = charofs * h + (y & (h - 1));
-            if (type == 'zx')
-                ofs = (vdpofs & 0b1100000011111) | ((vdpofs & 0b11100000) << 3) | ((vdpofs & 0b11100000000) >> 3);
             var shift = (x & (w - 1)) * bpp;
             shift = 8 - bpp - shift; // reverse bits
             var palidx = img.indexed[i];
@@ -195,9 +191,13 @@ export function bitOverlayUint8Array(
     }
 }
 
-interface CellExporter {
+interface CellExporterMapper {
     prepare(width: number, height: number): { totalBytes: number, littleEndian?: boolean };
-    xyToBitInfo(x: number, y: number, paletteIndex: number): { offset: number, bitShift: number, bitCount: number, bitPattern: number };
+    xyToBitInfo(x: number, y: number): { offset: number, bitShift: number, bitCount: number, paramOffset: number };
+}
+
+interface CellExporter extends CellExporterMapper {
+    paramToBitPattern(param: number, paletteIndex: number): number;
 }
 
 export function exportCellBuffer(
@@ -211,18 +211,17 @@ export function exportCellBuffer(
     let array = new Uint8Array(setup.totalBytes);
     for (let i = 0, y = 0; y < img.height; ++y) {
         for (let x = 0; x < img.width; ++x, ++i) {
-            let info = exporter.xyToBitInfo(x, y, img.indexed[i]);
-            bitOverlayUint8Array(array, info.offset, info.bitPattern, info.bitShift, info.bitCount, setup.littleEndian);
+            let info = exporter.xyToBitInfo(x, y);
+            console.assert(info.paramOffset < img.params.length);    // must be within the bounds of the param array
+            let bitPattern = exporter.paramToBitPattern(img.params[info.paramOffset], img.indexed[i]);
+            bitOverlayUint8Array(array, info.offset, bitPattern, info.bitShift, info.bitCount, setup.littleEndian);
         }
     }
     return array;
 }
 
-function exportIndexedPaletteAndCellBasedImage(
-    img: PixelsAvailableMessage,
-    settings: DithertronSettings,
-    globalColors: { paletteIndex: number, bitPattern: number }[],
-    colorChoicesBitPattern: number[]): Uint8Array {
+
+function getVicMapper(settings: DithertronSettings): CellExporterMapper {
 
     if (settings.block === undefined)
         throw "Block size not specified";
@@ -240,16 +239,15 @@ function exportIndexedPaletteAndCellBasedImage(
 
     let columns: number = 0;
 
-    let exporter: CellExporter = {
+    let exporter: CellExporterMapper = {
 
         prepare(width: number, height: number): { totalBytes: number, littleEndian?: boolean } {
             columns = (width / w);
             cellBytesPerRow = columns * bytesPerCell;
-            //console.log('prepare', bpp, bitsPerCellWidth, bitsPerCell, bytesPerCell, columns, cellBytesPerRow, img.width * img.height * bpp / 8);
-            return { totalBytes: img.width * img.height * bpp / 8 };
+            return { totalBytes: width * height * bpp / 8 };
         },
 
-        xyToBitInfo(x: number, y: number, paletteIndex: number): { offset: number, bitShift: number, bitCount: number, bitPattern: number } {
+        xyToBitInfo(x: number, y: number): { offset: number, bitShift: number, bitCount: number, paramOffset: number } {
 
             let col = Math.floor(x / w);
 
@@ -258,8 +256,6 @@ function exportIndexedPaletteAndCellBasedImage(
             let cellRow = Math.floor(y / settings.cell.h);
 
             let paramOffset = (Math.floor(y / h) * columns) + col;
-            console.assert(paramOffset < img.params.length - 1);    // must be within the bounds of the param array
-            let param = img.params[paramOffset];
 
             // where is the start of the cell being filled located in the byte array
             let cellColOffset = bytesPerCell * cellCol;
@@ -272,12 +268,29 @@ function exportIndexedPaletteAndCellBasedImage(
             // how much of a bit offset is required for this particular pixel
             let bitShift = (settings.cell.msbToLsb ? (bitsPerCellWidth - (((x % settings.cell.w) + 1) * bpp)) : (x % settings.cell.w) * bpp);
 
-            let result = {
+            return {
                 offset: cellRowOffset + cellColOffset + cellYOffset + cellXOffset,
                 bitShift: bitShift,
                 bitCount: bpp,
-                bitPattern: 0
+                paramOffset: paramOffset
             };
+        }
+    };
+
+    return exporter;
+}
+
+function exportIndexedPaletteAndCellBasedImage(
+    img: PixelsAvailableMessage,
+    mapper: CellExporterMapper,
+    globalColors: { paletteIndex: number, bitPattern: number }[],
+    colorChoicesBitPattern: number[]): Uint8Array {
+
+    let exporter: CellExporter = {
+
+        prepare: mapper.prepare,
+        xyToBitInfo: mapper.xyToBitInfo,
+        paramToBitPattern(param: number, paletteIndex: number): number {
 
             let c1 = param & 0xf;
             let c2 = (param & 0xf0) >> 4;
@@ -285,41 +298,37 @@ function exportIndexedPaletteAndCellBasedImage(
 
             // first can the global colors for a match
             for (let i = 0; i < globalColors.length; ++i) {
-                if (paletteIndex == globalColors[i].paletteIndex) {
-                    result.bitPattern = globalColors[i].bitPattern;
-                    return result;
-                }
+                if (paletteIndex == globalColors[i].paletteIndex)
+                    return globalColors[i].bitPattern;
             }
 
             // next scan the color choices for a match
             switch (paletteIndex) {
                 case c1: {
                     console.assert(colorChoicesBitPattern.length > 0);
-                    result.bitPattern = colorChoicesBitPattern[0];
-                    break;
+                    return colorChoicesBitPattern[0];
                 }
                 case c2: {
                     console.assert(colorChoicesBitPattern.length > 1);
-                    result.bitPattern = colorChoicesBitPattern[1];
-                    break;
+                    return colorChoicesBitPattern[1];
                 }
                 case c3: {
                     console.assert(colorChoicesBitPattern.length > 2);
-                    result.bitPattern = colorChoicesBitPattern[2];
-                    break;
+                    return colorChoicesBitPattern[2];
                 }
             }
-
-            return result;
+            console.assert(false);  // something went wrong as palette could not be mapped
+            return 0;
         }
     };
 
     return exportCellBuffer(img, exporter);
 }
 
-interface ExportVic {
+interface ExportCombinedImageAndColorCellBuffer {
     img: PixelsAvailableMessage;
     settings: DithertronSettings;
+    mapper: CellExporterMapper;
     globalColors: { paletteIndex: number, bitPattern: number }[];
     cellColors: number[];
     paramToScreen(param: number): number;
@@ -327,14 +336,18 @@ interface ExportVic {
     extraArray(): Uint8Array | undefined;
 }
 
-export function exportVic(options: ExportVic): Uint8Array {
+export function exportCombinedImageAndColorCellBuffer(options: ExportCombinedImageAndColorCellBuffer): Uint8Array {
     if (options.settings.block == undefined)
         throw "No block size";
 
     let isUsingFli = !(options.settings.fli === undefined);
     let isUsingCb = !(options.settings.cb === undefined);
 
-    let cellImage = exportIndexedPaletteAndCellBasedImage(options.img, options.settings, options.globalColors, options.cellColors);
+    let cellImage = exportIndexedPaletteAndCellBasedImage(
+        options.img,
+        options.mapper,
+        options.globalColors,
+        options.cellColors);
 
     let w = options.settings.block.w;
     let h = options.settings.block.h;
@@ -400,9 +413,10 @@ export function exportC64Multi(img: PixelsAvailableMessage, settings: Dithertron
     // lower nybble for bit pattern %10
     // upper nybble for bit pattern %01
     // color block nybble for bit pattern %11
-    return exportVic({
+    return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
+        mapper: getVicMapper(settings),
         globalColors: [{ paletteIndex: extraWord & 0xf, bitPattern: 0x00 }],
         cellColors: [ 0x02, 0x01, 0x03 ],
         paramToScreen(param: number): number { return param & 0xff; },
@@ -423,9 +437,10 @@ export function exportC64Hires(img: PixelsAvailableMessage, settings: Dithertron
     // lower nybble for bit pattern %0
     // upper nybble for bit pattern %1
 
-    return exportVic({
+    return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
+        mapper: getVicMapper(settings),
         globalColors: [],
         cellColors: [ 0x01, 0x00 ],
         paramToScreen(param: number): number { return ((param & 0x0f) << 4) | ((param & 0xf0) >> 4); },
@@ -461,9 +476,10 @@ export function exportVicHires(img: PixelsAvailableMessage, settings: Dithertron
     let borderColor = (extraWord >> 8) & 0x0f;
     let auxColor = (extraWord >> 4) & 0x0f;
 
-    return exportVic({
+    return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
+        mapper: getVicMapper(settings),
         globalColors: [{ paletteIndex: backgroundColor, bitPattern: 0x00 }],
         cellColors: [ 0x01 ],
         paramToScreen(param: number): number { return param & 0x0f; },
@@ -475,7 +491,7 @@ export function exportVicHires(img: PixelsAvailableMessage, settings: Dithertron
             extra[2] = auxColor;        // aux color
             return extra;
         }
-    });    
+    });
 }
 
 export function exportVicMulti(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
@@ -498,9 +514,10 @@ export function exportVicMulti(img: PixelsAvailableMessage, settings: Dithertron
     let borderColor = (extraWord >> 8) & 0x0f;
     let auxColor = (extraWord >> 4) & 0x0f;
 
-    return exportVic({
+    return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
+        mapper: getVicMapper(settings),
         globalColors: [
             { paletteIndex: backgroundColor, bitPattern: 0x00 },
             { paletteIndex: borderColor, bitPattern: 0x01 },
@@ -519,14 +536,104 @@ export function exportVicMulti(img: PixelsAvailableMessage, settings: Dithertron
     });
 }
 
+function getZxMapper(settings: DithertronSettings): CellExporterMapper {
+
+    if (settings.block === undefined)
+        throw "Block size not specified";
+    if (settings.cell === undefined)
+        throw "Cell size not specified";
+
+    let w = settings.block.w;
+    let h = settings.block.h;
+
+    let bpp = Math.ceil(Math.log2(settings.block.colors));
+    let bitsPerCellWidth = (settings.cell.w * bpp);
+
+    let columns: number = 0;
+
+    let exporter: CellExporterMapper = {
+        prepare(width: number, height: number): { totalBytes: number, littleEndian?: boolean } {
+            columns = (width / w);
+            return { totalBytes: width * height * bpp / 8 };
+        },
+
+        xyToBitInfo(x: number, y: number): { offset: number, bitShift: number, bitCount: number, paramOffset: number } {
+
+            let column = Math.floor(x / w);
+            let paramOffset = (Math.floor(y / h) * columns) + column;
+
+            let xInBytes = Math.floor(x / settings.block.w);
+
+            // see http://www.breakintoprogram.co.uk/hardware/computers/zx-spectrum/screen-memory-layout
+            //
+            // To calculate the screen address of a byte, you encode the address as follows:
+            //              HIGH              |              LOW
+            // -------------------------------+-------------------------------
+            //  15| 14| 13| 12| 11| 10| 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 
+            // ---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---
+            //  x | x | x | Y7| Y6| Y2| Y1| Y0| Y5| Y4| Y3| X4| X3| X2| X1| X0
+            //
+            // Where:
+            //
+            // The base address of screen memory (0x4000) is provided by setting bits 15 to 13 to 010.
+            // Y0 to Y7 is the Y coordinate (in pixels)
+            // X0 to X4 is the X coordinate (in bytes)
+            //
+            // The 0x4000 address (x values) are set to 0 since this is an array offset not a memory offset.
+
+            let strangeOffset = (((y & 0b11000000) >> 6) << 11) |
+                                (((y & 0b00000111) >> 0) << 8) |
+                                (((y & 0b00111000) >> 3) << 5) |
+                                (((xInBytes & 0b00011111) >> 0) << 0);
+
+            let bitShift = (settings.cell.msbToLsb ? (bitsPerCellWidth - (((x % settings.cell.w) + 1) * bpp)) : (x % settings.cell.w) * bpp);
+
+            return {
+                offset: strangeOffset,
+                bitShift: bitShift,
+                bitCount: bpp,
+                paramOffset: paramOffset
+            };
+        }
+    };
+
+    return exporter;
+}
+
 export function exportZXSpectrum(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
-    var screen = new Uint8Array(img.params.length);
-    for (var i = 0; i < screen.length; i++) {
-        var p = img.params[i] & 0xffff;
-        screen[i] = (p & 0x7) | ((p >> 5) & 0x38) | 0x40; // 3 bits each, bright
-    }
-    var char = exportCharMemory(img, 8, 8, 'zx');
-    return concatArrays([char, screen,]);
+
+    // from http://www.breakintoprogram.co.uk/hardware/computers/zx-spectrum/screen-memory-layout
+    //
+    // %0 = paper
+    // %1 = ink
+    // intensity = high bit of either paper or ink (since both palette choices MUST share the same intensity)
+
+    // Each attribute cell is as follows:
+    //  7 | 6 | 5 | 4 | 3 | 2 | 1 | 0
+    // ---+---+---+---+---+---+---+---
+    //  F | B | P2| P1| P0| I2| I1| I0
+    //
+    // Where:
+    // F sets the attribute FLASH mode
+    // B sets the attribute BRIGHTNESS mode
+    // P2 to P0 is the PAPER color (index 0-7)
+    // I2 to I0 is the INK color (index 0-7)
+
+    // The B bit is taken from the either chosen palette color since both are chosen as
+    // dark (thus will have a B of "0") or both will be chosen bright (thus will have
+    // a B of "1"). Since the B is taken from the high-bit of the 0x00 -> 0x0F palette
+    // where indexes 0x08 -> 0x0F are "bright", the B bit will always be set correctly.
+
+    return exportCombinedImageAndColorCellBuffer({
+        img: img,
+        settings: settings,
+        mapper: getZxMapper(settings),
+        globalColors: [],
+        cellColors: [ 0x00, NaN, 0x01 ],
+        paramToScreen(param: number): number { return ((param & 0x07) << 3) | ((param & 0x700) >> 8) | (((param & 0x08) >> 3) << 6); },
+        paramToColorBlock(param: number): number { return 0; },
+        extraArray(): Uint8Array | undefined { return undefined; }
+    });
 }
 
 export function exportTMS9918(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
