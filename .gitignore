@@ -5,3 +5,4 @@ gen/
 logs/
 tests_output/
 lib/
+tmp/

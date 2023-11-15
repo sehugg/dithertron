@@ -7,6 +7,7 @@ import * as fileviewers from "../export/fileviewers";
 import Cropper from 'cropperjs';
 import pica from 'pica';
 import { saveAs } from 'file-saver';
+import { EXAMPLE_IMAGES } from "./sampleimages";
 
 var cropper : Cropper;
 
@@ -18,9 +19,9 @@ var diffuseSlider = document.getElementById('diffuseSlider') as HTMLInputElement
 var orderedSlider = document.getElementById('orderedSlider') as HTMLInputElement;
 var diversitySlider = document.getElementById('diversitySlider') as HTMLInputElement;
 var imageUpload = document.getElementById("imageUpload") as HTMLInputElement;
-const image = document.getElementById('srcimage') as HTMLImageElement;
-const resize = document.getElementById('resizecanvas') as HTMLCanvasElement;
-const dest = document.getElementById('destcanvas') as HTMLCanvasElement;
+const sourceImage = document.getElementById('srcimage') as HTMLImageElement;
+const resizeCanvas = document.getElementById('resizecanvas') as HTMLCanvasElement;
+const destCanvas = document.getElementById('destcanvas') as HTMLCanvasElement;
 //const cmdline = document.getElementById('cmdline');
 
 class ProxyDithertron {
@@ -56,7 +57,6 @@ const worker = new Worker("./gen/worker.js");
 
 export const dithertron = new ProxyDithertron(worker);
 
-var resizeImageData: Uint32Array;
 var filenameLoaded: string;
 var presetLoaded: string;
 
@@ -134,7 +134,7 @@ function applyBrightness(imageData: Uint32Array, bright: number, bias: number, s
 }
 
 function reprocessImage() {
-    var resizeImageData = getCanvasImageData(resize);
+    var resizeImageData = getCanvasImageData(resizeCanvas);
     let bright = (parseFloat(contrastSlider.value) - 50) / 100 + 1.0; // middle = 1.0, range = 0.5-1.5
     let bias = (parseFloat(brightSlider.value) - bright * 50) * (128 / 50);
     let sat = (parseFloat(saturationSlider.value) - 50) / 50 + 1.0; // middle = 1.0, range = 0-2
@@ -163,10 +163,10 @@ function resetImage() {
 }
 
 function convertImage() {
-    let cropCanvas = cropper.getCroppedCanvas();
+    let cropCanvas = cropper?.getCroppedCanvas();
     // avoid "Failed to execute 'createImageBitmap' on 'Window': The crop rect height is 0."
-    if (cropCanvas.width == 0 || cropCanvas.height == 0) return;
-    pica().resize(cropCanvas, resize, {
+    if (!cropCanvas?.width || !cropCanvas?.height) return;
+    pica().resize(cropCanvas, resizeCanvas, {
         /*
         unsharpAmount: 50,
         unsharpRadius: 0.5,
@@ -205,15 +205,37 @@ function updatePaletteSwatches(pal: Uint32Array) {
     }
 }
 
+function isExactMatch(imageData: Cropper.ImageData) {
+    const settings = dithertron.settings;
+    return imageData?.naturalWidth == settings.width
+        && imageData?.naturalHeight == settings.height;
+}
+
+function processImageDirectly() {
+    console.log("Width and height exact match!");
+    cropper.clear();
+    cropper.disable();
+    // copy the image to resizeCanvas
+    const ctx = resizeCanvas.getContext('2d');
+    ctx.drawImage(sourceImage, 0, 0);
+    reprocessImage();
+}
+
 function loadSourceImage(url: string) {
     // https://github.com/fengyuanchen/cropperjs/blob/master/README.md
     if (cropper) cropper.destroy();
-    let aspect = (dithertron.settings.width * (dithertron.settings.scaleX || 1) / dithertron.settings.height) || (4 / 3);
-    cropper = new Cropper(image, {
+    const settings = dithertron.settings;
+    let aspect = (settings.width * (settings.scaleX || 1) / settings.height) || (4 / 3);
+    cropper = new Cropper(sourceImage, {
         viewMode: 1,
+        autoCropArea: 1.0,
         initialAspectRatio: aspect,
         crop(event) {
-            convertImage();
+            if (isExactMatch(cropper.getImageData())) {
+                processImageDirectly();
+            } else {
+                convertImage();
+            }
         },
     });
     cropper.replace(url);
@@ -224,10 +246,10 @@ function setTargetSystem(sys: DithertronSettings) {
     var showNoise = sys.conv != 'DitheringCanvas';
     dithertron.setSettings(sys);
     showSystemInfo(sys);
-    resize.width = dest.width = sys.width;
-    resize.height = dest.height = sys.height;
+    resizeCanvas.width = destCanvas.width = sys.width;
+    resizeCanvas.height = destCanvas.height = sys.height;
     let pixelAspect = sys.scaleX || 1;
-    (dest.style as any).aspectRatio = (sys.width * pixelAspect / sys.height).toString();
+    (destCanvas.style as any).aspectRatio = (sys.width * pixelAspect / sys.height).toString();
     $("#noiseSection").css('display', showNoise ? 'flex' : 'none');
     $("#diversitySection").css('display', sys.reduce ? 'flex' : 'none');
     $("#downloadNativeBtn").css('display', sys.toNative ? 'inline' : 'none');
@@ -261,7 +283,7 @@ function downloadNativeFormat() {
     }
 }
 function downloadImageFormat() {
-    dest.toBlob((blob) => {
+    destCanvas.toBlob((blob) => {
         saveAs(blob, getFilenamePrefix() + ".png");
     }, "image/png");
 }
@@ -335,28 +357,6 @@ function decodeQueryString(qs: string) {
     return b;
 }
 
-const EXAMPLE_IMAGES = [
-    'benbenn.jpg',
-    'cezanne2.jpg',
-    'colorroses.jpg',
-    'colorswirls.jpg',
-    'coolcar.jpg',
-    'darkbrewery.jpg',
-    'dhuku.jpg',
-    'greentruck.jpg',
-    'frida.jpg',
-    'homer.jpg',
-    'keyssunset.jpg',
-    'lobsterpot.jpg',
-    'myersflat.jpg',
-    'myrtle.jpg',
-    'parrot.jpg',
-    'redrose.jpg',
-    'robert_s_duncanson.jpg',
-    'seurat.jpg',
-    'vangogh.jpg',
-];
-
 function repopulateSystemSelector(currentSystem: DithertronSettings) {
     const sel = $("#targetFormatSelect");
     sel.empty();
@@ -422,7 +422,7 @@ export function startUI() {
 
         dithertron.pixelsAvailable = (msg) => {
             // TODO: resize canvas?
-            drawRGBA(dest, msg.img);
+            drawRGBA(destCanvas, msg.img);
             updatePaletteSwatches(msg.pal);
             /*
             if (msg.final) {
