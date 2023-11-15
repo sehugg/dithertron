@@ -9,7 +9,7 @@ onmessage = function (e) {
     if (e && e.data) {
         console.log(e.data.cmd);
         switch (e.data.cmd) {
-            case 'reset': return worker_dtron.reset();
+            case 'restart': return worker_dtron.restart();
             case 'setSettings': return worker_dtron.setSettings(e.data.data);
             case 'setSourceImage': return worker_dtron.setSourceImage(e.data.data);
         }

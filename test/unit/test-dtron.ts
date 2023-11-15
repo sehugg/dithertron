@@ -47,7 +47,7 @@ async function startDither(sysid: string, imgfilename: string) {
 
 async function doDither(dt: Dithertron, testid: string) {
   let iters = 0;
-  dt.reset();
+  dt.clear();
   while (dt.iterate() && iters < MAX_ITERS) {
     iters++;
   }
@@ -77,7 +77,7 @@ t.test("Can instantiate Dithertron", async t => {
   dt.sysparams.diffuse = 0.25;
   dt.sysparams.ditherfn = kernels.SIERRALITE;
   var { iters } = await doDither(dt, testid + '-2');
-  t.ok(iters < 25);  
+  t.ok(iters < 25);
   t.end();
 });
 

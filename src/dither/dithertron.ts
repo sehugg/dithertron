@@ -27,11 +27,11 @@ export class Dithertron implements DithertronInterface {
 
     setSettings(sys: DithertronSettings) {
         this.sysparams = Object.assign({}, sys); // clone settings
-        this.reset();
+        this.restart();
     }
     setSourceImage(imageData: Uint32Array) {
         this.sourceImageData = imageData;
-        this.reset();
+        this.restart();
     }
     iterate(): boolean {
         if (this.dithcanv == null) {
@@ -85,8 +85,11 @@ export class Dithertron implements DithertronInterface {
             console.log('stop', this.dithcanv?.iterateCount);
         }
     }
-    reset() {
+    clear() {
         this.dithcanv = null;
+    }
+    restart() {
+        this.clear();
         this.start();
     }
     stop() {

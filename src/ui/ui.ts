@@ -48,8 +48,8 @@ class ProxyDithertron {
     setSourceImage(img: Uint32Array) {
         worker.postMessage({ cmd: "setSourceImage", data: img });
     }
-    reset() {
-        worker.postMessage({ cmd: "reset" });
+    restart() {
+        worker.postMessage({ cmd: "restart" });
     }
     pixelsAvailable: (msg: PixelsAvailableMessage) => void;
 }
@@ -146,7 +146,7 @@ function resetImage() {
     dithertron.settings.noise = parseFloat(noiseSlider.value);
     dithertron.settings.paletteDiversity = parseFloat(diversitySlider.value) / 200 + 0.75;
     dithertron.setSettings(dithertron.settings);
-    dithertron.reset();
+    dithertron.restart();
 }
 
 function convertImage() {
