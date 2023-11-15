@@ -82,6 +82,7 @@ npm i
 ~~~~
 Build:
 ~~~~
+make setup
 npm run build
 ~~~~
 Watch:
