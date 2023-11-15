@@ -1,0 +1,6 @@
+{
+  "name": "Dithertron Configuration",
+  "extensions": [
+  ],
+  "postCreateCommand": "npm ci && make setup && make watch"
+}
