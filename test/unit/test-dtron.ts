@@ -61,6 +61,9 @@ async function doDither(dt: Dithertron, testid: string) {
       width: dt.dithcanv.width,
       height: dt.dithcanv.height
     }, 50);
+    try {
+      fs.mkdirSync('./tests_output');
+    } catch (err) { }
     fs.writeFileSync('./tests_output/' + testid + '.jpg', jpegImageData.data);
   }
   return { dt, testid, iters };
