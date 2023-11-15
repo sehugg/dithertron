@@ -110,6 +110,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
     useCb: boolean;
     cb: VICII_Canvas_Details.UseBlockInfo;
     cbOffset: number = 0;   // the offset into the params array for the color block ram
+    extra: number = 0;
 
     bitsPerColor: number;
     pixelsPerByte: number;
@@ -165,6 +166,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
 
         this.useCb = this.sys.cb === undefined ? false : true;
         this.colors = this.sys.block.colors;
+        this.extra = this.sys.param === undefined ? 0 : this.sys.param.extra;
 
         // assume the background color is choosable (unless overridden)
         this.preparePaletteChoices(this.sys.paletteChoices);
@@ -185,7 +187,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
 
         // offset into the first byte of the color ram (which is after the screen data)
         this.cbOffset = (this.width / this.b.w * this.height / this.b.h);
-        this.params = new Uint32Array(this.cbOffset + ((this.width / this.cb.w * this.height / this.cb.h) * (this.useCb ? 1 : 0)) + 1);
+        this.params = new Uint32Array(this.cbOffset + ((this.width / this.cb.w * this.height / this.cb.h) * (this.useCb ? 1 : 0)) + this.extra);
 
         // console.log('blocks',this.b, this.cb, this.useCb, this.bitsPerColor, this.pixelsPerByte);
         // console.log('palette',this.paletteChoices);
@@ -194,11 +196,13 @@ export class VICII_Canvas extends ParamDitherCanvas {
         // console.log('picture', this.width, this.height, this.cbOffset, this.params.length);
 
         // fill params of sub-blocks
-        for (var i = 0; i < this.params.length - 1; i++) { // -1 to not factor in the "extra" byte
+        for (var i = 0; i < this.params.length - this.extra; i++) {
             this.guessParam(i);
         }
-        // +1 extra parameter for global colors
-        this.params[this.params.length - 1] = this.bgColor | (this.auxColor << 4) | (this.borderColor << 8);
+
+        // extra parameter for global colors
+        if (this.extra > 0)
+            this.params[this.params.length - this.extra] = this.bgColor | (this.auxColor << 4) | (this.borderColor << 8);
     }
     preparePixelPaletteChoices(): void {
         let count : number = this.paletteChoices.colorsRange.max - this.paletteChoices.colorsRange.min + 1;
@@ -214,11 +218,11 @@ export class VICII_Canvas extends ParamDitherCanvas {
             this.paletteChoices.background = false;
             this.paletteChoices.aux = false;
             this.paletteChoices.border = false;
-            this.paletteChoices.backgroundRange = { min: 0, max: this.pal.length-1 };
-            this.paletteChoices.auxRange = { min: 0, max: this.pal.length-1 };
-            this.paletteChoices.borderRange = { min: 0, max: this.pal.length-1 };
+            this.paletteChoices.backgroundRange = { min: 0, max: this.pal.length - 1 };
+            this.paletteChoices.auxRange = { min: 0, max: this.pal.length - 1 };
+            this.paletteChoices.borderRange = { min: 0, max: this.pal.length - 1 };
             this.paletteChoices.colors = this.colors;
-            this.paletteChoices.colorsRange = { min: 0, max: this.pal.length-1 };
+            this.paletteChoices.colorsRange = { min: 0, max: this.pal.length - 1 };
 
             this.preparePixelPaletteChoices();
             return;
@@ -227,15 +231,15 @@ export class VICII_Canvas extends ParamDitherCanvas {
         this.paletteChoices.aux = options.aux === undefined ? false : options.aux;
         this.paletteChoices.border = options.aux === undefined ? false : options.border;
 
-        this.paletteChoices.backgroundRange = options.backgroundRange === undefined ? { min: 0, max: this.pal.length-1 } : options.backgroundRange;
-        this.paletteChoices.auxRange = options.auxRange === undefined ? { min: 0, max: this.pal.length-1 } : options.auxRange;
-        this.paletteChoices.borderRange = options.borderRange === undefined ? { min: 0, max: this.pal.length-1 } : options.borderRange;
-        this.paletteChoices.colorsRange = options.colorsRange === undefined ? { min: 0, max: this.pal.length-1 } : options.colorsRange;
+        this.paletteChoices.backgroundRange = options.backgroundRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.backgroundRange;
+        this.paletteChoices.auxRange = options.auxRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.auxRange;
+        this.paletteChoices.borderRange = options.borderRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.borderRange;
+        this.paletteChoices.colorsRange = options.colorsRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.colorsRange;
 
         this.paletteChoices.colors = options.colors === undefined ?
             (this.colors - (this.paletteChoices.background?1:0) - (this.paletteChoices.aux?1:0) - (this.paletteChoices.border?1:0)) :
             options.colors;
-        this.paletteChoices.colorsRange = { min: 0, max: this.pal.length-1 };
+        this.paletteChoices.colorsRange = { min: 0, max: this.pal.length - 1 };
         this.preparePixelPaletteChoices();
 
         // some basic sanity checks
@@ -268,7 +272,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
         chosenMax = this.chooseMax(aux, this.paletteChoices.auxRange, chosenMax);
         chosenMax = this.chooseMax(border, this.paletteChoices.borderRange, chosenMax);
         //chosenMax = this.chooseMax(true, this.paletteChoices.colorsRange, chosenMax); // do not include pixel choices in this range
-        chosenMax = chosenMax === undefined ? (this.pal.length-1) : chosenMax;
+        chosenMax = chosenMax === undefined ? (this.pal.length - 1) : chosenMax;
 
         return {min: chosenMin, max: chosenMax};
     }
@@ -442,7 +446,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
         return this.actualGuessParam(pUnknown);
     }
     actualGuessParam(pUnknown: number) {
-        console.assert(pUnknown < this.params.length - 1);
+        console.assert(pUnknown < this.params.length - this.extra);
 
         // does color block ram exist (presumption true is that it does/must exist, false to disable)
         const calculateCb = this.useCb && (this.iterateCount < MAX_ITERATE_COUNT / 2);
@@ -642,7 +646,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
         var row = Math.floor(index / (this.width * this.cb.h));
         var cbp = this.cbOffset + col + row * ncols;
         console.assert(cbp >= this.cbOffset);
-        console.assert(cbp < this.params.length - 1); // -1 is for the extra byte
+        console.assert(cbp < this.params.length - this.extra);
         return cbp;
     }
     isImageIndexFirstRowOfColorBlock(index: number): boolean {
@@ -751,8 +755,8 @@ export class ZXSpectrum_Canvas extends TwoColor_Canvas {
         // color is chosen otherwise the dark color is chosen by default.
 
         // pick the top two colors from bright and dark mode
-        let choices1 = calculateHistoForCell(this.darkColors, this.darkColors[0], this.darkColors[this.darkColors.length-1]).slice(0, 2);
-        let choices2 = calculateHistoForCell(this.brightColors, this.brightColors[0], this.brightColors[this.brightColors.length-1]).slice(0, 2);
+        let choices1 = calculateHistoForCell(this.darkColors, this.darkColors[0], this.darkColors[this.darkColors.length - 1]).slice(0, 2);
+        let choices2 = calculateHistoForCell(this.brightColors, this.brightColors[0], this.brightColors[this.brightColors.length - 1]).slice(0, 2);
 
         if (choices1.length < 2)
             choices1.push(choices1[0]);

@@ -110,45 +110,6 @@ export function exportApple2HiresToHGR(img: PixelsAvailableMessage, settings: Di
     return data;
 }
 
-export function exportCharMemory(img: PixelsAvailableMessage,
-    w: number,
-    h: number): Uint8Array {
-    var bpp = (w == 4) ? 2 : 1; // C64-multi vs C64-hires & ZX
-    var i = 0;
-    var cols = img.width / w;
-    var rows = img.height / h;
-    var char = new Uint8Array(img.width * img.height * bpp / 8);
-    var isvdp = char.length == img.params.length; // VDP mode (8x1 cells)
-    console.log('isvdp', isvdp, w, h, bpp, cols, rows);
-    for (var y = 0; y < img.height; y++) {
-        for (var x = 0; x < img.width; x++) {
-            var vdpofs = Math.floor(x / w) + y * cols;
-            var charofs = Math.floor(x / w) + Math.floor(y / h) * cols;
-            var ofs = charofs * h + (y & (h - 1));
-            var shift = (x & (w - 1)) * bpp;
-            shift = 8 - bpp - shift; // reverse bits
-            var palidx = img.indexed[i];
-            var idx = 0; // for bit pattern % 0 or %00
-            var param = isvdp ? img.params[vdpofs] : img.params[charofs];
-            if (bpp == 1) {
-                if (palidx == (param & 0xf))
-                    idx = 1; // for bit pattern %1
-            } else {
-                if (palidx == (param & 0xf)) // lower nibble
-                    idx = 2; // for bit pattern %10
-                else if (palidx == ((param >> 4) & 0xf)) // upper nibble
-                    idx = 1; // for bit pattern %01
-                else if (palidx == ((param >> 8) & 0xf)) // color block nibble
-                    idx = 3; // for bit pattern %11
-            }
-
-            char[ofs] |= idx << shift;
-            i++;
-        }
-    }
-    return char;
-}
-
 export function bitOverlayUint8Array(
     array: Uint8Array,
     offset: number,
@@ -196,6 +157,11 @@ interface CellExporterMapper {
     xyToBitInfo(x: number, y: number): { offset: number, bitShift: number, bitCount: number, paramOffset: number };
 }
 
+interface ColorExporterMapper {
+    prepare(width: number, height: number): { totalBytes: number, littleEndian?: boolean };
+    paramToBitInfo(paramOffset: number): { offset: number, bitShift: number, bitCount: number };
+}
+
 interface CellExporter extends CellExporterMapper {
     paramToBitPattern(param: number, paletteIndex: number): number;
 }
@@ -220,8 +186,118 @@ export function exportCellBuffer(
     return array;
 }
 
+function exportIndexedPaletteAndCellBasedImage(
+    img: PixelsAvailableMessage,
+    mapper: CellExporterMapper,
+    globalColors: { paletteIndex: number, bitPattern: number }[],
+    colorChoicesBitPattern: number[]): Uint8Array {
 
-function getVicMapper(settings: DithertronSettings): CellExporterMapper {
+    let exporter: CellExporter = {
+
+        prepare: mapper.prepare,
+        xyToBitInfo: mapper.xyToBitInfo,
+        paramToBitPattern(param: number, paletteIndex: number): number {
+
+            let c1 = param & 0xf;
+            let c2 = (param & 0xf0) >> 4;
+            let c3 = (param & 0xf00) >> 8;
+
+            // first can the global colors for a match
+            for (let i = 0; i < globalColors.length; ++i) {
+                if (paletteIndex == globalColors[i].paletteIndex)
+                    return globalColors[i].bitPattern;
+            }
+
+            // next scan the color choices for a match
+            switch (paletteIndex) {
+                case c1: {
+                    console.assert(colorChoicesBitPattern.length > 0);
+                    return colorChoicesBitPattern[0];
+                }
+                case c2: {
+                    console.assert(colorChoicesBitPattern.length > 1);
+                    return colorChoicesBitPattern[1];
+                }
+                case c3: {
+                    console.assert(colorChoicesBitPattern.length > 2);
+                    return colorChoicesBitPattern[2];
+                }
+            }
+            console.assert(false);  // something went wrong as palette could not be mapped
+            return 0;
+        }
+    };
+
+    return exportCellBuffer(img, exporter);
+}
+
+interface ExportCombinedImageAndColorCellBuffer {
+    img: PixelsAvailableMessage;
+    settings: DithertronSettings;
+    cellMapper: CellExporterMapper;
+    colorMapper: ColorExporterMapper,
+    colorBlockMapper: ColorExporterMapper | undefined,
+    globalColors: { paletteIndex: number, bitPattern: number }[];
+    cellColors: number[];
+    paramToColor(param: number): number;
+    paramToColorBlock(param: number): number;
+    extra(): Uint8Array | undefined
+}
+
+export function exportCombinedImageAndColorCellBuffer(options: ExportCombinedImageAndColorCellBuffer): Uint8Array {
+    if (options.settings.block == undefined)
+        throw "No block size";
+
+    let isUsingCb = (!(options.settings.cb === undefined)) && (!(options.colorBlockMapper === undefined));
+
+    let cellImage = exportIndexedPaletteAndCellBasedImage(
+        options.img,
+        options.cellMapper,
+        options.globalColors,
+        options.cellColors);
+
+    let w = options.settings.block.w;
+    let h = options.settings.block.h;
+    let cbOffset: number = Math.floor((options.img.width / w) * (options.img.height / h));
+
+    let colorPrepareInfo = options.colorMapper.prepare(options.img.width, options.img.height);
+    let colors = new Uint8Array(colorPrepareInfo.totalBytes);
+    
+    let colorBlockPrepareInfo = (isUsingCb ? options.colorBlockMapper.prepare(options.img.width, options.img.height) : { totalBytes: 0, littleEndian: undefined });
+    let colorBlock: Uint8Array | undefined = (isUsingCb ? new Uint8Array(colorBlockPrepareInfo.totalBytes) : undefined);
+
+    let extra = options.extra();
+    let paramExtraBytes = options.settings.param == undefined ? 0 : options.settings.param.extra;
+
+    for (let i = 0; i < cbOffset; i++) {
+        let p = options.img.params[i];
+        let info = options.colorMapper.paramToBitInfo(i);
+        let bitPattern = options.paramToColor(p);
+        bitOverlayUint8Array(colors, info.offset, bitPattern, info.bitShift, info.bitCount, colorPrepareInfo.littleEndian);
+    }
+
+    for (let i = cbOffset; i < cbOffset + (options.img.params.length - cbOffset - paramExtraBytes); i++) {
+        // The color block ram is split out from the normal param area
+        // to stored extra color block choices shared across
+        // multiple pixels. The color block area is an extra shared
+        // color ram that is independent of the "screen" color ram.
+
+        let p = options.img.params[i];
+        let info = options.colorBlockMapper.paramToBitInfo(i);
+        let bitPattern = options.paramToColor(p);
+        bitOverlayUint8Array(colorBlock, info.offset, bitPattern, info.bitShift, info.bitCount, colorBlockPrepareInfo.littleEndian);
+    }
+
+    let mergeArrays = [cellImage, colors, colorBlock, extra];
+    if (colorBlock === undefined)
+        mergeArrays.splice(2, 1);
+    if (extra === undefined)
+        mergeArrays.splice(mergeArrays.length - 1, 1);
+
+    return concatArrays(mergeArrays);
+}
+
+function getVicCellMapper(settings: DithertronSettings): CellExporterMapper {
 
     if (settings.block === undefined)
         throw "Block size not specified";
@@ -280,129 +356,102 @@ function getVicMapper(settings: DithertronSettings): CellExporterMapper {
     return exporter;
 }
 
-function exportIndexedPaletteAndCellBasedImage(
-    img: PixelsAvailableMessage,
-    mapper: CellExporterMapper,
-    globalColors: { paletteIndex: number, bitPattern: number }[],
-    colorChoicesBitPattern: number[]): Uint8Array {
+function getVicColorMapper(settings: DithertronSettings): ColorExporterMapper {
 
-    let exporter: CellExporter = {
+    let isUsingFli = !(settings.fli === undefined);
 
-        prepare: mapper.prepare,
-        xyToBitInfo: mapper.xyToBitInfo,
-        paramToBitPattern(param: number, paletteIndex: number): number {
+    let w = settings.block.w;
+    let h = settings.block.h;
 
-            let c1 = param & 0xf;
-            let c2 = (param & 0xf0) >> 4;
-            let c3 = (param & 0xf00) >> 8;
+    let bpp = Math.ceil(Math.log2(settings.block.colors));
 
-            // first can the global colors for a match
-            for (let i = 0; i < globalColors.length; ++i) {
-                if (paletteIndex == globalColors[i].paletteIndex)
-                    return globalColors[i].bitPattern;
+    let captureWidth: number = 0;
+
+    let cbOffset: number = 0;
+
+    let columns: number = 0;
+    let rows: number = 0;
+
+    let colorBytes: number = 0;
+    let colorAlignedBytes: number = 0;
+
+    let exporter: ColorExporterMapper = {
+
+        prepare(width: number, height: number): { totalBytes: number, littleEndian?: boolean } {
+            captureWidth = width;
+
+            columns = Math.floor(width / settings.cell.w);
+            rows = Math.floor(height / settings.cell.h);
+        
+            colorBytes = (columns * rows);
+            colorAlignedBytes = (1 << Math.ceil(Math.log2(colorBytes)));
+
+            cbOffset = Math.floor((width / w) * (height / h));
+
+            return { totalBytes: isUsingFli ? (colorAlignedBytes * settings.cell.h) : (columns * rows) };
+        },
+
+        paramToBitInfo(paramOffset: number): { offset: number, bitShift: number, bitCount: number } {
+
+            let offset: number = 0;
+
+            // Normally in graphics mode each screen pixel in a 4x8 or 8x8 block chooses from
+            // cell colors dedicated for the entire block (stored in "screen" color ram).
+            // However, in FLI mode each pixel row gets a new choice of colors since on
+            // each scan line special code swaps the "screen" color ram pointer location to
+            // a new location in memory thus allowing for independent values per row.
+            if (isUsingFli) {
+                offset = (Math.floor(paramOffset / columns) & (settings.cell.h - 1)) * colorAlignedBytes + (Math.floor(paramOffset / (bpp * captureWidth)) * columns) + (paramOffset % columns);
+            } else {
+                offset = paramOffset;
             }
 
-            // next scan the color choices for a match
-            switch (paletteIndex) {
-                case c1: {
-                    console.assert(colorChoicesBitPattern.length > 0);
-                    return colorChoicesBitPattern[0];
-                }
-                case c2: {
-                    console.assert(colorChoicesBitPattern.length > 1);
-                    return colorChoicesBitPattern[1];
-                }
-                case c3: {
-                    console.assert(colorChoicesBitPattern.length > 2);
-                    return colorChoicesBitPattern[2];
-                }
-            }
-            console.assert(false);  // something went wrong as palette could not be mapped
-            return 0;
+            return {
+                offset: offset,
+                bitShift: 0,
+                bitCount: 8
+            };
         }
     };
 
-    return exportCellBuffer(img, exporter);
+    return exporter;
 }
 
-interface ExportCombinedImageAndColorCellBuffer {
-    img: PixelsAvailableMessage;
-    settings: DithertronSettings;
-    mapper: CellExporterMapper;
-    globalColors: { paletteIndex: number, bitPattern: number }[];
-    cellColors: number[];
-    paramToScreen(param: number): number;
-    paramToColorBlock(param: number): number;
-    extraArray(): Uint8Array | undefined;
-}
+function getVicColorBlockMapper(settings: DithertronSettings): ColorExporterMapper {
 
-export function exportCombinedImageAndColorCellBuffer(options: ExportCombinedImageAndColorCellBuffer): Uint8Array {
-    if (options.settings.block == undefined)
-        throw "No block size";
+    let isUsingCb = !(settings.cb === undefined);
 
-    let isUsingFli = !(options.settings.fli === undefined);
-    let isUsingCb = !(options.settings.cb === undefined);
+    let w = settings.block.w;
+    let h = settings.block.h;
 
-    let cellImage = exportIndexedPaletteAndCellBasedImage(
-        options.img,
-        options.mapper,
-        options.globalColors,
-        options.cellColors);
+    let cbw: number = (isUsingCb ? settings.cb.w === undefined ? w : settings.cb.w : w);
+    let cbh: number = (isUsingCb ? settings.cb.h === undefined ? h : settings.cb.h : h);
 
-    let w = options.settings.block.w;
-    let h = options.settings.block.h;
-    let columns = Math.floor(options.img.width / options.settings.cell.w);
-    let rows = Math.floor(options.img.height / options.settings.cell.h);
-    let bpp = Math.ceil(Math.log2(options.settings.block.colors));
+    let cbOffset: number = 0;
 
-    let cbOffset: number = Math.floor((options.img.width / w) * (options.img.height / h));
-    let cbw: number = (isUsingCb ? options.settings.cb.w === undefined ? w : options.settings.cb.w : w);
-    let cbh: number = (isUsingCb ? options.settings.cb.h === undefined ? h : options.settings.cb.h : h);
+    let exporter: ColorExporterMapper = {
 
-    let cbCols = options.img.width / cbw;
-    let cbRows = options.img.height / cbh;
+        prepare(width: number, height: number): { totalBytes: number, littleEndian?: boolean } {
 
-    let screenBytes = (columns * rows);
-    let screenAlignedBytes = (1 << Math.ceil(Math.log2(screenBytes)));
+            let cbCols = width / cbw;
+            let cbRows = height / cbh;
+            cbOffset = Math.floor((width / w) * (height / h));
+            return { totalBytes: cbCols * cbRows };
+        },
 
-    let screen = new Uint8Array(isUsingFli ? (screenAlignedBytes * options.settings.cell.h) : (columns * rows));
-    let color: Uint8Array | undefined = (isUsingCb ? new Uint8Array(cbCols * cbRows) : undefined);
+        paramToBitInfo(paramOffset: number): { offset: number, bitShift: number, bitCount: number } {
 
-    // Normally in hires mode each screen pixel in a 4x8 or 8x8 block chooses from
-    // cell colors dedicated for the entire block (stored in "screen" color ram).
-    // However, in FLI mode each pixel row gets a new choice of colors since on
-    // each scan line special code swaps the screen color ram pointer location to
-    // a new location in memory thus allowing for independent values per row.
-    if (isUsingFli) {
-        for (let i = 0; i < cbOffset; i++) {
-            let p = options.img.params[i];
-            let screenOffset = (Math.floor(i / columns) & (options.settings.cell.h - 1)) * screenAlignedBytes + (Math.floor(i / (bpp * options.img.width)) * columns) + (i % columns);
-            //if (i < 500) console.log(screenOffset, columns, (options.settings.cell.h - 1), screenAlignedBytes, w, options.img.width, i, hex(i), (Math.floor(i/40)&7), ((Math.floor(i/40)&7)*0x400), (Math.floor(i/320)), (i % 40), (Math.floor(i/320)*40 + (i % 40)));
-            screen[screenOffset] = options.paramToScreen(p);
+            console.assert(paramOffset >= cbOffset);
+
+            return {
+                offset: paramOffset - cbOffset,
+                bitShift: 0,
+                bitCount: 8
+            };
         }
-    } else {
-        for (let i = 0; i < screen.length; i++) {
-            screen[i] = options.paramToScreen(options.img.params[i]);
-        }
-    }
+    };
 
-    for (let i = 0; i < (isUsingCb ? color.length : 0); i++) {
-        // The color block ram is split out from the normal param area
-        // to stored extra color block choices shared across
-        // multiple pixels. The color block area is an extra shared
-        // color ram that is independent of the "screen" color ram.
-        color[i] = options.paramToColorBlock(options.img.params[i + cbOffset]);
-    }
-
-    let extra = options.extraArray();
-
-    let mergeArrays = [cellImage, screen, color, extra];
-    if (color === undefined)
-        mergeArrays.splice(2, 1);
-    if (extra === undefined)
-        mergeArrays.splice(mergeArrays.length - 1, 1);
-
-    return concatArrays(mergeArrays);
+    return exporter;
 }
 
 export function exportC64Multi(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
@@ -416,16 +465,18 @@ export function exportC64Multi(img: PixelsAvailableMessage, settings: Dithertron
     return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
-        mapper: getVicMapper(settings),
+        cellMapper: getVicCellMapper(settings),
+        colorMapper: getVicColorMapper(settings),
+        colorBlockMapper: getVicColorBlockMapper(settings),
         globalColors: [{ paletteIndex: extraWord & 0xf, bitPattern: 0x00 }],
         cellColors: [ 0x02, 0x01, 0x03 ],
-        paramToScreen(param: number): number { return param & 0xff; },
+        paramToColor(param: number): number { return param & 0xff; },
         paramToColorBlock(param: number): number { return param & 0x0f; },
-        extraArray(): Uint8Array | undefined {
-            let extra = new Uint8Array(2);
-            extra[0] = extraWord & 0xff;          // background color (and high nybble aux, which is N/A)
-            extra[1] = (extraWord >> 8) & 0xff;   // border color
-            return extra;
+        extra(): Uint8Array {
+            let array = new Uint8Array(2);
+            array[0] = extraWord & 0xff;          // background color (and high nybble aux, which is N/A)
+            array[1] = (extraWord >> 8) & 0xff;   // border color
+            return array;
         }
     });
 }
@@ -440,16 +491,18 @@ export function exportC64Hires(img: PixelsAvailableMessage, settings: Dithertron
     return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
-        mapper: getVicMapper(settings),
+        cellMapper: getVicCellMapper(settings),
+        colorMapper: getVicColorMapper(settings),
+        colorBlockMapper: undefined,
         globalColors: [],
         cellColors: [ 0x01, 0x00 ],
-        paramToScreen(param: number): number { return ((param & 0x0f) << 4) | ((param & 0xf0) >> 4); },
+        paramToColor(param: number): number { return ((param & 0x0f) << 4) | ((param & 0xf0) >> 4); },
         paramToColorBlock(param: number): number { return 0; },
-        extraArray(): Uint8Array | undefined {
-            let extra = new Uint8Array(2);
-            extra[0] = extraWord & 0xff;          // background color (and high nybble aux, which is N/A)
-            extra[1] = (extraWord >> 8) & 0xff;   // border color
-            return extra;
+        extra(): Uint8Array {
+            let array = new Uint8Array(2);
+            array[0] = extraWord & 0xff;          // background color (and high nybble aux, which is N/A)
+            array[1] = (extraWord >> 8) & 0xff;   // border color
+            return array;
         }
     });
 }
@@ -479,17 +532,19 @@ export function exportVicHires(img: PixelsAvailableMessage, settings: Dithertron
     return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
-        mapper: getVicMapper(settings),
+        cellMapper: getVicCellMapper(settings),
+        colorMapper: getVicColorMapper(settings),
+        colorBlockMapper: undefined,
         globalColors: [{ paletteIndex: backgroundColor, bitPattern: 0x00 }],
         cellColors: [ 0x01 ],
-        paramToScreen(param: number): number { return param & 0x0f; },
+        paramToColor(param: number): number { return param & 0x0f; },
         paramToColorBlock(param: number): number { return 0; },
-        extraArray(): Uint8Array | undefined {
-            let extra = new Uint8Array(3);
-            extra[0] = backgroundColor; // background color
-            extra[1] = borderColor;     // border color
-            extra[2] = auxColor;        // aux color
-            return extra;
+        extra(): Uint8Array {
+            let array = new Uint8Array(3);
+            array[0] = backgroundColor; // background color
+            array[1] = borderColor;     // border color
+            array[2] = auxColor;        // aux color
+            return array;
         }
     });
 }
@@ -517,26 +572,28 @@ export function exportVicMulti(img: PixelsAvailableMessage, settings: Dithertron
     return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
-        mapper: getVicMapper(settings),
+        cellMapper: getVicCellMapper(settings),
+        colorMapper: getVicColorMapper(settings),
+        colorBlockMapper: undefined,
         globalColors: [
             { paletteIndex: backgroundColor, bitPattern: 0x00 },
             { paletteIndex: borderColor, bitPattern: 0x01 },
             { paletteIndex: auxColor, bitPattern: 0x03 }
         ],
         cellColors: [ 0x02 ],
-        paramToScreen(param: number): number { return param & 0x0f; },
+        paramToColor(param: number): number { return param & 0x0f; },
         paramToColorBlock(param: number): number { return 0; },
-        extraArray(): Uint8Array | undefined {
-            let extra = new Uint8Array(3);
-            extra[0] = backgroundColor; // background color
-            extra[1] = borderColor;     // border color
-            extra[2] = auxColor;        // aux color
-            return extra;
+        extra(): Uint8Array {
+            let array = new Uint8Array(3);
+            array[0] = backgroundColor; // background color
+            array[1] = borderColor;     // border color
+            array[2] = auxColor;        // aux color
+            return array;
         }
     });
 }
 
-function getZxMapper(settings: DithertronSettings): CellExporterMapper {
+function getZxCellMapper(settings: DithertronSettings): CellExporterMapper {
 
     if (settings.block === undefined)
         throw "Block size not specified";
@@ -627,33 +684,73 @@ export function exportZXSpectrum(img: PixelsAvailableMessage, settings: Dithertr
     return exportCombinedImageAndColorCellBuffer({
         img: img,
         settings: settings,
-        mapper: getZxMapper(settings),
+        cellMapper: getZxCellMapper(settings),
+        colorMapper: getVicColorMapper(settings),
+        colorBlockMapper: undefined,
         globalColors: [],
         cellColors: [ 0x00, NaN, 0x01 ],
-        paramToScreen(param: number): number { return ((param & 0x07) << 3) | ((param & 0x700) >> 8) | (((param & 0x08) >> 3) << 6); },
+        paramToColor(param: number): number { return ((param & 0x07) << 3) | ((param & 0x700) >> 8) | (((param & 0x08) >> 3) << 6); },
         paramToColorBlock(param: number): number { return 0; },
-        extraArray(): Uint8Array | undefined { return undefined; }
+        extra(): undefined { return undefined; }
     });
 }
 
+
+function getTMS9918ColorMapper(settings: DithertronSettings): ColorExporterMapper {
+
+    let isUsingFli = !(settings.fli === undefined);
+
+    let w = settings.block.w;
+    let h = settings.block.h;
+
+    let exporter: ColorExporterMapper = {
+
+        prepare(width: number, height: number): { totalBytes: number, littleEndian?: boolean } {
+            let columns = width / w;
+            let rows = height / h;
+
+            return { totalBytes: columns * rows };
+        },
+
+        paramToBitInfo(paramOffset: number): { offset: number, bitShift: number, bitCount: number } {
+            let x = paramOffset & 31;
+            let y = paramOffset >> 5;
+
+            return {
+                offset: (y & 7) | (x << 3) | ((y >> 3) << 8),
+                bitShift: 0,
+                bitCount: 8
+            };
+        }
+    };
+
+    return exporter;
+}
+
 export function exportTMS9918(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
-    if (!settings.block) throw "No block size";
-    var w = settings.block.w;
-    var h = settings.block.h;
-    var cols = img.width / w;
-    var rows = img.height / h;
-    var screen = new Uint8Array(cols * rows); // 32 x 192
-    for (var i = 0; i < screen.length; i++) {
-        // x[0..4] y[0..7] -> y[0..2] x[0..4] y[3..7]
-        var p = img.params[i] & 0xffff;
-        var x = i & 31;
-        var y = i >> 5;
-        var ofs = (y & 7) | (x << 3) | ((y >> 3) << 8);
-        screen[ofs] = (p << 4) | (p >> 8);
-    }
-    //console.log(img.params, screen);
-    var char = exportCharMemory(img, 8, 8);
-    return concatArrays([char, screen]);
+
+    return exportCombinedImageAndColorCellBuffer({
+        img: img,
+        settings: settings,
+        cellMapper: getVicCellMapper(settings),
+        colorMapper: getTMS9918ColorMapper(settings),
+        colorBlockMapper: undefined,
+        globalColors: [],
+        cellColors: [ 0x00, NaN, 0x01 ],
+        paramToColor(param: number): number {
+            let c1 = (param & 0x0f);
+            let c2 = ((param & 0xf00) >> 8);
+
+            // a special transparency pixel color exists "0x00" which is defined
+            // as black in the palette, thus choose to remap the transparent
+            // pixel color choice as TMS9918's black "0x01".
+            c1 = c1 == 0x00 ? 0x01 : c1;
+            c2 = c2 == 0x00 ? 0x01 : c2;
+            return c1 | (c2 << 4);
+        },
+        paramToColorBlock(param: number): number { return 0; },
+        extra(): undefined { return undefined; }
+    });
 }
 
 export function exportNES(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {

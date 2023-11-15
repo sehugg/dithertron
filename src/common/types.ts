@@ -69,6 +69,9 @@ export interface DithertronSettings {
         xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
         yb?: number        
     };
+    param?: {
+        extra: number           // how many extra param bytes are required for this system
+    }
     fli?: {
         bug: boolean,
         blankLeft: boolean,
