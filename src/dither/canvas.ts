@@ -2,6 +2,7 @@ import { getChoices, reducePaletteChoices, ColorChoice } from "../common/color";
 import { PaletteChoices, PaletteRange  } from "../common/types";
 import { BaseDitheringCanvas, BasicParamDitherCanvas, OneColor_Canvas, ParamDitherCanvas, TwoColor_Canvas } from "./basecanvas";
 import { MAX_ITERATE_COUNT } from "./dithertron";
+import { range } from "../common/util";
 
 export class DitheringCanvas extends BaseDitheringCanvas {
     // just a wrapper for the base class so we can find it
@@ -18,10 +19,6 @@ export class VDPMode2_Canvas extends TwoColor_Canvas {
 export class VCSColorPlayfield_Canvas extends TwoColor_Canvas {
     w = 40;
     h = 1;
-}
-export class ZXSpectrum_Canvas extends TwoColor_Canvas {
-    w = 8;
-    h = 8;
 }
 export class Compucolor_Canvas extends TwoColor_Canvas {
     w = 2;
@@ -113,6 +110,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
     useCb: boolean;
     cb: VICII_Canvas_Details.UseBlockInfo;
     cbOffset: number = 0;   // the offset into the params array for the color block ram
+    extra: number = 0;
 
     bitsPerColor: number;
     pixelsPerByte: number;
@@ -168,6 +166,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
 
         this.useCb = this.sys.cb === undefined ? false : true;
         this.colors = this.sys.block.colors;
+        this.extra = this.sys.param === undefined ? 0 : this.sys.param.extra;
 
         // assume the background color is choosable (unless overridden)
         this.preparePaletteChoices(this.sys.paletteChoices);
@@ -183,12 +182,12 @@ export class VICII_Canvas extends ParamDitherCanvas {
         // find global colors
         this.prepareGlobalColorChoices();
 
-        this.bitsPerColor = Math.floor(Math.log2(this.colors));
+        this.bitsPerColor = Math.ceil(Math.log2(this.colors));
         this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
 
         // offset into the first byte of the color ram (which is after the screen data)
         this.cbOffset = (this.width / this.b.w * this.height / this.b.h);
-        this.params = new Uint32Array(this.cbOffset + ((this.width / this.cb.w * this.height / this.cb.h) * (this.useCb ? 1 : 0)) + 1);
+        this.params = new Uint32Array(this.cbOffset + ((this.width / this.cb.w * this.height / this.cb.h) * (this.useCb ? 1 : 0)) + this.extra);
 
         // console.log('blocks',this.b, this.cb, this.useCb, this.bitsPerColor, this.pixelsPerByte);
         // console.log('palette',this.paletteChoices);
@@ -197,11 +196,13 @@ export class VICII_Canvas extends ParamDitherCanvas {
         // console.log('picture', this.width, this.height, this.cbOffset, this.params.length);
 
         // fill params of sub-blocks
-        for (var i = 0; i < this.params.length - 1; i++) { // -1 to not factor in the "extra" byte
+        for (var i = 0; i < this.params.length - this.extra; i++) {
             this.guessParam(i);
         }
-        // +1 extra parameter for global colors
-        this.params[this.params.length - 1] = this.bgColor | (this.auxColor << 4) | (this.borderColor << 8);
+
+        // extra parameter for global colors
+        if (this.extra > 0)
+            this.params[this.params.length - this.extra] = this.bgColor | (this.auxColor << 4) | (this.borderColor << 8);
     }
     preparePixelPaletteChoices(): void {
         let count : number = this.paletteChoices.colorsRange.max - this.paletteChoices.colorsRange.min + 1;
@@ -217,11 +218,11 @@ export class VICII_Canvas extends ParamDitherCanvas {
             this.paletteChoices.background = false;
             this.paletteChoices.aux = false;
             this.paletteChoices.border = false;
-            this.paletteChoices.backgroundRange = { min: 0, max: this.pal.length-1 };
-            this.paletteChoices.auxRange = { min: 0, max: this.pal.length-1 };
-            this.paletteChoices.borderRange = { min: 0, max: this.pal.length-1 };
+            this.paletteChoices.backgroundRange = { min: 0, max: this.pal.length - 1 };
+            this.paletteChoices.auxRange = { min: 0, max: this.pal.length - 1 };
+            this.paletteChoices.borderRange = { min: 0, max: this.pal.length - 1 };
             this.paletteChoices.colors = this.colors;
-            this.paletteChoices.colorsRange = { min: 0, max: this.pal.length-1 };
+            this.paletteChoices.colorsRange = { min: 0, max: this.pal.length - 1 };
 
             this.preparePixelPaletteChoices();
             return;
@@ -230,15 +231,15 @@ export class VICII_Canvas extends ParamDitherCanvas {
         this.paletteChoices.aux = options.aux === undefined ? false : options.aux;
         this.paletteChoices.border = options.aux === undefined ? false : options.border;
 
-        this.paletteChoices.backgroundRange = options.backgroundRange === undefined ? { min: 0, max: this.pal.length-1 } : options.backgroundRange;
-        this.paletteChoices.auxRange = options.auxRange === undefined ? { min: 0, max: this.pal.length-1 } : options.auxRange;
-        this.paletteChoices.borderRange = options.borderRange === undefined ? { min: 0, max: this.pal.length-1 } : options.borderRange;
-        this.paletteChoices.colorsRange = options.colorsRange === undefined ? { min: 0, max: this.pal.length-1 } : options.colorsRange;
+        this.paletteChoices.backgroundRange = options.backgroundRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.backgroundRange;
+        this.paletteChoices.auxRange = options.auxRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.auxRange;
+        this.paletteChoices.borderRange = options.borderRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.borderRange;
+        this.paletteChoices.colorsRange = options.colorsRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.colorsRange;
 
         this.paletteChoices.colors = options.colors === undefined ?
             (this.colors - (this.paletteChoices.background?1:0) - (this.paletteChoices.aux?1:0) - (this.paletteChoices.border?1:0)) :
             options.colors;
-        this.paletteChoices.colorsRange = { min: 0, max: this.pal.length-1 };
+        this.paletteChoices.colorsRange = { min: 0, max: this.pal.length - 1 };
         this.preparePixelPaletteChoices();
 
         // some basic sanity checks
@@ -271,7 +272,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
         chosenMax = this.chooseMax(aux, this.paletteChoices.auxRange, chosenMax);
         chosenMax = this.chooseMax(border, this.paletteChoices.borderRange, chosenMax);
         //chosenMax = this.chooseMax(true, this.paletteChoices.colorsRange, chosenMax); // do not include pixel choices in this range
-        chosenMax = chosenMax === undefined ? (this.pal.length-1) : chosenMax;
+        chosenMax = chosenMax === undefined ? (this.pal.length - 1) : chosenMax;
 
         return {min: chosenMin, max: chosenMax};
     }
@@ -445,7 +446,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
         return this.actualGuessParam(pUnknown);
     }
     actualGuessParam(pUnknown: number) {
-        console.assert(pUnknown < this.params.length - 1);
+        console.assert(pUnknown < this.params.length - this.extra);
 
         // does color block ram exist (presumption true is that it does/must exist, false to disable)
         const calculateCb = this.useCb && (this.iterateCount < MAX_ITERATE_COUNT / 2);
@@ -645,7 +646,7 @@ export class VICII_Canvas extends ParamDitherCanvas {
         var row = Math.floor(index / (this.width * this.cb.h));
         var cbp = this.cbOffset + col + row * ncols;
         console.assert(cbp >= this.cbOffset);
-        console.assert(cbp < this.params.length - 1); // -1 is for the extra byte
+        console.assert(cbp < this.params.length - this.extra);
         return cbp;
     }
     isImageIndexFirstRowOfColorBlock(index: number): boolean {
@@ -654,6 +655,142 @@ export class VICII_Canvas extends ParamDitherCanvas {
         return 0 == row % Math.floor(this.cb.h / this.b.h);
     }
 }
+
+export class ZXSpectrum_Canvas extends TwoColor_Canvas {
+    w: number;
+    h: number;
+    xb: number | undefined;
+    yb: number | undefined;
+
+    darkPalette: Uint32Array;
+    brightPalette: Uint32Array;
+
+    darkColors: number[];
+    brightColors: number[];
+    aux: boolean;
+
+    paletteRange: PaletteRange;
+
+    init() {
+        this.darkColors = range(0, Math.floor(this.pal.length / 2));
+        this.brightColors = range(Math.floor(this.pal.length / 2), this.pal.length);
+        this.w = this.sys.block.w;
+        this.h = this.sys.block.h;
+        this.paletteRange = { min: 0, max: this.pal.length };
+        this.paletteRange = this.sys.paletteChoices === undefined ?
+            this.paletteRange :
+            (this.sys.paletteChoices.colorsRange === undefined ? this.paletteRange : this.sys.paletteChoices.colorsRange);
+        this.aux = this.sys.paletteChoices === undefined ? false : (this.sys.paletteChoices.aux === undefined ? false : this.sys.paletteChoices.aux);
+
+        this.xb = (this.sys.cb === undefined ? this.border : this.sys.cb.xb);
+        this.yb = (this.sys.cb === undefined ? this.border : this.sys.cb.yb);
+        this.xb = (this.xb === undefined ? this.border : this.xb);
+        this.yb = (this.yb === undefined ? this.border : this.yb);
+
+        this.darkPalette = this.pal.slice(0, Math.floor(this.pal.length / 2));
+        this.brightPalette = this.pal.slice(Math.floor(this.pal.length / 2), this.pal.length);
+        super.init();
+    }
+
+    guessParam(p: number) {
+        let col = p % this.ncols;
+        let row = Math.floor(p / this.ncols);
+        let offset = col * this.w + row * (this.width * this.h);
+
+        let calculateHistoForCell = (colors: number[], min: number, max: number) => {
+            let histo = new Uint32Array(Math.floor(this.pal.length));
+
+            // pixel overlap in 8x8 window
+            for (let y = -this.yb; y < this.h + this.yb; y++) {
+                let o = offset + y * this.width;
+                for (let x = -this.xb; x < this.w + this.xb; x++) {
+                    let c1 = this.indexed[o + x] | 0;
+                    // because the result becomes "pulled" towards the
+                    // reference image, the scoring needs to take into
+                    // account that the palette may have chosen the
+                    // other dark/bright versions instead so if the
+                    // palette then flips choices, the "pull" will
+                    // not happen properly if the previous color chosen
+                    // previously is not present on the new palette
+                    if ((c1 < min) || (c1 > max))
+                        histo[c1 ^ 0b1000] += 100;
+                    else
+                        histo[c1] += 100;
+                    let c2 = this.getClosest(this.alt[o + x] | 0, colors);
+                    histo[c2] += 1 + this.noise;
+                }
+            }
+
+            let choices = getChoices(histo);
+            return choices;
+        };
+
+        let scoreChoices = (choices: {count: number, ind: number}[], palette: Uint32Array) => {
+            let overallScore = 0;
+            for (let y = -this.yb; y < this.h + this.yb; y++) {
+                let o = offset + y * this.width;
+                for (let x = -this.xb; x < this.w + this.xb; x++) {
+                    let smallest: number = NaN;
+                    for (let c = 0; c < choices.length; ++c) {
+                        // score against the reference image, not against the dithered image
+                        let score = this.errfn(this.ref[o + x], palette[choices[c].ind]);
+                        if ((score < smallest) || (Number.isNaN(smallest)))
+                            smallest = score;
+                    }
+                    overallScore += smallest;
+                }
+            }
+            return overallScore;
+        };
+
+        // The Zx spectrum requires that the colors chosen be either both from the
+        // bright spectrum of the palette or both from the dark spectrum of the palette.
+        // This choice of bright or not bright is applied to the entire cell and mixing
+        // a bright or non-bright color for a cell is not possible.
+        //
+        // As such, the routine picks the best two colors from the dark palette and
+        // picks the best two colors from the bright palette. Then the dark palette
+        // is scored against the bright palette. If the bright palette better
+        // represents the color (by having the "closest" rgb score), then the bright
+        // color is chosen otherwise the dark color is chosen by default.
+
+        // pick the top two colors from bright and dark mode
+        let choices1 = calculateHistoForCell(this.darkColors, this.darkColors[0], this.darkColors[this.darkColors.length - 1]).slice(0, 2);
+        let choices2 = calculateHistoForCell(this.brightColors, this.brightColors[0], this.brightColors[this.brightColors.length - 1]).slice(0, 2);
+
+        if (choices1.length < 2)
+            choices1.push(choices1[0]);
+        if (choices2.length < 2)
+            choices2.push(choices2[0]);
+
+        console.assert(choices1.length >= 2);
+        console.assert(choices2.length >= 2);
+
+        let score1 = scoreChoices(choices1, this.pal);
+        let score2 = scoreChoices(choices2, this.pal);
+
+        let result = score2 < score1 ? choices2 : choices1;
+
+        if ((result[0].ind < this.paletteRange.min) || (result[0].ind > this.paletteRange.max)) {
+            // cannot choose what was chosen (because of palette restrictions) so swap to the
+            // other palette (even if it isn't the best representation of the color)
+            result = score2 < score1 ? choices1 : choices2;
+        }
+
+        console.assert(result[0].ind >= this.paletteRange.min);
+        console.assert(result[0].ind <= this.paletteRange.max);
+        console.assert(result[1].ind >= this.paletteRange.min);
+        console.assert(result[1].ind <= this.paletteRange.max);
+
+        if (this.aux) {
+            result[0].ind = (result[0].ind ^ 0b1000);
+            result[1].ind = (result[1].ind ^ 0b1000);
+        }
+        
+        this.updateParams(p, result);
+    }
+}
+
 
 export class NES_Canvas extends BasicParamDitherCanvas {
     w = 16;

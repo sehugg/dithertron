@@ -57,6 +57,11 @@ export interface DithertronSettings {
         xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
         yb?: number
     };
+    cell?: {                    // for displays that are character cell based
+        w: number,              // how many pixels wide is each character's cell (for completeness)
+        h: number,              // how many pixels tall is each character's cell (which can differ from the block, e.g. fli)
+        msbToLsb: boolean       // set to true if the image is ordered most significant bit to least significant bit
+    };
     paletteChoices?: PaletteChoices;
     cb?: {                      // color block (for mods with separated color blocks outside of the pixel color choice)
         w: number,
@@ -64,6 +69,9 @@ export interface DithertronSettings {
         xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
         yb?: number        
     };
+    param?: {
+        extra: number           // how many extra param bytes are required for this system
+    }
     fli?: {
         bug: boolean,
         blankLeft: boolean,
