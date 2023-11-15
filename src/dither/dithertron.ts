@@ -27,11 +27,9 @@ export class Dithertron implements DithertronInterface {
 
     setSettings(sys: DithertronSettings) {
         this.sysparams = Object.assign({}, sys); // clone settings
-        this.restart();
     }
     setSourceImage(imageData: Uint32Array) {
         this.sourceImageData = imageData;
-        this.restart();
     }
     iterate(): boolean {
         if (this.dithcanv == null) {

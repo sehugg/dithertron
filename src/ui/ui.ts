@@ -232,6 +232,7 @@ function loadSourceImage(url: string) {
 function setTargetSystem(sys: DithertronSettings) {
     var showNoise = sys.conv != 'DitheringCanvas';
     dithertron.setSettings(sys);
+    dithertron.restart();
     showSystemInfo(sys);
     resizeCanvas.width = destCanvas.width = sys.width;
     resizeCanvas.height = destCanvas.height = sys.height;

@@ -36,6 +36,7 @@ async function loadDither(sysid: string, imagename: string) {
   dt.setSettings(sys);
   const imagedata = await fetchImageData('./images/' + imagename, sys);
   dt.setSourceImage(imagedata);
+  t.ok(dt.timer == null, "timer should not be started");
   return dt;
 }
 
