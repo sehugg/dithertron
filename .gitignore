@@ -5,5 +5,6 @@ gen/
 logs/
 tests_output/
 lib/
+fonts/
 tmp/
 .tap/
