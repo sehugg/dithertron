@@ -25,9 +25,13 @@ UseMultiColorGraphics equ $USE_MULTI_MODE
 #if Use8BitWorkshopEmulator
 TweakD018 equ -1
 TweakD011 equ 7
+LastRasterLine equ 201
+FinalRowPatch equ 0
 #else
 TweakD018 equ 1
 TweakD011 equ 1
+LastRasterLine equ 199
+FinalRowPatch equ 1
 #endif
 
 Irq0AtRaster equ $2d
@@ -168,7 +172,7 @@ L0:
     lda LookupD011+TweakD011,x
     sta $d011   ; force new color DMA
     inx         ; FLI bug $D800 color = 8 (orange)
-    cpx #199    ; last rasterline?
+    cpx #LastRasterLine    ; last rasterline?
 Ntsc4:
     bne L0      ; branches to l0-1 on NTSC for 2 extra cycles per rasterline
 
@@ -218,10 +222,12 @@ Start:
     ; for a 319 instead of 320 pixel count height.
     ; A fix is welcomed for this issue.
 
+#if FinalRowPatch
     lda LookupD011+199
     and #$07
     ora #$70
     sta LookupD011+199
+#endif
 
     ; The VIC chip doesn't care if ram or rom is
     ; selected (with an exception), but the IRQs
