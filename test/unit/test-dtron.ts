@@ -88,7 +88,7 @@ async function compareWithRef(t: Test, dt: Dithertron, maxbelow: number, avgbelo
   const dithered = await getThumbnail(dt, false);
   let maxerror = 0;
   let avgerror = 0;
-  for (let i=0; i<ref.length; i++) {
+  for (let i = 0; i < ref.length; i++) {
     let distance = getRGBAErrorPerceptual(ref[i], dithered[i]);
     maxerror = Math.max(maxerror, distance);
     avgerror += distance;
@@ -100,36 +100,35 @@ async function compareWithRef(t: Test, dt: Dithertron, maxbelow: number, avgbelo
   return { maxerror, avgerror };
 }
 
-t.test("Can dither c64.multi", async t => {
-  var dt = await loadDither('c64.multi', 'seurat.jpg');
-  t.test("No diffusion", async t => {
-    await doDither(dt, dt.sysparams.id+'-1', 10);
-    await compareWithRef(t, dt, 120, 40);
-    t.end();
-  });
-  t.test("With some diffusion", async t => {
-    // with diffusion
-    dt.sysparams.diffuse = 0.5;
-    dt.sysparams.ditherfn = kernels.SIERRALITE;
-    await doDither(dt, dt.sysparams.id+'-2', 25);
-    await compareWithRef(t, dt, 75, 25);
-    t.end();
-  });
-});
+interface TestOptions extends Partial<DithertronSettings> {
+  maxiters?: number;
+  quality?: number;
+}
 
-t.test("Can dither c64.multi.fli", async t => {
-  var dt = await loadDither('c64.multi.fli', 'seurat.jpg');
-  t.test("No diffusion", async t => {
-    await doDither(dt, dt.sysparams.id+'-1', 10);
-    await compareWithRef(t, dt, 120, 40);
-    t.end();
+function doTest(sysid: string, imagename: string, options: TestOptions) {
+  t.test("Can dither " + sysid + " " + imagename, async t => {
+    const maxiters = options.maxiters || 50;
+    const maxbelow = (options.quality * 1) || 100;
+    const avgbelow = (options.quality * 0.5) || 50;
+    var dt = await loadDither(sysid, imagename);
+    Object.assign(dt.sysparams, options);
+    await doDither(dt, dt.sysparams.id + '-1', maxiters);
+    await compareWithRef(t, dt, maxbelow, avgbelow);
   });
-  t.test("With some diffusion", async t => {
-    // with diffusion
-    dt.sysparams.diffuse = 0.5;
-    dt.sysparams.ditherfn = kernels.SIERRALITE;
-    await doDither(dt, dt.sysparams.id+'-2', 50);
-    await compareWithRef(t, dt, 75, 25);
-    t.end();
-  });
+}
+
+doTest('c64.multi', 'seurat.jpg', { maxiters: 10, quality: 120 });
+doTest('c64.multi', 'seurat.jpg', { maxiters: 30, quality: 75, diffuse: 0.5, ditherfn: kernels.SIERRALITE });
+doTest('c64.multi.fli', 'seurat.jpg', { maxiters: 10, quality: 120 });
+doTest('c64.multi.fli', 'seurat.jpg', { maxiters: 50, quality: 75, diffuse: 0.5, ditherfn: kernels.SIERRALITE });
+
+t.test("Can restart dithertron", async t => {
+  var dt = await loadDither('c64.hires', 'seurat.jpg');
+  await doDither(dt, dt.sysparams.id + '-1', 10);
+  await compareWithRef(t, dt, 150, 50);
+  dt.sysparams.diffuse = 0.5;
+  dt.sysparams.ditherfn = kernels.SIERRALITE;
+  await doDither(dt, dt.sysparams.id + '-2', 25);
+  await compareWithRef(t, dt, 100, 40);
+  t.end();
 });
