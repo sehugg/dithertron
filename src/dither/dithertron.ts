@@ -14,6 +14,9 @@ const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
 
 export const MAX_ITERATE_COUNT = 100;
 
+const TEMPERATURE_START_ITERATIONS = 10;
+const TEMPERATURE_STEP = 0.01;
+
 export interface DithertronInterface {
     iterate(): void;
 }
@@ -61,6 +64,9 @@ export class Dithertron implements DithertronInterface {
         }
         this.dithcanv.iterate();
         this.dithcanv.noise >>= 1; // divide by 2
+        if (this.dithcanv.iterateCount >= TEMPERATURE_START_ITERATIONS) {
+            this.dithcanv.errorThreshold += TEMPERATURE_STEP;
+        }
         var final = this.dithcanv.changes == 0 || this.dithcanv.iterateCount > MAX_ITERATE_COUNT;
         if (this.pixelsAvailable != null) {
             this.pixelsAvailable({

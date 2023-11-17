@@ -27,6 +27,7 @@ export class BaseDitheringCanvas {
     ordered: number = 0.0;
     ditherfn: DitherKernel = [];
     errfn: RGBDistanceFunction = getRGBAErrorPerceptual;
+    errorThreshold = 0;
     iterateCount: number = 0;
     params: Uint32Array;
 
@@ -85,7 +86,8 @@ export class BaseDitheringCanvas {
             this.err[errofs + i] = 0; // reset this pixel's error
         }
         // set new pixel rgb
-        if (this.indexed[offset] != palidx) {
+        const errmag = (Math.abs(err[0]) + Math.abs(err[1]*2) + Math.abs(err[2])) / (256 * 4);
+        if (this.indexed[offset] != palidx && errmag >= this.errorThreshold) {
             this.indexed[offset] = palidx;
             this.changes++;
         }
