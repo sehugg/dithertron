@@ -1688,6 +1688,7 @@
       this.ordered = 0;
       this.ditherfn = [];
       this.errfn = getRGBAErrorPerceptual;
+      this.errorThreshold = 0;
       this.iterateCount = 0;
       this.img = img;
       for (var i = 0; i < pal.length; i++)
@@ -1737,7 +1738,8 @@
         });
         this.err[errofs + i] = 0;
       }
-      if (this.indexed[offset] != palidx) {
+      const errmag = (Math.abs(err[0]) + Math.abs(err[1] * 2) + Math.abs(err[2])) / (256 * 4);
+      if (this.indexed[offset] != palidx && errmag >= this.errorThreshold) {
         this.indexed[offset] = palidx;
         this.changes++;
       }
@@ -2475,6 +2477,8 @@
 
   // src/dither/dithertron.ts
   var MAX_ITERATE_COUNT = 100;
+  var TEMPERATURE_START_ITERATIONS = 10;
+  var TEMPERATURE_STEP = 0.01;
   var Dithertron = class {
     constructor() {
       this.sysparams = SYSTEMS[0];
@@ -2527,6 +2531,9 @@
       }
       this.dithcanv.iterate();
       this.dithcanv.noise >>= 1;
+      if (this.dithcanv.iterateCount >= TEMPERATURE_START_ITERATIONS) {
+        this.dithcanv.errorThreshold += TEMPERATURE_STEP;
+      }
       var final = this.dithcanv.changes == 0 || this.dithcanv.iterateCount > MAX_ITERATE_COUNT;
       if (this.pixelsAvailable != null) {
         this.pixelsAvailable({
