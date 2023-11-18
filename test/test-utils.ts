@@ -10,6 +10,7 @@ import { SYSTEM_LOOKUP } from '../src/settings/systems';
 import { DithertronSettings } from '../src/common/types';
 import { getRGBAErrorPerceptual } from '../src/common/color';
 import { Test } from 'tap/dist/commonjs/main';
+import * as kernels from "../src/dither/kernels";
 
 const THUMB_WIDTH = 20;
 const THUMB_HEIGHT = 12;
@@ -111,6 +112,8 @@ export function doTest(sysid: string, imagename: string, options: TestOptions) {
     const avgbelow = (options.quality * 0.5) || 50;
     console.log("doTest()", sysid, imagename);
     var dt = await loadDither(sysid, imagename);
+    if (options.paletteDiversity == null) { options.paletteDiversity = 1.0; }
+    if (!options.ditherfn) { options.ditherfn = kernels.SIERRALITE; }
     Object.assign(dt.sysparams, options);
     await doDither(dt, dt.sysparams.id + '-1', maxiters);
     await compareWithRef(t, dt, maxbelow, avgbelow);
