@@ -112,7 +112,7 @@ export function doTest(sysid: string, imagename: string, options: TestOptions) {
     const avgbelow = (options.quality * 0.5) || 50;
     console.log("doTest()", sysid, imagename);
     var dt = await loadDither(sysid, imagename);
-    if (options.paletteDiversity == null) { options.paletteDiversity = 1.0; }
+    if (options.paletteDiversity == null) { options.paletteDiversity = 1.2; }
     if (!options.ditherfn) { options.ditherfn = kernels.SIERRALITE; }
     Object.assign(dt.sysparams, options);
     await doDither(dt, dt.sysparams.id + '-1', maxiters);
