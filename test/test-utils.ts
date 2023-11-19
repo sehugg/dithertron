@@ -66,7 +66,6 @@ export async function doDither(dt: Dithertron, testid: string, maxiters: number)
   t.ok(iters < maxiters, "should not reach maxiters");
   if (dt.dithcanv == null) throw new Error("dithcanv should not be null");
   if (dt.dithcanv.img == null) throw new Error("dithcanv.img should not be null");
-  console.log(dt.sysparams?.id, iters, "iterations");
   // save image to file
   if (dt.dithcanv?.img != null) {
     const jpegImageData = jpeg.encode({
@@ -94,7 +93,7 @@ export async function compareWithRef(t: Test, dt: Dithertron, maxbelow: number, 
     avgerror += distance;
   }
   avgerror /= ref.length;
-  console.log("maxerror", maxerror, "avgerror", avgerror);
+  //t.comment("maxerror", maxerror, "avgerror", avgerror);
   t.ok(maxerror <= maxbelow);
   t.ok(avgerror <= avgbelow);
   return { maxerror, avgerror };
@@ -106,16 +105,16 @@ export interface TestOptions extends Partial<DithertronSettings> {
 }
 
 export function doTest(sysid: string, imagename: string, options: TestOptions) {
-  t.test("Can dither " + sysid + " " + imagename, async t => {
+  t.test("Dither " + sysid + " " + imagename, async t => {
     const maxiters = options.maxiters || 50;
     const maxbelow = (options.quality * 1) || 100;
     const avgbelow = (options.quality * 0.5) || 50;
-    console.log("doTest()", sysid, imagename);
     var dt = await loadDither(sysid, imagename);
     if (options.paletteDiversity == null) { options.paletteDiversity = 1.2; }
     if (!options.ditherfn) { options.ditherfn = kernels.SIERRALITE; }
     Object.assign(dt.sysparams, options);
-    await doDither(dt, dt.sysparams.id + '-1', maxiters);
-    await compareWithRef(t, dt, maxbelow, avgbelow);
+    let result1 = await doDither(dt, dt.sysparams.id + '-1', maxiters);
+    let result2 = await compareWithRef(t, dt, maxbelow, avgbelow);
+    t.comment(sysid, "iters", result1.iters, "avgerror", result2.avgerror, "maxerror", result2.maxerror);
   });
 }
