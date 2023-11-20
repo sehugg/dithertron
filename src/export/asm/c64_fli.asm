@@ -223,10 +223,10 @@ Start:
     ; A fix is welcomed for this issue.
 
 #if FinalRowPatch
-    lda LookupD011+199
+    lda LookupD011+LastRasterLine
     and #$07
     ora #$70
-    sta LookupD011+199
+    sta LookupD011+LastRasterLine
 #endif
 
     ; The VIC chip doesn't care if ram or rom is

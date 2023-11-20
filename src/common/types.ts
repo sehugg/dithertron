@@ -33,6 +33,44 @@ export interface PaletteChoices {
     colorsRange?: PaletteRange      // what part of the palette is available for individual colors (default=entire range)
 };
 
+export interface BlockBasics {
+    w: number,
+    h: number
+};
+
+export interface BlockColors {
+    colors: number                  // how many colors are available to choose per pixel (regardless of the palette size)
+};
+
+export interface BlockColorBleed {
+    xb?: number,                    // how much color bleeds from the surrounding x/y direction (default=0)
+    yb?: number
+};
+
+export interface BlockBitOrder {
+    msbToLsb: boolean               // set to true if the image is ordered most significant bit to least significant bit
+};
+
+export interface BlockSizing {
+    columns: number,
+    rows: number,
+    size: number                    // total params entries required for this block area
+};
+
+export interface Param {
+    block?: boolean,    // does block need params (default to true if 'block' property is present)
+    cb?: boolean,       // does cb (color block) need params (default to true if 'cb' property is present)
+    cell?: boolean,     // does cell need params (default to false)
+    extra: number       // how many extra param bytes are needed
+};
+
+export interface Fli {
+    bug: boolean,
+    blankLeft: boolean,
+    blankRight: boolean,
+    blankColumns: number
+};
+
 export interface DithertronSettings {
     id: string;
     name: string;
@@ -50,34 +88,13 @@ export interface DithertronSettings {
     noise?: number;
     paletteDiversity?: number;
     ditherfn?: DitherKernel;
-    block?: {
-        w: number,
-        h: number,
-        colors: number,         // how many colors are available to choose per pixel (regardless of the palette size)
-        xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
-        yb?: number
-    };
-    cell?: {                    // for displays that are character cell based
-        w: number,              // how many pixels wide is each character's cell (for completeness)
-        h: number,              // how many pixels tall is each character's cell (which can differ from the block, e.g. fli)
-        msbToLsb: boolean       // set to true if the image is ordered most significant bit to least significant bit
-    };
+    block?: BlockBasics & BlockColors & BlockColorBleed;
+    cell?: BlockBasics & BlockBitOrder & BlockColorBleed;
     paletteChoices?: PaletteChoices;
-    cb?: {                      // color block (for mods with separated color blocks outside of the pixel color choice)
-        w: number,
-        h: number,
-        xb?: number,            // how much color bleeds from the surrounding x/y direction (default=0)
-        yb?: number        
-    };
-    param?: {
-        extra: number           // how many extra param bytes are required for this system
-    }
-    fli?: {
-        bug: boolean,
-        blankLeft: boolean,
-        blankRight: boolean,
-        blankColumns: number
-    };
+    cb?: BlockBasics & BlockColorBleed;
+    param?: Param;
+    fli?: Fli;
+    customize?: any;
     toNative?: string;
     exportFormat?: PixelEditorImageFormat;
 }
@@ -88,7 +105,7 @@ export interface PixelsAvailableMessage {
     height : number;
     pal : Uint32Array;
     indexed : Uint8Array;
-    params : Uint32Array;
+    content: any;
     final : boolean;
 }
 

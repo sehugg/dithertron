@@ -187,6 +187,26 @@ export const ZXSPECTRUM_RGB = [ // GRB
     RGB(0xFF, 0xFF, 0xFF),  // 0x0F Bright White
 ];
 
+// see https://forums.atariage.com/topic/278354-gfx-palette-flag/
+export const INTELLIVISION_STIC_RGB = [
+    RGB(  0,  0,  0),   // Black            // primary color set
+    RGB(  0,117,255),   // Blue
+    RGB(255, 76, 57),   // Red
+    RGB(209,185, 81),   // Tan
+    RGB(  9,185,  0),   // Dark Green
+    RGB( 48,223, 16),   // Green
+    RGB(255,229,  1),   // Yellow
+    RGB(255,255,255),   // White
+    RGB(140,140,140),   // Gray             // pastel color set
+    RGB( 40,229,192),   // Cyan
+    RGB(255,160, 46),   // Orange
+    RGB(100,103,  0),   // Brown
+    RGB(255, 41,255),   // Pink
+    RGB(140,143,255),   // Light Blue
+    RGB(124,237,  0),   // Yellow Green
+    RGB(196, 43,252),   // Purple
+];
+
 export const AMSTRAD_CPC_RGB = [
     0x000000, 0x800090, 0xFF0000,
     0x000080, 0x800080, 0xFF0080,

@@ -69,7 +69,7 @@ export class Dithertron implements DithertronInterface {
                 height: this.dithcanv.height,
                 pal: this.dithcanv.pal,
                 indexed: this.dithcanv.indexed,
-                params: this.dithcanv.params,
+                content: this.dithcanv.content(),
                 final: final,
             });
         }
