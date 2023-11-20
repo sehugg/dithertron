@@ -427,8 +427,13 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
 
     indirection: number[][] = [];
 
+    singleColorMode: boolean;
+
     override init(): void {
         super.init();
+
+        this.singleColorMode = (this.sys.customize === undefined ? false : this.sys.customize.singleColor);
+
         this.makeIndirectionCombinations([]);
         this.chooseColorStack();
 
@@ -469,6 +474,11 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
             // choose the top N colors for use in the color stack
             let choices = this.getScoredChoicesByCount(lastScored).slice(0, useColorStack.length);
 
+            if (this.singleColorMode) {
+                // choose the top color
+                choices = choices.splice(0, 1);
+            }
+
             // must have chosen at least one color
             console.assert(choices.length > 0);
 
@@ -484,65 +494,72 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
             // figure out which pattern is most likely to be useful, create the "default" color stack
             useColorStack = choices.map((x) => { return x.ind; });
 
-            let gridScore: number[][] = [];
-
-            // score each color's value in being used at every block
-            for (let offset = 0; offset < this.cb.size; ++offset) {
-                this.histogram.fill(0);
-                this.scores.fill(0);
-
-                this.histogram.fill(0);
-                this.scores.fill(0);
-                let ranking = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColorStack);
-
-                let rankedChoices = this.getScoredChoicesByCount(ranking);
-                console.assert(rankedChoices.length <= useColorStack.length);
-
-                let scoredColors: number[] = [];
-                for (let n = 0; n < useColorStack.length; ++n) {
-                    let foundRank = useColorStack.length;
-                    for (let rank = 0; rank < rankedChoices.length; ++rank) {
-                        // find the rank of the choice by skipping over the rank that doesn't match the color
-                        if (rankedChoices[rank].ind != useColorStack[n])
-                            continue;
-                        foundRank = rank;
-                        break;
-                    }
-                    scoredColors.push(foundRank);
-                }
-                gridScore.push(scoredColors);
-            }
-
             let lowestCombination: number = NaN;
-            let lowestRank: number = NaN;
-            for (let i = 0; i < this.indirection.length; ++i) {
 
-                // test this combination to see if it's a good choice
-                let combination = this.indirection[i];
+            if (!this.singleColorMode) {
 
-                let combinationRank = 0;
-                let pos = 0;
+                let gridScore: number[][] = [];
 
+                // score each color's value in being used at every block
                 for (let offset = 0; offset < this.cb.size; ++offset) {
-                    let indexCurrent = combination[pos % useColorStack.length];
-                    let indexNext = combination[(pos + 1) % useColorStack.length];
+                    this.histogram.fill(0);
+                    this.scores.fill(0);
 
-                    let rankCurrent = gridScore[offset][indexCurrent];
-                    let rankNext = gridScore[offset][indexNext];
+                    this.histogram.fill(0);
+                    this.scores.fill(0);
+                    let ranking = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColorStack);
 
-                    let useRank = rankCurrent;
-                    if (rankNext < rankCurrent) {
-                        // will want to advance color stack in this condition
-                        useRank = rankNext;
-                        ++pos;
+                    let rankedChoices = this.getScoredChoicesByCount(ranking);
+                    console.assert(rankedChoices.length <= useColorStack.length);
+
+                    let scoredColors: number[] = [];
+                    for (let n = 0; n < useColorStack.length; ++n) {
+                        let foundRank = useColorStack.length;
+                        for (let rank = 0; rank < rankedChoices.length; ++rank) {
+                            // find the rank of the choice by skipping over the rank that doesn't match the color
+                            if (rankedChoices[rank].ind != useColorStack[n])
+                                continue;
+                            foundRank = rank;
+                            break;
+                        }
+                        scoredColors.push(foundRank);
                     }
-                    combinationRank += useRank;
+                    gridScore.push(scoredColors);
                 }
 
-                if ((combinationRank < lowestRank) || (Number.isNaN(lowestRank))) {
-                    lowestCombination = i;
-                    lowestRank = combinationRank;
+                let lowestRank: number = NaN;
+                for (let i = 0; i < this.indirection.length; ++i) {
+
+                    // test this combination to see if it's a good choice
+                    let combination = this.indirection[i];
+
+                    let combinationRank = 0;
+                    let pos = 0;
+
+                    for (let offset = 0; offset < this.cb.size; ++offset) {
+                        let indexCurrent = combination[pos % useColorStack.length];
+                        let indexNext = combination[(pos + 1) % useColorStack.length];
+
+                        let rankCurrent = gridScore[offset][indexCurrent];
+                        let rankNext = gridScore[offset][indexNext];
+
+                        let useRank = rankCurrent;
+                        if (rankNext < rankCurrent) {
+                            // will want to advance color stack in this condition
+                            useRank = rankNext;
+                            ++pos;
+                        }
+                        combinationRank += useRank;
+                    }
+
+                    if ((combinationRank < lowestRank) || (Number.isNaN(lowestRank))) {
+                        lowestCombination = i;
+                        lowestRank = combinationRank;
+                    }
                 }
+            } else {
+                // all combinations are exactly the same since they all reference one color
+                lowestCombination = 0;
             }
 
             console.assert(!Number.isNaN(lowestCombination));
@@ -563,7 +580,8 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
         let fullCbParams = new Uint32Array(this.cbParams);
 
         // only do the pastel comparisons if the foreground colors are restricted due to GROM being used instead of GRAM
-        let hasRestrictedPalette = (this.paletteChoices.colorsRange.max < this.paletteChoices.backgroundRange.max);
+        // and not in single color mode since the best color is chosen regardless of the palette magnitude difference
+        let hasRestrictedPalette = ((this.paletteChoices.colorsRange.max < this.paletteChoices.backgroundRange.max) && (!this.singleColorMode));
 
         let pastelColorStack = (hasRestrictedPalette ? chooseColors(range(this.paletteChoices.colorsRange.max + 1, this.paletteChoices.backgroundRange.max + 1)) : fullColorStack);
         let pastelScore = (hasRestrictedPalette ? this.fillCb(pastelColorStack) : fullScore);
@@ -597,31 +615,39 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
         // copy the chosen color stack into the extra params
         this.colorStack.forEach((x, i) => { this.extraParams[i] = x; });
         
-        let pos = 0;
+        if (!this.singleColorMode) {
+            let pos = 0;
+            for (let offset = 0; offset < this.cb.size; ++offset) {
+                let currentColor = useColors[pos % useColors.length];
+                let nextColor = useColors[(pos + 1) % useColors.length];
 
-        for (let offset = 0; offset < this.cb.size; ++offset) {
-            let currentColor = useColors[pos % useColors.length];
-            let nextColor = useColors[(pos + 1) % useColors.length];
+                // can only choose the current color, or the next color in the color stack
+                let colors = (this.singleColorMode ? [ currentColor ] : [ currentColor, nextColor ]);
 
-            // can only choose the current color, or the next color in the color stack
-            let colors = [ currentColor, nextColor ];
+                // reset the scratch histogram
+                this.histogram.fill(0);
+                this.scores.fill(0);
+                let scored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, colors);
 
-            // reset the scratch histogram
-            this.histogram.fill(0);
-            this.scores.fill(0);
-            let scored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, colors);
+                let choices = this.getScoredChoicesByCount(scored);
+                console.assert(choices.length > 0);
 
-            let choices = this.getScoredChoicesByCount(scored);
-            console.assert(choices.length > 0);
+                let advance: number = choices[0].ind == nextColor ? 1 : 0;
+                colorStackScore += choices[0].score;
 
-            let advance: number = choices[0].ind == nextColor ? 1 : 0;
-            colorStackScore += choices[0].score;
+                // store the chosen color cb color (and the boolean if the advancement had to happen to use this color)
+                this.updateCbColorParam(offset, [choices[0].ind, advance]);
 
-            // store the chosen color cb color (and the boolean if the advancement had to happen to use this color)
-            this.updateCbColorParam(offset, [choices[0].ind, advance]);
-
-            if (advance)
-                ++pos;
+                if (advance)
+                    ++pos;
+            }
+        } else {
+            // only ever choose 1 color and never advance
+            for (let offset = 0; offset < this.cb.size; ++offset) {
+                let currentColor = useColors[0];
+                // store the chosen color cb color (and the boolean if the advancement had to happen to use this color)
+                this.updateCbColorParam(offset, [currentColor, 0]);
+            }
         }
 
         return colorStackScore;

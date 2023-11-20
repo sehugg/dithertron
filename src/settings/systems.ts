@@ -407,7 +407,53 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         param: { cell: true, extra: 4 },
         paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
         toNative: 'exportSticColorStack'
+    },
+    {
+        id: 'stic.stack.grom.single',
+        name: 'Intellivision STIC (GROM only) (Single BG Color Stack)',
+        width: 20*8,
+        height: 12*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        cb: { w: 8, h: 8, xb: 0, yb: 0 },   // important to leave xb/yb as 0 (so no color bleeding happens in scoring of stack colors)
+        param: { extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+        customize: { singleColor: true },
+        toNative: 'exportSticColorStack'
+    },
+    {
+        id: 'stic.stack.gram.single',
+        name: 'Intellivision STIC (GRAM only) (Single BG Color Stack)',
+        width: 8*8,    // actual is 20x12 but the gram only allows for 64 gram cards
+        height: 8*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        cb: { w: 8, h: 8 },
+        param: { extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 15 } },
+        customize: { singleColor: true },
+        toNative: 'exportSticColorStack'
     },    
+    {
+        id: 'stic.stack.gromram.single',
+        name: 'Intellivision STIC (GROM+GRAM) (Single BG Color Stack)',
+        width: 20*8,
+        height: 12*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true, xb: 0, yb: 0 }, // important that xb/yb are 0 (so no color bleeding happens in scoring)
+        cb: { w: 8, h: 8 },
+        // the cell params will carry the array of which cells will use the gram (instead of the grom)
+        param: { cell: true, extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+        customize: { singleColor: true },
+        toNative: 'exportSticColorStack'
+    },
     {
         id: 'nes4f',
         name: 'NES (4 color, full screen)',
