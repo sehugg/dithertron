@@ -18,9 +18,9 @@ export function toradix(v: number, nd: number, radix: number) {
 export function sqr(x: number) { return x * x; }
 
 export function range(start: number, end: number): number[] {
-    var arr = [];
-    for (var i = start; i < end; i++) { arr.push(i); }
-    return arr;
+    let result: number[] = new Array<number>(end - start);
+    for (let i = start; i < end; i++) { result[i - start] = i; }
+    return result;
 }
 
 export function stringToByteArray(s: string): Uint8Array {
@@ -29,3 +29,13 @@ export function stringToByteArray(s: string): Uint8Array {
         a[i] = s.charCodeAt(i);
     return a;
 }
+
+export type Only<T, U> = {
+    [P in keyof T]: T[P];
+  } & {
+    [P in keyof U]?: never;
+  };
+  
+export type Either<T, U> = Only<T, U> | Only<U, T>;
+
+export type static_assert<T extends true> = never;

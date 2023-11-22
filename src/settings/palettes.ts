@@ -293,6 +293,8 @@ export const GAMEBOY_COLOR_RGB = RGB_444;
 export const AMIGA_OCS_COLOR_RGB = RGB_444;
 export const IIGS_COLOR_RGB = RGB_444;
 export const GAMEGEAR_COLOR_RGB = RGB_444;
+export const SNES_B5G5R5_RGB = generateSNESB5G5R5();
+export const SNES_BBPGGGPRRRP = generateSNESDirectColor();
 
 export const MC6847_PALETTE0 = [
     RGB(0x30, 0xd2, 0x00),    /* NTSC: RGB( 28, 213,  16), */   // green 
@@ -321,4 +323,34 @@ function generateRGBPalette(rr: number, gg: number, bb: number) {
         pal[i] = RGB(r * rs, g * gs, b * bs);
     }
     return pal;
+}
+
+function generateSNESB5G5R5() : Uint32Array {
+    let result = new Uint32Array(1 << (5+5+5));
+    let i = 0;
+    for (let r = 0; r < (1 << 5); ++r) {
+        for (let g = 0; g < (1 << 5); ++g) {
+            for (let b = 0; b < (1 << 5); ++b, ++i) {
+                let color = (r << 3) | (g << (3 + 8)) | (b << (3 + 16));
+                color |= ((r & 0b11100) >> 2) | (((g & 0b11100) >> 2) << 8) | (((b & 0b11100) >> 2) << 16);
+                result[i] = color;
+            }
+        }
+    }
+    return result;
+}
+
+function generateSNESDirectColor() : Uint32Array {
+
+    let result = new Uint32Array(1 << (4+4+3));
+    let i = 0;
+    for (let r = 0; r < (1 << 4); ++r) {
+        for (let g = 0; g < (1 << 4); ++g) {
+            for (let b = 0; b < (1 << 3); ++b, ++i) {
+                let color = (r << 4) | (g << (4 + 8)) | (b << (5 + 16));
+                result[i] = color;
+            }
+        }
+    }
+    return result;
 }

@@ -104,7 +104,7 @@ export interface PixelsAvailableMessage {
     width : number;
     height : number;
     pal : Uint32Array;
-    indexed : Uint8Array;
+    indexed : Uint32Array;
     content: any;
     final : boolean;
 }

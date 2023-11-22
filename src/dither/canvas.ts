@@ -130,7 +130,6 @@ export class VICII_Canvas extends CommonBlockParamDitherCanvas {
         let valid: number[] = this.globalValid.slice(0, this.globalValid.length);
         valid.push(...extracted);
         valid = valid.slice(0, this.globalValid.length + this.paletteChoices.colors);
-
         return valid;
     }
     override guessBlockParam(offset: number): void {
@@ -211,7 +210,10 @@ export class VICII_Canvas extends CommonBlockParamDitherCanvas {
             cbColor = this.fliBugCbColor;
         }
 
-        let sorted = [ ...[ind1, ind2].sort((a, b) => a - b), cbColor ];
+        let subsetChoices = [ ind1, ind2 ];
+        subsetChoices = subsetChoices.splice(0, this.paletteChoices.colors);
+
+        let sorted = [ ...subsetChoices.sort((a, b) => a - b), cbColor ];
 
         // Store the chosen colors in the lower and upper nybble
         // and put the chosen color block nybble into the low nybble of
@@ -222,6 +224,7 @@ export class VICII_Canvas extends CommonBlockParamDitherCanvas {
         // use the color block color as a choice. The export routine is
         // unaware of the separated dedicated color block and only looks
         // for the color choices attached with each "normal" pixel param.
+
         this.updateBlockColorParam(offset, sorted);
     }
 
@@ -752,6 +755,133 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
 }
 
 export class Msx_Canvas extends CommonBlockParamDitherCanvas {
+}
+
+export class SNES_Canvas extends CommonBlockParamDitherCanvas {
+}
+
+export class SNES_Canvas_Direct extends CommonBlockParamDitherCanvas {
+
+    Bbpgggprrrp_to_Pal_Lut: Uint32Array;
+
+    pppFilteredPalettes: number[][] = [];
+
+    override init(): void {
+        super.init();
+
+        this.Bbpgggprrrp_to_Pal_Lut = new Uint32Array(this.pal.length);
+        
+        for (let i = 0; i < this.pal.length; ++i) {
+            let info = this.RgbToInfo(this.pal[i]);
+            this.Bbpgggprrrp_to_Pal_Lut[info.bbpgggprrrp] = i;
+        }
+
+        for (let ppp = 0; ppp < (1 << 3); ++ppp) {
+            let filteredByPpp = this.pixelPaletteChoices.filter((x) => { let info = this.colorToInfo(x); return (info.ppp == ppp) && (!(info.bbpgggprrrp == 0)); } );
+            this.pppFilteredPalettes.push(filteredByPpp);
+        }
+    }
+
+    RgbToInfo(rgb: number): { bbpgggprrrp: number, bbgggrrr :number, ppp: number, r: number, g: number, b: number } {
+        let bbpgggprrrp = ((rgb & 0b11110000) >> 4) | ((((rgb >> 8) & 0b11110000) >> 4) << 4) | ((((rgb >> 16) & 0b11100000) >> 5) << 8);
+        let bbgggrrr = ((rgb & 0b11100000) >> 5) | ((((rgb >> 8) & 0b11100000) >> 5) << 3) | ((((rgb >> 16) & 0b11000000) >> 6) << 6);
+        let ppp = ((rgb & 0b00010000) >> 4) | ((((rgb >> 8) & 0b00010000) >> 4) << 1) | ((((rgb >> 16) & 0b00100000) >> 5) << 2);
+        let r = (rgb & 0b11110000);
+        let g = ((rgb >> 8) & 0b11110000);
+        let b = ((rgb >> 16) & 0b11100000);
+
+        return { bbpgggprrrp, bbgggrrr, ppp, r, g, b };
+    }
+
+    BbgggrrrToBbpgggprrrp(bbgggrrr: number, ppp: number): number {
+
+        let bbpgggprrrp = ((bbgggrrr & 0b00000111) << 1) | (((bbgggrrr & 0b00111000) >> 3) << 4) | (((bbgggrrr & 0b11000000) >> 6) << 9);
+        bbpgggprrrp |= (ppp & 0b001) | (((ppp & 0b010) >> 1) << 4) | (((ppp & 0b100) >> 2) << 8);
+        return bbpgggprrrp;
+    }
+
+    BbpgggprrrpToInfo(bbpgggprrrp: number): { rgb: number, bbgggrrr :number, ppp: number, r: number, g: number, b: number } {
+        let rgb = ((bbpgggprrrp & 0b00000001111) << (0 + 4)) | (((bbpgggprrrp & 0b00011110000) >> 4) << (8 + 4)) | (((bbpgggprrrp & 0b11100000000) >> 8) << (16 + 5));
+        let bbgggrrr = ((bbpgggprrrp & 0b00000001110) >> 1) | (((bbpgggprrrp & 0b00011100000) >> 5) << 3) | (((bbpgggprrrp & 0b11000000000) >> 9) << 6);
+        let ppp = (bbpgggprrrp & 0b00000000001) | (((bbpgggprrrp & 0b00000010000) >> 4) << 1) | (((bbpgggprrrp & 0b00100000000) >> 8) << 2);
+
+        let r = (rgb & 0b11110000);
+        let g = ((rgb >> 8) & 0b11110000);
+        let b = ((rgb >> 16) & 0b11100000);
+
+        return { rgb, bbgggrrr, ppp, r, g, b };
+    }
+
+    BbpgggprrrpToColor(bbpgggprrrp: number): number {
+        return this.Bbpgggprrrp_to_Pal_Lut[bbpgggprrrp];
+    }
+
+    colorToInfo(color: number): { bbpgggprrrp: number, bbgggrrr :number, ppp: number } {
+        return this.RgbToInfo(this.pal[color]);
+    }
+
+    substituteColorForColorWithPpp(currentColor: number, ppp: number): number {
+        let info = this.colorToInfo(currentColor);
+        return this.BbpgggprrrpToColor(this.BbgggrrrToBbpgggprrrp(info.bbgggrrr, ppp));
+    }
+
+    override getValidColors(imageIndex: number): number[] {
+
+        let offset = this.imageIndexToBlockOffset(imageIndex);
+
+        let ppp = this.extractColorsFromBlockParams(offset, 1, 0x3, 2)[0];
+
+        // return palette filter to legal values with the same ppp
+        let valid = this.pppFilteredPalettes[ppp];
+        return valid;
+    }
+
+    override guessBlockParam(offset: number): void {
+
+        // reset histogram values
+        this.histogram.fill(0);
+        this.scores.fill(0);
+
+        // rank all colors regardless of which ppp value they might have selected
+        this.addToBlockHistogramFromCurrentColor(offset, this.histogram);
+        let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores);
+
+        let ranked = this.getScoredChoicesByCount(scored);
+
+        let lowestPpp = NaN;
+        let lowestPppScore = NaN;
+        for (let ppp = 0; ppp < (1 << 3); ++ppp) {
+
+            // construct a restricted palette color table based on the ppp (which may contain duplicate values)
+            let restrictedColors: number[] = ranked.map((x) => { return this.substituteColorForColorWithPpp(x.ind, ppp); });
+
+            // remove these duplicate values
+            restrictedColors = Array.from(new Set(restrictedColors));
+
+            this.histogram.fill(0);
+            this.scores.fill(0);
+    
+            this.addToBlockHistogramFromCurrentColor(offset, this.histogram, restrictedColors);
+            let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, restrictedColors);
+
+            let pppRanked = this.getScoredChoicesByCount(scored);
+
+            let totalPppScore = 0;
+            pppRanked.forEach((x) => { totalPppScore += x.score });
+
+            if ((totalPppScore < lowestPppScore) || (Number.isNaN(lowestPppScore))) {
+                lowestPppScore = totalPppScore;
+                lowestPpp = ppp;
+            }
+        }
+
+        // found the ppp value to use for this particular cell
+        console.assert(!Number.isNaN(lowestPpp));
+
+        // store the ppp value into the block color (since the this.indexed will hold the actual color)
+        this.updateBlockColorParam(offset, [ lowestPpp ], 0x3, 2);
+    }
+
 }
 
 export class NES_Canvas extends BasicParamDitherCanvas {

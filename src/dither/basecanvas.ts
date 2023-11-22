@@ -29,7 +29,7 @@ export class BaseDitheringCanvas {
     ref: Uint32Array;
     alt: Uint32Array;
     err: Float32Array; // (n*3)
-    indexed: Uint8Array;
+    indexed: Uint32Array;
     width: number; // integer
     height: number;
     tmp: Uint8ClampedArray;
@@ -57,7 +57,7 @@ export class BaseDitheringCanvas {
         this.ref = new Uint32Array(img);
         this.alt = new Uint32Array(this.ref);
         this.err = new Float32Array(this.ref.length * 3);
-        this.indexed = new Uint8Array(this.ref.length);
+        this.indexed = new Uint32Array(this.ref.length);
         this.changes = 0;
         this.reset();
     }
@@ -101,9 +101,17 @@ export class BaseDitheringCanvas {
         }
         // set new pixel rgb
         const errmag = (Math.abs(err[0]) + Math.abs(err[1]*2) + Math.abs(err[2])) / (256 * 4);
-        if (this.indexed[offset] != palidx && errmag >= this.errorThreshold) {
-            this.indexed[offset] = palidx;
-            this.changes++;
+        if (this.indexed[offset] != palidx) {
+            let shouldChange = (errmag >= this.errorThreshold);
+            if (!shouldChange) {
+                let existingValue = this.indexed[offset];
+                // double check the old value is still legal since changing the value is not desired
+                shouldChange = (valid.find((x) => existingValue === x) === undefined);
+            }
+            if (shouldChange) {
+                this.indexed[offset] = palidx;
+                this.changes++;
+            }
         }
         this.img[offset] = rgbimg;
         //this.img[offset] = this.tmp2[0] | 0xff000000;
@@ -261,6 +269,7 @@ export interface BlockParamDitherCanvasContent {
     cell: BlockBasics & BlockSizing & BlockBitOrder;
 
     fliMode: boolean;
+    fullPaletteMode: boolean;
 
     paramInfo: Required<Param>;
     
@@ -296,6 +305,7 @@ export abstract class BlockParamDitherCanvas extends BaseDitheringCanvas {
     cell: BlockBasics & BlockSizing  & Required<BlockColorBleed> & BlockBitOrder;
 
     fliMode: boolean = false;
+    fullPaletteMode: boolean = false;
 
     paramInfo: Required<Param>;
     
@@ -319,6 +329,8 @@ export abstract class BlockParamDitherCanvas extends BaseDitheringCanvas {
             block: this.block,
             cb: this.cb,
             cell: this.cell,
+
+            fullPaletteMode: this.fullPaletteMode,
 
             fliMode: this.fliMode,
             paramInfo: this.paramInfo,
@@ -449,7 +461,16 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.prepareDefaults();
         this.prepareGlobalColorChoices();
         this.allocateParams();
-        this.indexed.fill(this.pixelPaletteChoices[0] || (this.allColors[0] || this.backgroundColor));
+
+        let bestPrefill = () => {
+            if (this.pixelPaletteChoices.length > 0)
+                return this.pixelPaletteChoices[0];
+            if (this.allColors.length > 0)
+                return this.allColors[0];
+            return this.backgroundColor;
+        };
+
+        this.indexed.fill(bestPrefill());
     }
     override prepareDefaults(): void {
         this.block = {
@@ -525,6 +546,9 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         console.assert(this.paletteBits > 0);
 
         this.preparePaletteChoices(this.sys.paletteChoices);
+
+        // if the number of chosen colors is greater than the palette size there's no need to store color choices
+        this.fullPaletteMode = (this.paletteChoices.colors >= this.pal.length);
     }
     spliceColor(color: number, colors: number[]): number[] {
         let found = colors.findIndex((x) => x == color);
@@ -840,34 +864,36 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.addToHistogramFromCurrentColor(color, histogram);
     }
 
-    addToHistogramAtOffsetFromCurrentColor(offset: number, info: ExtendedBlockInfo, histogram: Uint32Array, colors: number[], orColor?: number, fnAddToHistogram?: AddToHistogramFromCurrentColorAtHandler): void {
+    addToHistogramAtOffsetFromCurrentColor(offset: number, info: ExtendedBlockInfo, histogram: Uint32Array, colors?: number[], orColor?: number, fnAddToHistogram?: AddToHistogramFromCurrentColorAtHandler): void {
         let imageIndex = this.offsetToImageIndex(offset, info);
         let start = this.imageIndexToXY(imageIndex);
 
         for (let y = start.y - info.yb; y < start.y + info.h + info.yb; ++y) {
             for (let x = start.x - info.xb; x < start.x + info.w + info.xb; ++x) {
                 let color = this.currentColorAtXY(x, y, orColor);
-                if (colors.find((x) => x == color) === undefined)
-                    continue;
+                if (colors !== undefined) {
+                    if (colors.find((x) => x == color) === undefined)
+                        continue;
+                }
 
-                    if (fnAddToHistogram === undefined)
+                if (fnAddToHistogram === undefined)
                     this.addToHistogramAtXYFromCurrentColor(x, y, color, histogram);
                 else
                     fnAddToHistogram(x, y, color, histogram);
             }
         }
     }
-    addToBlockHistogramFromCurrentColor(offset: number, histogram: Uint32Array, colors: number[], orColor?: number, fnAddToHistogram?: AddToHistogramFromCurrentColorAtHandler): void {
+    addToBlockHistogramFromCurrentColor(offset: number, histogram: Uint32Array, colors?: number[], orColor?: number, fnAddToHistogram?: AddToHistogramFromCurrentColorAtHandler): void {
         return this.addToHistogramAtOffsetFromCurrentColor(offset, this.block, histogram, colors, orColor, fnAddToHistogram);
     }
-    addToCbHistogramFromCurrentColor(offset: number, histogram: Uint32Array, colors: number[], orColor?: number, fnAddToHistogram?: AddToHistogramFromCurrentColorAtHandler): void {
+    addToCbHistogramFromCurrentColor(offset: number, histogram: Uint32Array, colors?: number[], orColor?: number, fnAddToHistogram?: AddToHistogramFromCurrentColorAtHandler): void {
         return this.addToHistogramAtOffsetFromCurrentColor(offset, this.cb, histogram, colors, orColor, fnAddToHistogram);
     }
-    addToCellHistogramFromCurrentColor(offset: number, histogram: Uint32Array, colors: number[], orColor?: number, fnAddToHistogram?: AddToHistogramFromCurrentColorAtHandler): void {
+    addToCellHistogramFromCurrentColor(offset: number, histogram: Uint32Array, colors?: number[], orColor?: number, fnAddToHistogram?: AddToHistogramFromCurrentColorAtHandler): void {
         return this.addToHistogramAtOffsetFromCurrentColor(offset, this.cell, histogram, colors, orColor, fnAddToHistogram);
     }
 
-    scoreColorAtXYFrom(x: number, y: number, scores: Uint32Array, colors: number[], from: Uint32Array): ClosestScore | undefined {
+    scoreColorAtXYFrom(x: number, y: number, scores: Uint32Array, colors: number[] | undefined, from: Uint32Array): ClosestScore | undefined {
         let imageIndex = this.xyToImageIndex(x, y);
 
         if (imageIndex === undefined)
@@ -875,25 +901,29 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
 
         let rgb = from[imageIndex];
 
+        let colorToPalIndex = (i: number) => {
+            return colors === undefined ? i : colors[i];
+        };
+
         let closestColor = NaN;
         let closestScore = NaN;
-        for (let i = 0; i < colors.length; ++i) {
-            let rgbPalette = this.pal[colors[i]];
+        for (let i = 0; i < (colors === undefined ? scores.length : colors.length); ++i) {
+            let rgbPalette = this.pal[colorToPalIndex(i)];
             let score = this.errfn(rgb, rgbPalette);
-            console.assert(colors[i] < scores.length);
-            scores[colors[i]] += score;
+            console.assert(colorToPalIndex(i) < scores.length);
+            scores[colorToPalIndex(i)] += score;
             if ((score < closestScore) || (Number.isNaN(closestScore))) {
                 closestScore = score;
-                closestColor = colors[i];
+                closestColor = colorToPalIndex(i);
             }
         }
 
         return (Number.isNaN(closestColor) ? undefined : { closestColor: closestColor, closestScore: closestScore });
     }
-    scoreColorAtXYFromAlt(x: number, y: number, scores: Uint32Array, colors: number[]): ClosestScore | undefined {
+    scoreColorAtXYFromAlt(x: number, y: number, scores: Uint32Array, colors?: number[]): ClosestScore | undefined {
         return this.scoreColorAtXYFrom(x, y, scores, colors, this.alt);
     }
-    scoreColorAtXYFromRef(x: number, y: number, scores: Uint32Array, colors: number[]): ClosestScore | undefined {
+    scoreColorAtXYFromRef(x: number, y: number, scores: Uint32Array, colors?: number[]): ClosestScore | undefined {
         return this.scoreColorAtXYFrom(x, y, scores, colors, this.ref);
     }
 
@@ -928,7 +958,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         info: ExtendedBlockInfo,
         histogram: Uint32Array,
         scores: Uint32Array,
-        colors: number[],
+        colors: number[] | undefined,
         from: Uint32Array,
         fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
 
@@ -947,37 +977,37 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
             }
         }
 
-        let scored = colors.map((x) => { return { ind: x, score: scores[x], count: histogram[x] }; });
+        let scored = (colors === undefined ? (range(0, scores.length).map((x) => { return { ind: x, score: scores[x], count: histogram[x] }; })) : (colors.map((x) => { return { ind: x, score: scores[x], count: histogram[x] }; })));
         return scored;
     }
 
-    addToBlockHistogramFrom(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], from: Uint32Array, fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToBlockHistogramFrom(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[] | undefined, from: Uint32Array, fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset, this.block, histogram, scores, colors, from, fnAddToHistogram);
     }
-    addToCbHistogramFrom(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], from: Uint32Array, fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToCbHistogramFrom(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[] | undefined, from: Uint32Array, fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset, this.cb, histogram, scores, colors, from, fnAddToHistogram);
     }
-    addToCellHistogramFrom(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], from: Uint32Array, fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToCellHistogramFrom(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[] | undefined, from: Uint32Array, fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset, this.cell, histogram, scores, colors, from, fnAddToHistogram);
     }
 
-    addToBlockHistogramFromAlt(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToBlockHistogramFromAlt(offset: number, histogram: Uint32Array, scores: Uint32Array, colors?: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset, this.block, histogram, scores, colors, this.alt, fnAddToHistogram);
     }
-    addToCbHistogramFromAlt(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToCbHistogramFromAlt(offset: number, histogram: Uint32Array, scores: Uint32Array, colors?: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset, this.cb, histogram, scores, colors, this.alt, fnAddToHistogram);
     }
-    addToCellHistogramFromAlt(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToCellHistogramFromAlt(offset: number, histogram: Uint32Array, scores: Uint32Array, colors?: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset, this.cell, histogram, scores, colors, this.alt, fnAddToHistogram);
     }
 
-    addToBlockHistogramFromRef(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToBlockHistogramFromRef(offset: number, histogram: Uint32Array, scores: Uint32Array, colors?: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset,  this.block, histogram, scores, colors,this.ref, fnAddToHistogram);
     }
-    addToCbHistogramFromRef(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToCbHistogramFromRef(offset: number, histogram: Uint32Array, scores: Uint32Array, colors?: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset, this.cb, histogram, scores, colors, this.ref, fnAddToHistogram);
     }
-    addToCellHistogramFromRef(offset: number, histogram: Uint32Array, scores: Uint32Array, colors: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
+    addToCellHistogramFromRef(offset: number, histogram: Uint32Array, scores: Uint32Array, colors?: number[], fnAddToHistogram?: AddToHistogramFromClosestAtHandler) : ScoredColorChoice[] {
         return this.addToHistogramAtOffsetFrom(offset, this.cell, histogram, scores, colors, this.ref, fnAddToHistogram);
     }
 
@@ -1042,7 +1072,12 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
     override getValidColors(imageIndex: number): number[] {
         let offset = this.imageIndexToBlockOffset(imageIndex);
 
+        if (this.fullPaletteMode)
+            return this.pixelPaletteChoices;
+
         let extracted = this.extractColorsFromBlockParams(offset, this.paletteChoices.colors);
+        if ((this.globalValid.length == 0) && (extracted.length <= this.paletteChoices.colors))
+            return extracted;
 
         let valid: number[] = this.globalValid.slice(0, this.globalValid.length);
         valid.push(...extracted);
@@ -1072,6 +1107,10 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
     }
 
     override guessBlockParam(offset: number): void {
+
+        // nothing to store if the pixel can store the direct palette value
+        if (this.fullPaletteMode)
+            return;
 
         // reset histogram values
         this.histogram.fill(0);

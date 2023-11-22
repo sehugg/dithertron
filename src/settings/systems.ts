@@ -10,7 +10,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 0.936 * 2,
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
-        block: { w:4, h:8, colors:4, xb:1, yb:2 },
+        block: { w:4, h:8, colors: 4, xb:1, yb:2 },
         cell: {w: 4, h: 8, msbToLsb: true },
         paletteChoices:{background: true},        
         cb: { w: 4, h: 8, xb: 1, yb: 2 },
@@ -323,12 +323,12 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 1.5,
         conv: 'VICII_Canvas',
         pal: palettes.VIC20_PAL_RGB,
-        block: { w: 8, h: 8, colors: 2 },           // can choose the background, or one foreground color
+        block: { w: 8, h: 8, colors: 2 },               // can choose the background, or one foreground color
         cell: {w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
-            background: true,                       // pixels can choose the background color
-            backgroundRange: { min: 0, max: 7 },    // (but with a reduced color palette)
-            colorsRange: { min: 0, max: 7 }         // pixels can only choose from a reduced color palette
+            background: true,                           // pixels can choose the background color
+            backgroundRange: { min: 0, max: 7 },        // (but with a reduced color palette)
+            colorsRange: { min: 0, max: 7 }             // pixels can only choose from a reduced color palette
         },
         toNative:'exportVicHires',
     },
@@ -340,18 +340,127 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 3,
         conv: 'VICII_Canvas',
         pal: palettes.VIC20_PAL_RGB,
-        block: { w: 4, h: 8, colors: 4 },           // can choose background, aux, border and one foreground color
-        cell: {w: 4, h: 8, msbToLsb: true },
+        block: { w: 4, h: 8, colors: 4 },               // can choose background, aux, border and one foreground color
+        cell: {w: 4, h: 8, msbToLsb: true },    
         paletteChoices: {
-            background: true,                       // pixels can choose the background color
+            background: true,                           // pixels can choose the background color
             backgroundRange: { min: 0, max: 15 },
-            aux: true,                              // pixels can choose the aux color
+            aux: true,                                  // pixels can choose the aux color
             auxRange: { min: 0, max: 15},
-            border: true,                           // pixels can choose the border color
-            borderRange: { min: 0, max: 7 },        // (but with a reduced palette)
-            colorsRange: { min: 0, max: 7 }         // a reduced palette applies to the pixel colors
+            border: true,                               // pixels can choose the border color
+            borderRange: { min: 0, max: 7 },            // (but with a reduced palette)
+            colorsRange: { min: 0, max: 7 }             // a reduced palette applies to the pixel colors
         },
         toNative:'exportVicMulti',
+    },
+    {
+        id: 'snes.2bpp',
+        name: 'SNES (2bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 4 },               // can choose background, aux, border and one foreground color
+        cell: {w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 3 },
+            auxRange: { min: 0, max: 3 },
+            borderRange: { min: 0, max: 3 },            // (but with a reduced palette)
+            colorsRange: { min: 0, max: 3 }             // a reduced palette applies to the pixel colors
+        },
+        reduce:4
+    },
+    {
+        id: 'snes.3bpp',
+        name: 'SNES (3bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 8 },
+        cell: {w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 7 },
+            auxRange: { min: 0, max: 7 },
+            borderRange: { min: 0, max: 7 },
+            colorsRange: { min: 0, max: 7 }
+        },
+        reduce:8
+    },
+    {
+        id: 'snes.4bpp',
+        name: 'SNES (4bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 16 },
+        cell: {w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 15 },
+            auxRange: { min: 0, max: 15},
+            borderRange: { min: 0, max: 15 },
+            colorsRange: { min: 0, max: 15 }
+        },
+        reduce:16
+    },
+    {
+        id: 'snes.8bpp',
+        name: 'SNES (8bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 256 },
+        cell: {w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 255 },
+            auxRange: { min: 0, max: 255 },
+            borderRange: { min: 0, max: 255 },
+            colorsRange: { min: 0, max: 255 }
+        },
+        reduce:256
+    },
+    {
+        id: 'snes.8bpp.linear',
+        name: 'SNES (8bpp) (8x8) (32x32) Linear',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 256 },
+        cell: {w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 255 },
+            auxRange: { min: 0, max: 255 },
+            borderRange: { min: 0, max: 255 },
+            colorsRange: { min: 0, max: 255 }
+        },
+        customize: { linear: true, direct: false },
+        reduce:256
+    },
+    {
+        id: 'snes.8bpp.direct',
+        name: 'SNES (8bpp) (8x8) (32x32) Direct Color',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas_Direct',
+        pal: palettes.SNES_BBPGGGPRRRP,
+        block: { w: 8, h: 8, colors: 2048 },
+        cell: {w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 2047 },
+            auxRange: { min: 0, max: 2047 },
+            borderRange: { min: 0, max: 2047 },
+            colorsRange: { min: 0, max: 2047 }
+        },
+        customize: { linear: true, direct: true }
     },
     {
         id: 'stic',
