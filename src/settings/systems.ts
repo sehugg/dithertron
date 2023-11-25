@@ -354,22 +354,64 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative:'exportVicMulti',
     },
     {
-        id: 'snes.2bpp',
-        name: 'SNES (2bpp) (8x8) (32x32) Planar',
+        id: 'nes.1bpp',
+        name: 'NES (1bpp) (8x8) (32x32) Planar',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
         conv: 'SNES_Canvas',
         pal: palettes.SNES_B5G5R5_RGB,
-        block: { w: 8, h: 8, colors: 4 },               // can choose background, aux, border and one foreground color
-        cell: {w: 8, h: 8, msbToLsb: true },
+        block: { w: 8, h: 8, colors: 2, msbToLsb: false },  // bit plane colors are stored LSB to MSB
+        cell: { w: 8, h: 8, msbToLsb: true },                // cell pixels are stored MSB to LSB
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 1 },
+            auxRange: { min: 0, max: 1 },
+            borderRange: { min: 0, max: 1 },
+            colorsRange: { min: 0, max: 1 }
+        },
+        reduce: 2,
+        customize: { outputTileset: false, outputPalette: true },
+        toNative:'exportSNES'
+    },
+    {
+        id: 'nes.2bpp',
+        name: 'NES (2bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             backgroundRange: { min: 0, max: 3 },
             auxRange: { min: 0, max: 3 },
-            borderRange: { min: 0, max: 3 },            // (but with a reduced palette)
-            colorsRange: { min: 0, max: 3 }             // a reduced palette applies to the pixel colors
+            borderRange: { min: 0, max: 3 },
+            colorsRange: { min: 0, max: 3 }
         },
-        reduce:4
+        reduce: 4,
+        customize: { outputTileset: false, outputPalette: true },
+        toNative:'exportSNES'
+    },
+    {
+        id: 'snes.2bpp',
+        name: 'SNES (+Gameboy/GBC) (2bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 3 },
+            auxRange: { min: 0, max: 3 },
+            borderRange: { min: 0, max: 3 },
+            colorsRange: { min: 0, max: 3 }
+        },
+        customize: { outputTileset: false, outputPalette: false, planeToMemory: 'interleaved' },
+        reduce: 4,
+        toNative:'exportSNES'
     },
     {
         id: 'snes.3bpp',
@@ -379,15 +421,17 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 1,
         conv: 'SNES_Canvas',
         pal: palettes.SNES_B5G5R5_RGB,
-        block: { w: 8, h: 8, colors: 8 },
-        cell: {w: 8, h: 8, msbToLsb: true },
+        block: { w: 8, h: 8, colors: 8, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             backgroundRange: { min: 0, max: 7 },
             auxRange: { min: 0, max: 7 },
             borderRange: { min: 0, max: 7 },
             colorsRange: { min: 0, max: 7 }
         },
-        reduce:8
+        reduce: 8,
+        customize: { planeToMemory: 'interleaved' },
+        toNative:'exportSNES'
     },
     {
         id: 'snes.4bpp',
@@ -397,15 +441,17 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 1,
         conv: 'SNES_Canvas',
         pal: palettes.SNES_B5G5R5_RGB,
-        block: { w: 8, h: 8, colors: 16 },
-        cell: {w: 8, h: 8, msbToLsb: true },
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             backgroundRange: { min: 0, max: 15 },
             auxRange: { min: 0, max: 15},
             borderRange: { min: 0, max: 15 },
             colorsRange: { min: 0, max: 15 }
         },
-        reduce:16
+        customize: { planeToMemory: 'interleaved' },
+        reduce: 16,
+        toNative:'exportSNES'
     },
     {
         id: 'snes.8bpp',
@@ -415,34 +461,117 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 1,
         conv: 'SNES_Canvas',
         pal: palettes.SNES_B5G5R5_RGB,
-        block: { w: 8, h: 8, colors: 256 },
-        cell: {w: 8, h: 8, msbToLsb: true },
+        block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             backgroundRange: { min: 0, max: 255 },
             auxRange: { min: 0, max: 255 },
             borderRange: { min: 0, max: 255 },
             colorsRange: { min: 0, max: 255 }
         },
-        reduce:256
+        customize: { planeToMemory: 'interleaved' },
+        reduce: 256,
+        toNative:'exportSNES'
     },
     {
-        id: 'snes.8bpp.linear',
-        name: 'SNES (8bpp) (8x8) (32x32) Linear',
+        id: 'snes.mode7',
+        name: 'SNES (Mode 7) (8bpp) (8x8) (32x32)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
         conv: 'SNES_Canvas',
         pal: palettes.SNES_B5G5R5_RGB,
-        block: { w: 8, h: 8, colors: 256 },
-        cell: {w: 8, h: 8, msbToLsb: true },
+        block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             backgroundRange: { min: 0, max: 255 },
             auxRange: { min: 0, max: 255 },
             borderRange: { min: 0, max: 255 },
             colorsRange: { min: 0, max: 255 }
         },
-        customize: { linear: true, direct: false },
-        reduce:256
+        customize: { bitsInPlane: 8, planes: 1 },
+        reduce: 256,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'neo.geopocket',
+        name: 'NEO Geo Pocket Color (2pp) (8x8) (32x32)',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 255 },
+            auxRange: { min: 0, max: 255 },
+            borderRange: { min: 0, max: 255 },
+            colorsRange: { min: 0, max: 255 }
+        },
+        customize: { outputTileset: false, outputPalette: false, bitsInPlane: 2, planes: 1, planeLittleEndian: false },
+        reduce: 256,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'virtualboy',
+        name: 'Virtual Boy (2pp) (8x8) (32x32)',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 3 },
+            auxRange: { min: 0, max: 3 },
+            borderRange: { min: 0, max: 3 },
+            colorsRange: { min: 0, max: 3 }
+        },
+        customize: { outputTileset: false, outputPalette: false, bitsInPlane: 2, planes: 1, planeLittleEndian: true },
+        reduce: 4,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'gg.4pp',
+        name: 'Game Gear (+Sega Master Systems/Wonder Color) (4bpp) (8x8) (32x32) Linear',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 15 },
+            auxRange: { min: 0, max: 15 },
+            borderRange: { min: 0, max: 15 },
+            colorsRange: { min: 0, max: 15 }
+        },
+        customize: { outputTileset: false, outputPalette: false, planeToMemory: 'linear' },
+        reduce: 16,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'genesis',
+        name: 'Genesis/x68k (4pp) (8x8) (32x32)',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 15 },
+            auxRange: { min: 0, max: 15 },
+            borderRange: { min: 0, max: 15 },
+            colorsRange: { min: 0, max: 15 }
+        },
+        customize: { outputTileset: false, outputPalette: false, bitsInPlane: 4, planes: 1, planeLittleEndian: true },
+        reduce: 16,
+        toNative:'exportSNES'
     },
     {
         id: 'snes.8bpp.direct',
@@ -452,15 +581,16 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 1,
         conv: 'SNES_Canvas_Direct',
         pal: palettes.SNES_BBPGGGPRRRP,
-        block: { w: 8, h: 8, colors: 2048 },
-        cell: {w: 8, h: 8, msbToLsb: true },
+        block: { w: 8, h: 8, colors: 2048, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             backgroundRange: { min: 0, max: 2047 },
             auxRange: { min: 0, max: 2047 },
             borderRange: { min: 0, max: 2047 },
             colorsRange: { min: 0, max: 2047 }
         },
-        customize: { linear: true, direct: true }
+        customize: { outputTileset: true, outputPalette: false, transformColor: 'bbgggrrr', planes: 8 },
+        toNative:'exportSNES'
     },
     {
         id: 'stic',

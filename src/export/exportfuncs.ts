@@ -158,6 +158,9 @@ export interface BitInfo {
     offset: number;
     bitShift: number;
     bitCount: number;
+};
+
+export interface ParamBitInfo extends BitInfo {
     paramOffset: number;
 };
 
@@ -193,11 +196,11 @@ interface CellExporterMapper_Iterate_Values {
 }
 
 interface CellExporterMapper_Iterate_BitPattern {
-    paramToBitPattern(param: number, paletteIndex: number, info: BitInfo): number; // used to convert the block parameter into a value to be encoded at the encoding bit info
+    paramToBitPattern(param: number, paletteIndex: number, info: ParamBitInfo): number; // used to convert the block parameter into a value to be encoded at the encoding bit info
 }
 
 interface CellExporterMapper_Iterate_XYToBitInfo extends CellExporterMapper_Iterate_BitPattern {
-    xyToBitInfo(x: number, y: number): BitInfo;
+    xyToBitInfo(x: number, y: number): ParamBitInfo;
 }
 
 interface CellExporterMapper_Iterate_GlobalColorsBitPattern {
@@ -205,7 +208,7 @@ interface CellExporterMapper_Iterate_GlobalColorsBitPattern {
 };
 
 interface CellExporterMapper_Iterate_GlobalColorToBitPattern {
-    globalColorToBitPattern(param: number, paletteIndex: number, info: BitInfo): number | undefined;    // used with defaulted paramToBitPattern to map global colors onto a bit pattern
+    globalColorToBitPattern(param: number, paletteIndex: number, info: ParamBitInfo): number | undefined;    // used with defaulted paramToBitPattern to map global colors onto a bit pattern
 };
 
 interface CellExporterMapper_Iterate_GlobalColors extends Partial<CellExporterMapper_Iterate_GlobalColorsBitPattern>, Partial<CellExporterMapper_Iterate_GlobalColorToBitPattern> {
@@ -216,7 +219,7 @@ interface CellExporterMapper_Iterate_ColorsBitPattern {
 }
 
 interface CellExporterMapper_Iterate_ColorToBitPattern {
-    colorToBitPattern(param: number, paletteIndex: number, info: BitInfo): number | undefined;         // used with defaulted paramToBitPattern to map image colors onto a bit pattern
+    colorToBitPattern(param: number, paletteIndex: number, info: ParamBitInfo): number | undefined;         // used with defaulted paramToBitPattern to map image colors onto a bit pattern
 }
 
 interface CellExporterMapper_Iterate_Colors extends Partial<CellExporterMapper_Iterate_ColorsBitPattern>, Partial<CellExporterMapper_Iterate_ColorToBitPattern> {
@@ -233,11 +236,11 @@ interface ParamExporterMapper_Iterate_Values {
 }
 
 interface ParamExporterMapper_Iterate_ParamToBitInfo {
-    paramToBitPattern(param: number, info: BitInfo): number;                        // if specified, used to convert the block parameter into a value to be encoded at the encoding bit info
+    paramToBitPattern(param: number, info: ParamBitInfo): number;                   // if specified, used to convert the block parameter into a value to be encoded at the encoding bit info
 }
 
 interface ParamExporterMapper_Iterate_ParamToBitPattern extends ParamExporterMapper_Iterate_ParamToBitInfo {
-    paramToBitInfo(paramOffset: number): BitInfo;                                   // if specified, used to map a parameter offset into encoding bit info, and paramToBitPattern must be specified
+    paramToBitInfo(paramOffset: number): ParamBitInfo;                              // if specified, used to map a parameter offset into encoding bit info, and paramToBitPattern must be specified
 }
 
 interface ParamExporterMapper_Iterate extends ParamExporterMapper_Iterate_Values, ParamExporterMapper_Iterate_ParamToBitPattern {
@@ -266,7 +269,7 @@ function getDefaultedCellExporterMapper(
         return setup;
     };
 
-    let paramToBitPattern = (mapper.paramToBitPattern !== undefined ? mapper.paramToBitPattern : (param: number, paletteIndex: number, info: BitInfo) => {
+    let paramToBitPattern = (mapper.paramToBitPattern !== undefined ? mapper.paramToBitPattern : (param: number, paletteIndex: number, info: ParamBitInfo) => {
 
         if (fullPaletteMode)
             return paletteIndex;
@@ -335,7 +338,7 @@ function getDefaultedCellExporterMapper(
 
         prepare: prepare,
         prefill: mapper.prefill,
-        iterate: iterate,
+        iterate: mapper.iterate === undefined ? iterate : mapper.iterate,
         commit: mapper.commit,
         finalize: mapper.finalize,
 
@@ -417,7 +420,7 @@ function getDefaultedParamMapper(
 
         prepare: prepare,
         prefill: mapper.prefill,
-        iterate: iterate,
+        iterate: mapper.iterate === undefined ? iterate : mapper.iterate,
         commit: mapper.commit,
         finalize: mapper.finalize,
 
@@ -568,7 +571,7 @@ function getVicCellMapper(
             return { data: new Uint8Array(content.width * content.height * bpp / 8) };
         },
 
-        xyToBitInfo(x: number, y: number): BitInfo {
+        xyToBitInfo(x: number, y: number): ParamBitInfo {
 
             let col = Math.floor(x / content.block.w);
 
@@ -622,7 +625,7 @@ function getVicColorMapper(
             return { data: new Uint8Array(isUsingFli ? (colorAlignedBytes * content.cell.h) : (content.cell.columns * content.cell.rows)) };
         },
 
-        paramToBitInfo(paramOffset: number): BitInfo {
+        paramToBitInfo(paramOffset: number): ParamBitInfo {
 
             let offset: number = 0;
 
@@ -659,7 +662,7 @@ function getVicColorBlockMapper(
         prepare(): PrepareInfo {
             return { data: new Uint8Array(content.cb.columns * content.cb.rows) };
         },
-        paramToBitInfo(paramOffset: number): BitInfo {
+        paramToBitInfo(paramOffset: number): ParamBitInfo {
             return {
                 offset: paramOffset,
                 bitShift: 0,
@@ -693,7 +696,7 @@ export function exportC64Multi(message: PixelsAvailableMessage, settings: Dither
         colorParamMapper: getVicColorMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
                     let colors = extractColorsFromParamContent(param, 2, content);
                     return colors[0] | colors[1] << 4;
                 }
@@ -702,7 +705,7 @@ export function exportC64Multi(message: PixelsAvailableMessage, settings: Dither
         colorBlockParamMapper: getVicColorBlockMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
                     let colors = extractColorsFromParamContent(param, 1, content);
                     return colors[0];
                 }
@@ -737,7 +740,7 @@ export function exportC64Hires(message: PixelsAvailableMessage, settings: Dither
         colorParamMapper: getVicColorMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
                     let colors = extractColorsFromParamContent(param, 2, content);
                     return (colors[0] << 4) | (colors[1]);
                 }
@@ -784,7 +787,7 @@ export function exportVicHires(message: PixelsAvailableMessage, settings: Dither
         colorParamMapper: getVicColorMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
                     let colors = extractColorsFromParamContent(param, 1, content);
                     return colors[0];
                 }
@@ -834,7 +837,7 @@ export function exportVicMulti(message: PixelsAvailableMessage, settings: Dither
         colorParamMapper: getVicColorMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
                     let colors = extractColorsFromParamContent(param, 1, content);
                     return colors[0];
                 }
@@ -866,7 +869,7 @@ function getZxCellMapper(
             return { data: new Uint8Array(content.width * content.height * content.bitsPerColor / 8) };
         },
 
-        xyToBitInfo(x: number, y: number): BitInfo {
+        xyToBitInfo(x: number, y: number): ParamBitInfo {
 
             let column = Math.floor(x / content.block.w);
             let paramOffset = (Math.floor(y / content.block.h) * content.block.columns) + column;
@@ -947,7 +950,7 @@ export function exportZXSpectrum(message: PixelsAvailableMessage, settings: Dith
         colorParamMapper: getVicColorMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
                     let colors = extractColorsFromParamContent(param, 2, content);
                     return ((colors[0] & 0x07) << 3) | (colors[1] & 0x7) | (((colors[0] & 0x08) >> 3) << 6);
                 }
@@ -1001,7 +1004,7 @@ function getSticColorMapper(
                 array[offset + (x *2) + 1] = highByte;
             }
         },
-        paramToBitInfo(paramOffset: number): BitInfo {
+        paramToBitInfo(paramOffset: number): ParamBitInfo {
 
             // picture is arranged 8x8 grid for gram, or 20x12 grid for grom of 8x8 pixels despite
             // but layout is always 20 x 12
@@ -1043,7 +1046,7 @@ export function exportSticFgbg(message: PixelsAvailableMessage, settings: Dither
         colorParamMapper: getSticColorMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
 
                     //
                     // 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00
@@ -1130,7 +1133,7 @@ export function exportSticColorStack(message: PixelsAvailableMessage, settings: 
     let cellMapper = getVicCellMapper(
         content, 
         {
-            paramToBitPattern(param: number, paletteIndex: number, info: BitInfo): number {
+            paramToBitPattern(param: number, paletteIndex: number, info: ParamBitInfo): number {
 
                 let colors = extractColorsFromParamContent(param, content.paletteChoices.colors, content);
 
@@ -1157,7 +1160,7 @@ export function exportSticColorStack(message: PixelsAvailableMessage, settings: 
         colorParamMapper: getSticColorMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
 
                     //
                     // GRAM CARD:
@@ -1228,7 +1231,7 @@ function getTMS9918ColorMapper(
         prepare(): PrepareInfo {
             return { data: new Uint8Array(content.block.size) };
         },
-        paramToBitInfo(paramOffset: number): BitInfo {
+        paramToBitInfo(paramOffset: number): ParamBitInfo {
             let x = paramOffset & 31;
             let y = paramOffset >> 5;
 
@@ -1262,7 +1265,7 @@ export function exportTMS9918(message: PixelsAvailableMessage, settings: Dithert
         colorParamMapper: getTMS9918ColorMapper(
             content,
             {
-                paramToBitPattern(param: number, info: BitInfo): number {
+                paramToBitPattern(param: number, info: ParamBitInfo): number {
                     let colors = extractColorsFromParamContent(param, 2, content);
         
                     // a special transparency pixel color exists "0x00" which is defined
@@ -1278,69 +1281,481 @@ export function exportTMS9918(message: PixelsAvailableMessage, settings: Dithert
     });
 }
 
-export function getSnesDirectColorCellMapper(
+type PlaneToMemoryLocationFunc = (
+    plane: number,
+    planes: number,
+    pixelCellColumn: number,
+    pixelCellRow: number,
+    bitsInPlane: number,
+    bitPlaneByteOrderLE: boolean,
+    content: BlockParamDitherCanvasContent) => BitInfo;
+
+function snesDefautPlaneToMemoryLocationFunc(
+    plane: number,
+    planes: number,
+    pixelCellColumn: number,
+    pixelCellRow: number,
+    bitsInPlane: number,
+    bitPlaneByteOrderLE: boolean,
+    content: BlockParamDitherCanvasContent): BitInfo {
+
+    // see: https://mrclick.zophar.net/TilEd/download/consolegfx.txt
+    //
+    // should handle:
+    //
+    // 2. 1BPP NES/Monochrome
+    // [r0, bp1], [r1, bp1], [r2, bp1], [r3, bp1], [r4, bp1], [r5, bp1], [r6, bp1], [r7, bp1]
+    //
+    // 3. 2BPP NES
+    // [r0, bp1], [r1, bp1], [r2, bp1], [r3, bp1], [r4, bp1], [r5, bp1], [r6, bp1], [r7, bp1]
+    // [r0, bp2], [r1, bp2], [r2, bp2], [r3, bp2], [r4, bp2], [r5, bp2], [r6, bp2], [r7, bp2]
+    //
+    // 8. Mode 7 SNES (bits in plane = 8, planes = 1)
+    // [p0 r0: bp!], [p1 r0: bp!], [p2 r0: bp!], [p3 r0: bp!]
+    // [p4 r0: bp!], [p5 r0: bp!], [p6 r0: bp!], [p7 r0: bp!]
+    // [p0 r1: bp!], [p1 r1: bp!], [p2 r1: bp!], [p3 r1: bp!]
+    // [p4 r1: bp!], [p5 r1: bp!], [p6 r1: bp!], [p7 r1: bp!]
+    // ...
+    // [p0 r7: bp!], [p1 r7: bp!], [p2 r7: bp!], [p3 r7: bp!]
+    // [p4 r7: bp!], [p5 r7: bp!], [p6 r7: bp!], [p7 r7: bp!]
+    //
+    // 9. 2BPP Neo Geo Pocket Color (bits in plane = 2, planes = 1, LE = false)
+    // [p4-7 r0: bp*], [p0-3 r0: bp*], [p4-7 r1: bp*], [p0-3 r1: bp*]
+    // [p4-7 r2: bp*], [p0-3 r2: bp*], [p4-7 r3: bp*], [p0-3 r3: bp*]
+    // [p4-7 r4: bp*], [p0-3 r4: bp*], [p4-7 r5: bp*], [p0-3 r5: bp*]
+    // [p4-7 r6: bp*], [p0-3 r6: bp*], [p4-7 r7: bp*], [p0-3 r7: bp*]
+    //
+    // 10. 2BPP Virtual Boy (bits in plane = 2, planes = 1, LE = true)
+    // [p0-3 r0: bp*], [p4-7 r0: bp*], [p0-3 r1: bp*], [p4-7 r1: bp*]
+    // [p0-3 r2: bp*], [p4-7 r2: bp*], [p0-3 r3: bp*], [p4-7 r3: bp*]
+    // [p0-3 r4: bp*], [p4-7 r4: bp*], [p0-3 r5: bp*], [p4-7 r5: bp*]
+    // [p0-3 r6: bp*], [p4-7 r6: bp*], [p0-3 r7: bp*], [p4-7 r7: bp*]
+    //
+    // 12. 4BPP Genesis/x68k (bits in plane = 4, planes = 1, LE = true)
+    // [p1-2 r0: bp*], [p2-3 r0: bp*], [p4-5 r1: bp*], [p6-7 r1: bp*]
+    // [p1-2 r2: bp*], [p2-3 r2: bp*], [p4-5 r3: bp*], [p6-7 r3: bp*]
+    // [p1-2 r4: bp*], [p2-3 r4: bp*], [p4-5 r5: bp*], [p6-7 r5: bp*]
+    // [p1-2 r6: bp*], [p2-3 r6: bp*], [p4-5 r7: bp*], [p6-7 r7: bp*]
+
+    // Other: Direct color (bits in plane = 8, planes = 1) [TBD, need to verify this is true]
+    // [p0 r0: bp!], [p1 r0: bp!], [p2 r0: bp!], [p3 r0: bp!]
+    // [p4 r0: bp!], [p5 r0: bp!], [p6 r0: bp!], [p7 r0: bp!]
+    // [p0 r1: bp!], [p1 r1: bp!], [p2 r1: bp!], [p3 r1: bp!]
+    // [p4 r1: bp!], [p5 r1: bp!], [p6 r1: bp!], [p7 r1: bp!]
+    // ...
+    // [p0 r7: bp!], [p1 r7: bp!], [p2 r7: bp!], [p3 r7: bp!]
+    // [p4 r7: bp!], [p5 r7: bp!], [p6 r7: bp!], [p7 r7: bp!]
+
+    // the width of an entire row for a bit plane (in bits)
+    let bitPlaneRowWidth = bitsInPlane * content.block.w;
+
+    // offset in bytes where planes are written 0 ... planes, inside each row is written, and inside that each pixel column is written
+    let bitPlaneOffset = Math.floor((bitPlaneRowWidth * content.block.h * plane) + (bitPlaneRowWidth * pixelCellRow)) / 8;
+
+    let shiftedBitInPlane = content.cell.msbToLsb ?
+        (content.block.w - (pixelCellColumn + 1)) * bitsInPlane :
+        pixelCellColumn * bitsInPlane;
+
+    let whichByteInPlane = Math.floor(shiftedBitInPlane / 8);
+    whichByteInPlane = bitPlaneByteOrderLE ? whichByteInPlane : Math.floor(bitPlaneRowWidth / 8) - whichByteInPlane - 1;
+
+    shiftedBitInPlane = shiftedBitInPlane % 8;
+
+    console.assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
+    return { offset: bitPlaneOffset + whichByteInPlane, bitShift: shiftedBitInPlane, bitCount: bitsInPlane };
+}
+
+
+function snesInterleavedPlaneToMemoryLocationFunc(
+    plane: number,
+    planes: number,
+    pixelCellColumn: number,
+    pixelCellRow: number,
+    bitsInPlane: number,
+    bitPlaneByteOrderLE: boolean,
+    content: BlockParamDitherCanvasContent): BitInfo {
+
+    // see: https://mrclick.zophar.net/TilEd/download/consolegfx.txt
+    //
+    // should handle:
+    //
+    // 4. 2BPP SNES/Gameboy/GBC
+    //
+    // [r0, bp1], [r0, bp2], [r1, bp1], [r1, bp2], [r2, bp1], [r2, bp2], [r3, bp1], [r3, bp2]
+    // [r4, bp1], [r4, bp2], [r5, bp1], [r5, bp2], [r6, bp1], [r6, bp2], [r7, bp1], [r7, bp2]
+    //
+    // 5. 3BPP SNES
+    // [r0, bp1], [r0, bp2], [r1, bp1], [r1, bp2], [r2, bp1], [r2, bp2], [r3, bp1], [r3, bp2]
+    // [r4, bp1], [r4, bp2], [r5, bp1], [r5, bp2], [r6, bp1], [r6, bp2], [r7, bp1], [r7, bp2]
+    // [r0, bp3], [r1, bp3], [r2, bp3], [r3, bp3], [r4, bp3], [r5, bp3], [r6, bp3], [r7, bp3]
+    //
+    // 6.4BPP SNES/PC Engine
+    // [r0, bp1], [r0, bp2], [r1, bp1], [r1, bp2], [r2, bp1], [r2, bp2], [r3, bp1], [r3, bp2]
+    // [r4, bp1], [r4, bp2], [r5, bp1], [r5, bp2], [r6, bp1], [r6, bp2], [r7, bp1], [r7, bp2]
+    // [r0, bp3], [r0, bp4], [r1, bp3], [r1, bp4], [r2, bp3], [r2, bp4], [r3, bp3], [r3, bp4]
+    // [r4, bp3], [r4, bp4], [r5, bp3], [r5, bp4], [r6, bp3], [r6, bp4], [r7, bp3], [r7, bp4]
+    //
+    // 7. 8BPP SNES
+    // [r0, bp1], [r0, bp2], [r1, bp1], [r1, bp2], [r2, bp1], [r2, bp2], [r3, bp1], [r3, bp2]
+    // [r4, bp1], [r4, bp2], [r5, bp1], [r5, bp2], [r6, bp1], [r6, bp2], [r7, bp1], [r7, bp2]
+    // [r0, bp3], [r0, bp4], [r1, bp3], [r1, bp4], [r2, bp3], [r2, bp4], [r3, bp3], [r3, bp4]
+    // [r4, bp3], [r4, bp4], [r5, bp3], [r5, bp4], [r6, bp3], [r6, bp4], [r7, bp3], [r7, bp4]
+    // [r0, bp5], [r0, bp6], [r1, bp5], [r1, bp6], [r2, bp5], [r2, bp6], [r3, bp5], [r3, bp6]
+    // [r4, bp5], [r4, bp6], [r5, bp5], [r5, bp6], [r6, bp5], [r6, bp6], [r7, bp5], [r7, bp6]
+    // [r0, bp7], [r0, bp8], [r1, bp7], [r1, bp8], [r2, bp7], [r2, bp8], [r3, bp7], [r3, bp8]
+    // [r4, bp7], [r4, bp8], [r5, bp7], [r5, bp8], [r6, bp7], [r6, bp8], [r7, bp7], [r7, bp8]
+    //
+
+    // the width of an entire row for a bit plane (in bits)
+    let bitPlaneRowWidth = bitsInPlane * content.block.w;
+
+    let onOddRow = ((pixelCellRow & 0b1) != 0);
+
+    // offset in bytes where planes are written 0 ... planes, skipping to 2nd plane,
+    // where inside each row is written, and inside each plane is written for the even and odd interleaved pair,
+    // and inside that each pixel column is written
+    let bitPlaneOffset = Math.floor((((bitPlaneRowWidth * content.block.h * (plane >> 1)) << 1) +
+                                     ((bitPlaneRowWidth * pixelCellRow)) * (onOddRow ? 1 : 0)) / 8);
+
+    let shiftedBitInPlane = content.cell.msbToLsb ?
+        (content.block.w - (pixelCellColumn + 1)) * bitsInPlane :
+        pixelCellColumn * bitsInPlane;
+
+    let whichByteInPlane = Math.floor(shiftedBitInPlane / 8);
+    whichByteInPlane = bitPlaneByteOrderLE ? whichByteInPlane : Math.floor(bitPlaneRowWidth / 8) - whichByteInPlane - 1;
+
+    shiftedBitInPlane = shiftedBitInPlane % 8;
+
+    console.assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
+    return { offset: bitPlaneOffset + whichByteInPlane, bitShift: shiftedBitInPlane, bitCount: bitsInPlane };
+}
+
+
+function snesLinearPlaneToMemoryLocationFunc(
+    plane: number,
+    planes: number,
+    pixelCellColumn: number,
+    pixelCellRow: number,
+    bitsInPlane: number,
+    bitPlaneByteOrderLE: boolean,
+    content: BlockParamDitherCanvasContent): BitInfo {
+
+    // see: https://mrclick.zophar.net/TilEd/download/consolegfx.txt
+    //
+    // should handle:
+    //
+    // 11. 4BPP Game Gear/Sega Master System/Wonderswan Color
+    // [r0, bp1], [r0, bp2], [r0, bp3], [r0, bp4], [r1, bp1], [r1, bp2], [r1, bp3], [r1, bp4]
+    // [r2, bp1], [r2, bp2], [r2, bp3], [r2, bp4], [r3, bp1], [r3, bp2], [r3, bp3], [r3, bp4]
+    // [r4, bp1], [r4, bp2], [r4, bp3], [r4, bp4], [r5, bp1], [r5, bp2], [r5, bp3], [r5, bp4]
+    // [r6, bp1], [r6, bp2], [r6, bp3], [r6, bp4], [r7, bp1], [r7, bp2], [r7, bp3], [r7, bp4]
+
+    // the width of an entire row for a bit plane (in bits)
+    let bitPlaneRowWidth = bitsInPlane * content.block.w;
+
+    // offset in bytes where rows are written 0 ... rows, inside each row planes are written, and inside that each pixel column is written
+    let bitPlaneOffset = Math.floor((bitPlaneRowWidth * planes * pixelCellRow) + (bitPlaneRowWidth * plane)) / 8;
+
+    let shiftedBitInPlane = content.cell.msbToLsb ?
+        (content.block.w - (pixelCellColumn + 1)) * bitsInPlane :
+        pixelCellColumn * bitsInPlane;
+
+    let whichByteInPlane = Math.floor(shiftedBitInPlane / 8);
+    whichByteInPlane = bitPlaneByteOrderLE ? whichByteInPlane : Math.floor(bitPlaneRowWidth / 8) - whichByteInPlane - 1;
+
+    shiftedBitInPlane = shiftedBitInPlane % 8;
+
+    console.assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
+    return { offset: bitPlaneOffset + whichByteInPlane, bitShift: shiftedBitInPlane, bitCount: bitsInPlane };
+}
+
+const snesPlaneToMemoryLocations: { [K: string]: PlaneToMemoryLocationFunc } =
+{
+    Default: snesDefautPlaneToMemoryLocationFunc,
+    interleaved: snesInterleavedPlaneToMemoryLocationFunc,
+    linear: snesLinearPlaneToMemoryLocationFunc
+};
+
+
+type TransformColorFunc = (
+    color: number,
+    palette: Uint32Array | number[]) => number;
+
+    const snesTransformColor: { [K: string]: TransformColorFunc } =
+{
+    Default: snesTransformNoop,
+    bbgggrrr: snesTransformBBGGGRRR
+};
+
+function snesTransformNoop(
+    color: number,
+    palette: Uint32Array | number[]): number
+{
+    return color;
+}
+
+function snesTransformBBGGGRRR(
+    color: number,
+    palette: Uint32Array | number[]): number
+{
+    let rgb = palette[color];
+
+    let r = (rgb & 0xff);
+    let g = (rgb >> 8) & 0xff;
+    let b = (rgb >> 16) & 0xff;
+
+    return (((b & 0b11000000) >> 6) << 6) | (((g & 0b11100000) >> 5) << 3) | (((r & 0b11100000) >> 5) << 0);
+}
+
+export function getSnesBitplanCellMapper(
+    message: PixelsAvailableMessage,
     content: BlockParamDitherCanvasContent,
-    mapper?: CellExporterMapper | Partial<CellExporterMapper_Iterate>): CellExporterMapper {
+    settings: DithertronSettings,
+    mapper: Partial<CellExporterMapper>): CellExporterMapper
+{
+    let indexed = message.indexed;
+
+    // how many bit planes are required to represent the chosen color
+    let planes: number = 0;
+
+    // how many pixels are in a cell
+    let pixelsInCell: number = 0;;
+
+    // how many cells are in the image
+    let cellsInImage: number = 0;
+
+    // how many color bits are in each plane
+    let bitsInPlane: number = 0;
+
+    const tilesetWidth: number = 32;
+    const tilesetHeight: number = 32;
 
     let exporter: CellExporterMapper = {
+        ...mapper,
         prepare(): PrepareInfo {
-            return { data: new Uint8Array() };
+            // how many bit planes are required to represent the chosen color
+            planes = (settings.customize === undefined ?
+                Math.ceil(Math.log2(content.block.colors)) :
+                ("planes" in settings.customize ? settings.customize.planes : Math.ceil(Math.log2(content.block.colors))));
+
+            // how many pixels are in a cell
+            pixelsInCell = content.block.w * content.block.h;
+
+            // how many cells are in the image
+            cellsInImage = content.block.columns * content.block.rows;
+            
+            bitsInPlane = (settings.customize === undefined ?
+                1 :
+                ("bitsInPlane" in settings.customize ? settings.customize.bitsInPlane : 1 ));
+
+            return { data: new Uint8Array(Math.floor((planes * bitsInPlane * pixelsInCell * cellsInImage) / 8)) };
         },
-        commit(array: Uint8Array): void {
+        iterate(data: Uint8Array): void {
+            let tilesetsWide = Math.floor(content.block.columns / tilesetWidth);
+            let tilesetsHigh = Math.floor(content.block.rows / tilesetHeight);
+
+            let totalTilesetBytes = Math.floor((planes * bitsInPlane * pixelsInCell * tilesetWidth * tilesetHeight) / 8);
+            let bytesInCell = Math.floor((planes * bitsInPlane * pixelsInCell) / 8);
+            let bytesInTilesetRow = bytesInCell * tilesetWidth;
+
+            let planeToMemoryLocationFunc = (settings.customize === undefined ?
+                snesPlaneToMemoryLocations.Default :
+                ("planeToMemory" in settings.customize ? snesPlaneToMemoryLocations[settings.customize.planeToMemory] : snesPlaneToMemoryLocations.Default ));
+
+            let transformColorFunc = (settings.customize === undefined ?
+                snesTransformColor.Default :
+                ("transformColor" in settings.customize ? snesTransformColor[settings.customize.transformColor] : snesTransformColor.Default));
+
+            let filterBits = (1 << bitsInPlane) - 1;
+
+            let bitPlaneByteOrderLE: boolean = (settings.customize === undefined ?
+                true :
+                ('planeLittleEndian' in settings.customize ? settings.customize.littleEndian : true));
+
+            let filterColorBit = content.block.msbToLsb ?
+                (plane: number, color: number) => {
+                    let shifted = (planes - (plane + 1)) * bitsInPlane;
+                    let extractedBits = color & (filterBits << shifted);
+                    return { extractedBits: extractedBits >> shifted, filteredColor: color ^ extractedBits };
+                } :
+                (plane: number, color: number) => {
+                    let shifted = plane * bitsInPlane;
+                    let extractedBits = color & (filterBits << shifted);
+                    return { extractedBits: extractedBits, filteredColor: color ^ extractedBits };
+                };
+
+            // iterate over the image and fill the bit-plane data
+            for (let i = 0; i < indexed.length; ++i) {
+                // which cell is being read
+                let column = Math.floor(i / content.block.w) % content.block.columns;                
+                let row = Math.floor(i / (content.width * content.block.h));
+
+                let inTilesetW = Math.floor(column / tilesetWidth);
+                let inTilesetH = Math.floor(row / tilesetHeight);
+
+                // the SNES stores each 32x32 block into a quadrant of 4 tilesets, making possible combinations of 32x32, 64x32, 32x64 and 64x64
+                let tilesetMemoryQuadrant = (inTilesetH * tilesetsWide) + inTilesetW;
+
+                // where is the tileset cell relative to in memory
+                let tilesetMemoryOffset = (tilesetMemoryQuadrant * totalTilesetBytes);
+
+                // need to normalize the tileset to the quadrant since the memory offset is relative to the quadrant
+                let tilesetColumn = column % tilesetWidth;
+                let tilesetRow = row % tilesetHeight;
+
+                let color = transformColorFunc(indexed[i], settings.pal);
+
+                // which is the (typically) 8x8 pixel of the cell is being consumed
+                let pc = (i % content.block.w);                             // pixel column (typically 0-7, or 0-15)
+                let pr = Math.floor(i / content.width) % content.block.h;   // pixel row (typically 0-7, or 0-15)
+
+                // the starting byte offset for the defined cell
+                let cellOffset = (bytesInTilesetRow * tilesetRow) + (bytesInCell * tilesetColumn);
+
+                // consume one plane at a time from the pixel
+                for (let plane = 0; (plane < planes) /* && (color != 0) */; ++plane) {
+                    let { extractedBits, filteredColor } = filterColorBit(plane, color);
+                    let bitInfo = planeToMemoryLocationFunc(plane, planes, pc, pr, bitsInPlane, bitPlaneByteOrderLE, content);
+                    color = filteredColor;
+
+                    let finalOffset = tilesetMemoryOffset + cellOffset + bitInfo.offset;
+                    bitOverlayUint8Array(data, finalOffset, extractedBits, bitInfo.bitShift, bitInfo.bitCount, bitPlaneByteOrderLE);
+                    // console.log(
+                    //     'bit-overlay',
+                    //     'tsw', tilesetsWide,
+                    //     'tsh', tilesetsHigh,
+                    //     'itw', inTilesetW,
+                    //     'itw', inTilesetH,
+                    //     'c', column,
+                    //     'r', row,
+                    //     'pc', pc,
+                    //     'pr', pr,
+                    //     'q', tilesetMemoryQuadrant,
+                    //     'mo', tilesetMemoryOffset,
+                    //     'co', cellOffset,
+                    //     'p', plane,
+                    //     'tp', planes,
+                    //     'i', i,
+                    //     'c', indexed[i],
+                    //     'e', extractedBits,
+                    //     'b', bitInfo,
+                    //     'f', finalOffset);
+                }
+            }
         }
     };
 
     return exporter;
 }
 
-export function getSnesDirectColorBlockMapper(
+export function getSnesTilemapMapper(
+    message: PixelsAvailableMessage,
     content: BlockParamDitherCanvasContent,
-    mapper?: ParamExporterMapper | Partial<ParamExporterMapper_Iterate>): ParamExporterMapper {
+    settings: DithertronSettings,
+    mapper: Partial<ParamExporterMapper>): ParamExporterMapper
+{
+    // how many cells are in the image
+    let cellsInImage: number = 0;
+
+    const tilesetWidth: number = 32;
+    const tilesetHeight: number = 32;
+
+    let outputTileset: boolean = (settings.customize === undefined ?
+        true :
+        ('outputTileset' in settings.customize ? settings.customize.littleEndian : true));
+
+    let outputPalette: boolean = (settings.customize === undefined ?
+        true :
+        ('outputPalette' in settings.customize ? settings.customize.littleEndian : true));
+
+    if ((!outputTileset) &&
+        (!outputPalette))
+        return undefined;
 
     let exporter: ParamExporterMapper = {
         ...mapper,
-
         prepare(): PrepareInfo {
-            return { data: new Uint8Array() };
+
+            // how many cells are in the image
+            cellsInImage = content.block.columns * content.block.rows;
+
+            return { data: new Uint8Array(((2 * cellsInImage) * (outputTileset ? 1 : 0)) + (outputPalette ? content.block.colors : 0)) };
         },
-        commit(array: Uint8Array): void {
+        iterate(data: Uint8Array): void {
+            let tilesetByteOrderLE: boolean = (settings.customize === undefined ?
+                false :
+                ('tilesetLittleEndian' in settings.customize ? settings.customize.littleEndian : false));
+
+        if (outputTileset) {
+                let tilesetsWide = Math.floor(content.block.columns / tilesetWidth);
+                let tilesetsHigh = Math.floor(content.block.rows / tilesetHeight);
+
+                let totalTilesetBytes = Math.floor((tilesetWidth * tilesetHeight) * 2); // 2 bytes per tile in tilemap
+
+                for (let row = 0; row < content.block.rows; ++row) {
+                    for (let column = 0; column < content.block.columns; ++column) {
+                        let inTilesetW = Math.floor(column / tilesetWidth);
+                        let inTilesetH = Math.floor(row / tilesetHeight);
+        
+                        // the SNES stores each 32x32 block into a quadrant of 4 tilesets, making possible combinations of 32x32, 64x32, 32x64 and 64x64
+                        let tilesetMemoryQuadrant = (inTilesetH * tilesetsWide) + inTilesetW;
+
+                        // where is the tileset cell relative to in memory
+                        let tilesetMemoryOffset = (tilesetMemoryQuadrant * totalTilesetBytes);
+
+                        let tilesetColumn = column % tilesetWidth;
+                        let tilesetRow = row % tilesetHeight;
+        
+                        let offset = ((tilesetRow * content.block.columns) + tilesetColumn) * 2;  // 2 bytes per tile in tileset
+
+                        let finalOffset = tilesetMemoryOffset + offset;
+
+                        let ppp = extractColorsFromParam(content.blockParams[(row *column) + column], 1, 0x3, 2);
+
+                        let v = 0 & 0b1;
+                        let h = 0 & 0b1;
+                        let p = ppp[0] & 0b111;
+                        let c = ((tilesetRow * tilesetWidth) + tilesetColumn) & 0b1111111111;
+                        let tile = (v << 15) | (h << 14) | (p << 10) | c;
+
+                        bitOverlayUint8Array(data, finalOffset, tile, 0, 16, tilesetByteOrderLE);
+                        //console.log('tileset', 'r', row, 'c', column, 'values', v, h, p, c, tile);
+                    }
+                }
+            }
+
+            if (outputPalette) {
+                let paletteOffset = outputTileset ? 0 : (Math.floor((2 * cellsInImage) / 8));
+
+                for (let p = 0; p < content.block.colors; ++p) {
+                    let rgb = message.pal[p];
+
+                    let r = (rgb & 0xff);
+                    let g = ((rgb >> 8) & 0xff);
+                    let b = ((rgb >> 16) & 0xff);
+
+                    let b5g5r5 = ((r >> 3) & 0b11111) | (((g >> 3) & 0b11111) << 5) | (((b >> 3) & 0b11111) << 10);
+
+                    bitOverlayUint8Array(data, paletteOffset + (p * 2), b5g5r5, 0, 16, tilesetByteOrderLE);
+                    //console.log('palette', p, rgb, r, g, g, b5g5r5);
+                }
+            }
         }
     };
 
     return exporter;
 }
 
-export function exportSNESDirectColor(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+export function exportSNES(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     let content: BlockParamDitherCanvasContent = message.content;
 
     return exportCombinedImageAndColorCellBuffer({
         message: message,
         content: content,
-        cellMapper: getSnesDirectColorCellMapper(
-            content,
-            {
-                colorsBitPattern: [ 0x00, 0x01 ]
-            }
-        ),
-        colorParamMapper: getTMS9918ColorMapper(
-            content,
-            {
-                paramToBitPattern(param: number, info: BitInfo): number {
-                    let colors = extractColorsFromParamContent(param, 2, content);
-
-                    // a special transparency pixel color exists "0x00" which is defined
-                    // as black in the palette, thus choose to remap the transparent
-                    // pixel color choice as TMS9918's black "0x01".
-                    colors[0] = (colors[0] == 0x00) ? 0x01 : colors[0];
-                    colors[1] = (colors[1] == 0x00) ? 0x01 : colors[1];
-        
-                    return colors[0] | (colors[1] << 4);
-                }
-            }
-        )
+        cellMapper: getSnesBitplanCellMapper(message, content, settings, {}),
+        colorParamMapper: getSnesTilemapMapper(message, content, settings, {})
     });
 }
-
 
 export function exportNES(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     var i = 0;

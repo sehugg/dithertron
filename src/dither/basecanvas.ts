@@ -264,8 +264,8 @@ export interface BlockParamDitherCanvasContent {
     width: number;
     height: number;
 
-    block: BlockBasics & BlockColors & BlockSizing;
-    cb: BlockBasics & BlockSizing;
+    block: BlockBasics & BlockColors & BlockSizing & BlockBitOrder;
+    cb: BlockBasics & BlockSizing & BlockBitOrder;
     cell: BlockBasics & BlockSizing & BlockBitOrder;
 
     fliMode: boolean;
@@ -300,9 +300,9 @@ export abstract class BlockParamDitherCanvas extends BaseDitheringCanvas {
     cellParams: Uint32Array = new Uint32Array(0);
     extraParams: Uint32Array = new Uint32Array(0);
 
-    block: BlockBasics & BlockColors & BlockSizing & Required<BlockColorBleed>;
-    cb: BlockBasics & BlockSizing & Required<BlockColorBleed>;
-    cell: BlockBasics & BlockSizing  & Required<BlockColorBleed> & BlockBitOrder;
+    block: BlockBasics & BlockColors & BlockSizing & BlockColorBleed & BlockBitOrder;
+    cb: BlockBasics & BlockSizing & BlockColorBleed & BlockBitOrder;
+    cell: BlockBasics & BlockSizing  & BlockColorBleed & BlockBitOrder;
 
     fliMode: boolean = false;
     fullPaletteMode: boolean = false;
@@ -453,6 +453,8 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
     histogram = new Uint32Array(this.pal.length);   // temporary scratch histogram buffer
     scores = new Uint32Array(this.pal.length);      // temporary scratch scores buffer
 
+    firstCommit = false;
+
     override init() : void {
         this.prepare();
     }
@@ -491,7 +493,8 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
                     (this.sys.block.yb === undefined ? 0 : this.sys.block.yb)),
             columns: 0,
             rows: 0,
-            size: 0
+            size: 0,
+            msbToLsb: (this.sys.block === undefined ? true : (this.sys.block.msbToLsb === undefined ? true : this.sys.block.msbToLsb))
         };
         this.block.columns = Math.ceil(this.width / this.block.w);
         this.block.rows = Math.ceil(this.height / this.block.h);
@@ -508,7 +511,8 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
                     (this.sys.cb.yb === undefined ? this.block.yb : this.sys.cb.yb)),
             columns: 0,
             rows: 0,
-            size: 0
+            size: 0,
+            msbToLsb: (this.sys.cb === undefined ? true : (this.sys.cb.msbToLsb === undefined ? true : this.sys.cb.msbToLsb))
         };
         this.cb.columns = Math.ceil(this.width / this.cb.w);
         this.cb.rows = Math.ceil(this.height / this.cb.h);
@@ -517,16 +521,16 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.cell = {
             w: (this.sys.cell === undefined ? this.cb.w : this.sys.cell.w),
             h: (this.sys.cell === undefined ? this.cb.h : this.sys.cell.h),
-            msbToLsb: (this.sys.cell === undefined ? true : this.sys.cell.msbToLsb),
-            columns: 0,
-            rows: 0,
-            size: 0,
             xb: (this.sys.cell === undefined ?
                     this.block.xb :
                     (this.sys.cell.xb === undefined ? this.block.xb : this.sys.cell.xb)),
             yb: (this.sys.cell === undefined ?
                     this.block.yb :
                     (this.sys.cell.yb === undefined ? this.block.yb : this.sys.cell.yb)),
+            columns: 0,
+            rows: 0,
+            size: 0,
+            msbToLsb: (this.sys.cell === undefined ? true : this.sys.cell.msbToLsb)
         };
         this.cell.columns = Math.ceil(this.width / this.cell.w);
         this.cell.rows = Math.ceil(this.height / this.cell.h);
@@ -549,6 +553,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
 
         // if the number of chosen colors is greater than the palette size there's no need to store color choices
         this.fullPaletteMode = (this.paletteChoices.colors >= this.pal.length);
+        this.firstCommit = this.paletteChoices.prefillReference;
     }
     spliceColor(color: number, colors: number[]): number[] {
         let found = colors.findIndex((x) => x == color);
@@ -566,10 +571,11 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.borderColors = range(this.paletteChoices.borderRange.min, this.paletteChoices.borderRange.max+1);
         this.blockColors = range(this.paletteChoices.colorsRange.min, this.paletteChoices.colorsRange.max+1);
     }
-    preparePaletteChoices(options?: PaletteChoices):void {
+    preparePaletteChoices(options?: Partial<PaletteChoices>):void {
         console.assert(this.pal.length > 0);
         if (options === undefined) {
             this.paletteChoices = {
+                prefillReference: false,
                 background: false,
                 aux: false,
                 border:  false,
@@ -583,6 +589,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
             return;
         }
         this.paletteChoices = {
+            prefillReference: options.prefillReference === undefined ? false : options.prefillReference,
             background: options.background === undefined ? false : options.background,
             aux: options.aux === undefined ? false : options.aux,
             border:  options.aux === undefined ? false : options.border,
@@ -1067,6 +1074,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.guessCellParams();
         this.guessCbParams();
         this.guessBlockParams();
+        this.firstCommit = false;
     }
 
     override getValidColors(imageIndex: number): number[] {
@@ -1117,8 +1125,9 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.scores.fill(0);
 
         // rank all colors within the size of the block (and bordering values)
-        this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
-        let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, this.pixelPaletteChoices);
+        if (!this.firstCommit)
+            this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
+        let scored = this.addToBlockHistogramFrom(offset, this.histogram, this.scores, this.pixelPaletteChoices, this.firstCommit ? this.ref : this.alt);
 
         // never choose the colors that are always valid and available
         // for every pixel (i.e. why waste the screen ram or color block

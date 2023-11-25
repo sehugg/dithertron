@@ -160,8 +160,9 @@ export class VICII_Canvas extends CommonBlockParamDitherCanvas {
         this.scores.fill(0);
 
         // rank all colors within the size of the block (and bordering values)
-        this.addToBlockHistogramFromCurrentColor(offset, this.histogram, pixelChoiceColors);
-        let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, pixelChoiceColors);
+        if (!this.firstCommit)
+            this.addToBlockHistogramFromCurrentColor(offset, this.histogram, pixelChoiceColors);
+        let scored = this.addToBlockHistogramFrom(offset, this.histogram, this.scores, pixelChoiceColors, this.firstCommit ? this.ref : this.alt);
 
         if (this.paramInfo.cb) {
             // filter out the cb chosen color as there's no point in choosing the
@@ -243,8 +244,9 @@ export class VICII_Canvas extends CommonBlockParamDitherCanvas {
         this.scores.fill(0);
 
         // rank all colors within the size of the block (and bordering values)
-        this.addToCbHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
-        let scored = this.addToCbHistogramFromAlt(offset, this.histogram, this.scores, this.pixelPaletteChoices);
+        if (!this.firstCommit)
+            this.addToCbHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
+        let scored = this.addToCbHistogramFrom(offset, this.histogram, this.scores, this.pixelPaletteChoices, this.firstCommit ? this.ref : this.alt);
 
         // get best choices for sub-block
         let choices = this.getScoredChoicesByCount(scored);
