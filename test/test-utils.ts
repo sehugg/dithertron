@@ -63,7 +63,7 @@ export async function doDither(dt: Dithertron, testid: string, maxiters: number)
   while (dt.iterate() && iters < maxiters) {
     iters++;
   }
-  t.ok(iters < maxiters, "should not reach maxiters");
+  t.ok(iters < maxiters, "should not reach " + maxiters + " iters");
   if (dt.dithcanv == null) throw new Error("dithcanv should not be null");
   if (dt.dithcanv.img == null) throw new Error("dithcanv.img should not be null");
   // save image to file
@@ -94,8 +94,8 @@ export async function compareWithRef(t: Test, dt: Dithertron, maxbelow: number, 
   }
   avgerror /= ref.length;
   //t.comment("maxerror", maxerror, "avgerror", avgerror);
-  t.ok(maxerror <= maxbelow);
-  t.ok(avgerror <= avgbelow);
+  t.ok(maxerror <= maxbelow, "maxerror should be below " + maxbelow + ", was " + maxerror);
+  t.ok(avgerror <= avgbelow, "avgerror should be below " + avgbelow + ", was " + avgerror);
   return { maxerror, avgerror };
 }
 
