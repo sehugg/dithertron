@@ -26,11 +26,19 @@ const destCanvas = document.getElementById('destcanvas') as HTMLCanvasElement;
 //const cmdline = document.getElementById('cmdline');
 
 class ProxyDithertron {
+    worker: Worker;
     settings: DithertronSettings;
     lastPixels: PixelsAvailableMessage;
 
-    constructor(worker: Worker) {
-        worker.onmessage = (ev) => {
+    constructor() {
+        this.newWorker();
+    }
+    newWorker() {
+        // disable old worker
+        if (this.worker) this.worker.onmessage = () => {};
+        // create a new worker
+        this.worker = new Worker("./gen/worker.js");
+        this.worker.onmessage = (ev) => {
             var data = ev.data;
             if (data != null) {
                 //console.log('recv',data);
@@ -43,20 +51,18 @@ class ProxyDithertron {
     }
     setSettings(settings: DithertronSettings) {
         this.settings = settings;
-        worker.postMessage({ cmd: "setSettings", data: settings });
+        this.worker.postMessage({ cmd: "setSettings", data: settings });
     }
     setSourceImage(img: Uint32Array) {
-        worker.postMessage({ cmd: "setSourceImage", data: img });
+        this.worker.postMessage({ cmd: "setSourceImage", data: img });
     }
     restart() {
-        worker.postMessage({ cmd: "restart" });
+        this.worker.postMessage({ cmd: "restart" });
     }
     pixelsAvailable: (msg: PixelsAvailableMessage) => void;
 }
 
-const worker = new Worker("./gen/worker.js");
-
-export const dithertron = new ProxyDithertron(worker);
+export const dithertron = new ProxyDithertron();
 
 var filenameLoaded: string;
 var presetLoaded: string;
@@ -231,6 +237,7 @@ function loadSourceImage(url: string) {
 
 function setTargetSystem(sys: DithertronSettings) {
     var showNoise = sys.conv != 'DitheringCanvas';
+    dithertron.newWorker();
     dithertron.setSettings(sys);
     dithertron.restart();
     showSystemInfo(sys);
