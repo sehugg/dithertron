@@ -39,3 +39,14 @@ export type Only<T, U> = {
 export type Either<T, U> = Only<T, U> | Only<U, T>;
 
 export type static_assert<T extends true> = never;
+
+export function runtime_assert(condition: boolean, message?: any): void {
+    // test condition outside of a lock (tests use extremely slow global lock)
+    if (condition)
+        return;
+
+    if (message == undefined)
+        console.assert(condition);
+    else
+        console.assert(condition, message);
+}

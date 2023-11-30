@@ -10,7 +10,7 @@ import {
     ScoredColorChoice,
 } from "./basecanvas";
 import { MAX_ITERATE_COUNT } from "./dithertron";
-import { range } from "../common/util";
+import { range, runtime_assert } from "../common/util";
 
 export class DitheringCanvas extends BaseDitheringCanvas {
     // just a wrapper for the base class so we can find it
@@ -358,8 +358,8 @@ export class ZXSpectrum_Canvas extends CommonBlockParamDitherCanvas {
         if (choices2.length < 2)
             choices2.push(choices2[0]);
 
-        console.assert(choices1.length >= 2);
-        console.assert(choices2.length >= 2);
+        runtime_assert(choices1.length >= 2);
+        runtime_assert(choices2.length >= 2);
 
         let score1 = 0;
         let score2 = 0;
@@ -375,10 +375,10 @@ export class ZXSpectrum_Canvas extends CommonBlockParamDitherCanvas {
             result = score2 < score1 ? choices1 : choices2;
         }
 
-        console.assert(result[0].ind >= this.paletteRange.min);
-        console.assert(result[0].ind <= this.paletteRange.max);
-        console.assert(result[1].ind >= this.paletteRange.min);
-        console.assert(result[1].ind <= this.paletteRange.max);
+        runtime_assert(result[0].ind >= this.paletteRange.min);
+        runtime_assert(result[0].ind <= this.paletteRange.max);
+        runtime_assert(result[1].ind >= this.paletteRange.min);
+        runtime_assert(result[1].ind <= this.paletteRange.max);
 
         if (this.flipPalette) {
             result[0].ind = (result[0].ind ^ 0b1000);
@@ -485,7 +485,7 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
             }
 
             // must have chosen at least one color
-            console.assert(choices.length > 0);
+            runtime_assert(choices.length > 0);
 
             // fill the color stack with rotating choices if too few colors were chosen
             let startLength = choices.length;
@@ -494,7 +494,7 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
             }
 
             // must now have exactly "colorStack" choices in length
-            console.assert(choices.length == useColorStack.length);
+            runtime_assert(choices.length == useColorStack.length);
 
             // figure out which pattern is most likely to be useful, create the "default" color stack
             useColorStack = choices.map((x) => { return x.ind; });
@@ -515,7 +515,7 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
                     let ranking = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColorStack);
 
                     let rankedChoices = this.getScoredChoicesByCount(ranking);
-                    console.assert(rankedChoices.length <= useColorStack.length);
+                    runtime_assert(rankedChoices.length <= useColorStack.length);
 
                     let scoredColors: number[] = [];
                     for (let n = 0; n < useColorStack.length; ++n) {
@@ -567,7 +567,7 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
                 lowestCombination = 0;
             }
 
-            console.assert(!Number.isNaN(lowestCombination));
+            runtime_assert(!Number.isNaN(lowestCombination));
 
             // have found the best possible combination, make a new color stack
             let replacementColorStack: number[] = [];
@@ -635,7 +635,7 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
                 let scored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, colors);
 
                 let choices = this.getScoredChoicesByCount(scored);
-                console.assert(choices.length > 0);
+                runtime_assert(choices.length > 0);
 
                 let advance: number = choices[0].ind == nextColor ? 1 : 0;
                 colorStackScore += choices[0].score;
@@ -688,7 +688,7 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
             let scored = this.addToCellHistogramFromAlt(offset, this.histogram, this.scores, restrictColors);
 
             let choices = this.getScoredChoicesByCount(scored);
-            console.assert(choices.length > 0);
+            runtime_assert(choices.length > 0);
 
             if ((choices[0].ind < this.paletteChoices.colorsRange.min) || (choices[0].ind > this.paletteChoices.colorsRange.max)) {
                 // this block would make use of a pastel color
@@ -878,7 +878,7 @@ export class SNES_Canvas_Direct extends CommonBlockParamDitherCanvas {
         }
 
         // found the ppp value to use for this particular cell
-        console.assert(!Number.isNaN(lowestPpp));
+        runtime_assert(!Number.isNaN(lowestPpp));
 
         // store the ppp value into the block color (since the this.indexed will hold the actual color)
         this.updateBlockColorParam(offset, [ lowestPpp ], 0x3, 2);

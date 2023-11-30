@@ -1,6 +1,8 @@
 import { DithertronSettings, PixelEditorImageFormat, PixelsAvailableMessage } from "../common/types";
 import { ParamsContent, BlockParamDitherCanvasContent, extractColorsFromParams, extractColorsFromParamContent, extractColorsFromParamsContent, extractColorsFromParam } from "../dither/basecanvas";
 
+import { runtime_assert } from "../common/util";
+
 import { hex } from "../common/util";
 
 function remapBits(x: number, arr?: number[]): number {
@@ -146,7 +148,7 @@ export function bitOverlayUint8Array(
         let complimentByte = complimentFilter & 0xff;
         let overlayByte = bitOverlay & 0xff;
 
-        console.assert(offset < array.length);
+        runtime_assert(offset < array.length);
         array[offset] = (array[offset] & complimentByte) | overlayByte;
 
         bitOverlay >>= 8;
@@ -308,7 +310,7 @@ function getDefaultedCellExporterMapper(
         }
 
         console.log('global nor param color does not contain color from image', values, mapper, param, paletteIndex, info);
-        console.assert(false);  // something went wrong as palette could not be mapped
+        runtime_assert(false);  // something went wrong as palette could not be mapped
         return 0;
     });
 
@@ -326,7 +328,7 @@ function getDefaultedCellExporterMapper(
         for (let i = 0, y = 0; y < (mapper.height === undefined? values.height : mapper.height); ++y) {
             for (let x = 0; x < (mapper.width === undefined ? values.width : mapper.width); ++x, ++i) {
                 let info = mapper.xyToBitInfo(x, y);
-                console.assert((params === undefined) || (info.paramOffset < params.length));    // must be within the bounds of the param array
+                runtime_assert((params === undefined) || (info.paramOffset < params.length));    // must be within the bounds of the param array
                 let bitPattern = paramToBitPattern(params === undefined ? 0 : (params[info.paramOffset]), indexed[i], info);
                 bitOverlayUint8Array(array, info.offset, bitPattern, info.bitShift, info.bitCount, setup.littleEndian);
             }
@@ -1147,7 +1149,7 @@ export function exportSticColorStack(message: PixelsAvailableMessage, settings: 
                     return cellColorsBitPattern[0];
 
                 console.log('cb nor param color does not contain color from image', param, paletteIndex, colors, info, cbColor);
-                console.assert(false);  // something went wrong as palette could not be mapped
+                runtime_assert(false);  // something went wrong as palette could not be mapped
                 return 0;
             }
         }
@@ -1197,7 +1199,7 @@ export function exportSticColorStack(message: PixelsAvailableMessage, settings: 
                     let usingExtendedColor = ((c1 & 0b1000) != 0);
                     let cellInfo = (content.paramInfo.cell ? extractColorsFromParams(info.paramOffset, content.cellParams, 2, 0xff, 8) : [gramMode ? 1 : 0, gramMode ? (info.paramOffset & 0b111111) : 0]);
                     let usingGram = (cellInfo[0] != 0);
-                    console.assert((!usingExtendedColor) || ((usingExtendedColor) && (usingGram)));
+                    runtime_assert((!usingExtendedColor) || ((usingExtendedColor) && (usingGram)));
         
                     let gramOrRom = usingGram ? 0b1 : 0b0;
                     let gramOrRomCard = usingGram ? (cellInfo[1] & 0b111111) : (info.paramOffset & 0b11111111);
@@ -1361,7 +1363,7 @@ function snesDefautPlaneToMemoryLocationFunc(
 
     shiftedBitInPlane = shiftedBitInPlane % 8;
 
-    console.assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
+    runtime_assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
     return { offset: bitPlaneOffset + whichByteInPlane, bitShift: shiftedBitInPlane, bitCount: bitsInPlane };
 }
 
@@ -1426,7 +1428,7 @@ function snesInterleavedPlaneToMemoryLocationFunc(
 
     shiftedBitInPlane = shiftedBitInPlane % 8;
 
-    console.assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
+    runtime_assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
     return { offset: bitPlaneOffset + whichByteInPlane, bitShift: shiftedBitInPlane, bitCount: bitsInPlane };
 }
 
@@ -1465,7 +1467,7 @@ function snesLinearPlaneToMemoryLocationFunc(
 
     shiftedBitInPlane = shiftedBitInPlane % 8;
 
-    console.assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
+    runtime_assert((bitPlaneOffset + whichByteInPlane) * 8 < (planes * bitPlaneRowWidth * content.block.h));
     return { offset: bitPlaneOffset + whichByteInPlane, bitShift: shiftedBitInPlane, bitCount: bitsInPlane };
 }
 

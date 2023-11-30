@@ -13,7 +13,7 @@ import {
     BlockColorBleed,
     Param
 } from "../common/types";
-import { range } from "../common/util";
+import { range, runtime_assert } from "../common/util";
 
 const THRESHOLD_MAP_4X4 = [
     0, 8, 2, 10,
@@ -423,7 +423,7 @@ export function extractColorsFromParamContent(param: number, totalToExtract: num
 export function extractColorsFromParams(offset: number, params: Uint32Array, totalToExtract: number, paletteBitFilter: number, paletteBits: number): number[] {
     if (0 == totalToExtract)
         return [];
-    console.assert(offset < params.length);
+    runtime_assert(offset < params.length);
     return extractColorsFromParam(params[offset], totalToExtract, paletteBitFilter, paletteBits);
 }
 
@@ -547,7 +547,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.bitsPerColor = Math.ceil(Math.log2(this.block.colors));
         this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
 
-        console.assert(this.paletteBits > 0);
+        runtime_assert(this.paletteBits > 0);
 
         this.preparePaletteChoices(this.sys.paletteChoices);
 
@@ -572,7 +572,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.blockColors = range(this.paletteChoices.colorsRange.min, this.paletteChoices.colorsRange.max+1);
     }
     preparePaletteChoices(options?: Partial<PaletteChoices>):void {
-        console.assert(this.pal.length > 0);
+        runtime_assert(this.pal.length > 0);
         if (options === undefined) {
             this.paletteChoices = {
                 prefillReference: false,
@@ -606,9 +606,9 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.preparePixelPaletteChoices();
 
         // some basic sanity checks
-        console.assert(this.pal.length > this.paletteChoices.backgroundRange.max - this.paletteChoices.backgroundRange.min);
-        console.assert(this.pal.length > this.paletteChoices.auxRange.max - this.paletteChoices.auxRange.min);
-        console.assert(this.pal.length > this.paletteChoices.borderRange.max - this.paletteChoices.borderRange.min);
+        runtime_assert(this.pal.length > this.paletteChoices.backgroundRange.max - this.paletteChoices.backgroundRange.min);
+        runtime_assert(this.pal.length > this.paletteChoices.auxRange.max - this.paletteChoices.auxRange.min);
+        runtime_assert(this.pal.length > this.paletteChoices.borderRange.max - this.paletteChoices.borderRange.min);
     }
     chooseMin(available: boolean, range: PaletteRange, current?: number): number {
         if (!available)
@@ -712,7 +712,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
                 let found = altList.findIndex((x) => x.ind == choice.ind);
 
                 // remove the entry from the alternatively ranked list
-                console.assert(found >= 0);
+                runtime_assert(found >= 0);
                 altList.splice(found, 1);
 
                 // prevent this choice from being used again
@@ -741,7 +741,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
                     // this color is high priority to pick
                     let topChoice = histoRankedChoices[c];
                     let priority = choices.findIndex((x) => x.ind == topChoice.ind);
-                    console.assert(priority >= 0);
+                    runtime_assert(priority >= 0);
                     topNChoices.push({priority, choice: topChoice});
                     // removing the choice from the list is okay because it's going to be
                     // re-inserted at the top of the new choices list
@@ -861,7 +861,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
     }
 
     addToHistogramFromCurrentColor(color: number, histogram: Uint32Array) : void {
-        console.assert(color < histogram.length);
+        runtime_assert(color < histogram.length);
         histogram[color] += this.histogramScoreCurrent;
     }
 
@@ -917,7 +917,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         for (let i = 0; i < (colors === undefined ? scores.length : colors.length); ++i) {
             let rgbPalette = this.pal[colorToPalIndex(i)];
             let score = this.errfn(rgb, rgbPalette);
-            console.assert(colorToPalIndex(i) < scores.length);
+            runtime_assert(colorToPalIndex(i) < scores.length);
             scores[colorToPalIndex(i)] += score;
             if ((score < closestScore) || (Number.isNaN(closestScore))) {
                 closestScore = score;
@@ -935,8 +935,8 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
     }
 
     mergeHistogram(dest: Uint32Array, source1: Uint32Array, source2: Uint32Array, colors?: number[]): void {
-        console.assert(source1.length == source2.length);
-        console.assert(dest.length == source1.length);
+        runtime_assert(source1.length == source2.length);
+        runtime_assert(dest.length == source1.length);
 
         if (colors === undefined) {
             for (let i = 0; i < dest.length; ++i) {
@@ -1030,7 +1030,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
     }
 
     updateColorParam(offset: number, params: Uint32Array, colorChoices: number[], overrideFilter?: number, overrideBits?: number): void {
-        console.assert(offset < params.length);
+        runtime_assert(offset < params.length);
 
         if (colorChoices.length < 1) {
             params[offset] = 0;
