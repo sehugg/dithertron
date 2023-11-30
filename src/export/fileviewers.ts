@@ -29,12 +29,14 @@ import { convertToSystemPalette } from "../common/color";
 ///
 
 export function getFileViewerCode_c64_multi(): string {
-    return asm_c64_multi;
+    var code = asm_c64_multi;
+    code = code.replace('$USE_MULTI_MODE', '1');
+    return code;
 }
 
 export function getFileViewerCode_c64_hires(): string {
-    var code = getFileViewerCode_c64_multi();
-    code = code.replace('lda #$18', 'lda #$08').replace('multicolor', 'single');
+    var code = asm_c64_multi;
+    code = code.replace('$USE_MULTI_MODE', '0');
     return code;
 }
 
