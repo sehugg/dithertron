@@ -174,7 +174,7 @@ L0:
     inx         ; FLI bug $D800 color = 8 (orange)
     cpx #LastRasterLine    ; last rasterline?
 Ntsc4:
-    bne L0      ; branches to l0-1 on NTSC for 2 extra cycles per rasterline
+    bne L0      ; branches to L0-1 on NTSC for 2 extra cycles per rasterline
 
     ; lda $d016
     ; eor #$01    ; IFLI: 1 hires pixel shift every 2nd frame
