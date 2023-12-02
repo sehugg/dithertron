@@ -250,7 +250,7 @@ Start:
     lda #Irq0AtRaster
     sta $d012   ; interrupt at raster line 45
 
-    ; Even though these IRQ values overrite screen
+    ; Even though these IRQ values overwrite screen
     ; color choice area of the picture data, this
     ; does not affect the picture in any way
     ; because the color choices end at 1000 bytes,
@@ -260,7 +260,7 @@ Start:
     ;
     ; However, care must be taken that if a new
     ; picture is loaded into this memory area then the
-    ; IRQ table needs to be re-initialzed to these
+    ; IRQ table needs to be re-initialized to these
     ; default values and interrupts (including NMIs)
     ; must be disabled during the picture copying
     ; process. NMIs cannot technically be disabled,
@@ -355,7 +355,7 @@ InitGfx:
 #else
     lda #$C8    ; multi-color mode off
 #endif
-    sta $d016   ; %00011000 ; no horizontal scroll, 40 columns, multimode on or off, defaulted high bits
+    sta $d016   ; %00011000 ; no horizontal scroll, 40 columns, multi-mode on or off, defaulted high bits
     lda #$80
     sta $d018   ; %10000000 ; bitmap data %0xx, 0: +$0000-$1FFF, 0-8191; screen color choices +$2000-$23FF, 8192-9215.
     lda #$00
