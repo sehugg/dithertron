@@ -52,7 +52,6 @@ Sys2062:
     ; cycle inaccurate.
     
     .align $100
-    .align $1
     
     ;
     ; Two IRQs are used to create a stable raster
