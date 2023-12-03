@@ -62,7 +62,7 @@ Sys2062:
     ; The first IRQ's job is to setup the second IRQ.
     ; While the first IRQ is triggers based on a
     ; raster line it's timing is not said to be as
-    ; accurate becuase the CPU might be processing
+    ; accurate because the CPU might be processing
     ; any possible cycle timed 1-7 clock cycle
     ; instructions, whereas the second IRQ is
     ; triggered only during a 2 clock cycle "nop"
