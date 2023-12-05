@@ -284,6 +284,7 @@ export class VICII_Canvas extends CommonBlockParamDitherCanvas {
 
 }
 
+// TODO: figure out why light+dark oscillates between two states and doesn't converge
 export class ZXSpectrum_Canvas extends CommonBlockParamDitherCanvas {
     darkColors: number[];
     brightColors: number[];
