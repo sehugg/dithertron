@@ -52,7 +52,6 @@ Sys2062:
     ; cycle inaccurate.
     
     .align $100
-    .align $1
     
     ;
     ; Two IRQs are used to create a stable raster
@@ -63,7 +62,7 @@ Sys2062:
     ; The first IRQ's job is to setup the second IRQ.
     ; While the first IRQ is triggers based on a
     ; raster line it's timing is not said to be as
-    ; accurate becuase the CPU might be processing
+    ; accurate because the CPU might be processing
     ; any possible cycle timed 1-7 clock cycle
     ; instructions, whereas the second IRQ is
     ; triggered only during a 2 clock cycle "nop"
@@ -174,7 +173,7 @@ L0:
     inx         ; FLI bug $D800 color = 8 (orange)
     cpx #LastRasterLine    ; last rasterline?
 Ntsc4:
-    bne L0      ; branches to l0-1 on NTSC for 2 extra cycles per rasterline
+    bne L0      ; branches to L0-1 on NTSC for 2 extra cycles per rasterline
 
     ; lda $d016
     ; eor #$01    ; IFLI: 1 hires pixel shift every 2nd frame
@@ -223,10 +222,10 @@ Start:
     ; A fix is welcomed for this issue.
 
 #if FinalRowPatch
-    lda LookupD011+199
+    lda LookupD011+LastRasterLine
     and #$07
     ora #$70
-    sta LookupD011+199
+    sta LookupD011+LastRasterLine
 #endif
 
     ; The VIC chip doesn't care if ram or rom is
@@ -250,7 +249,7 @@ Start:
     lda #Irq0AtRaster
     sta $d012   ; interrupt at raster line 45
 
-    ; Even though these IRQ values overrite screen
+    ; Even though these IRQ values overwrite screen
     ; color choice area of the picture data, this
     ; does not affect the picture in any way
     ; because the color choices end at 1000 bytes,
@@ -260,7 +259,7 @@ Start:
     ;
     ; However, care must be taken that if a new
     ; picture is loaded into this memory area then the
-    ; IRQ table needs to be re-initialzed to these
+    ; IRQ table needs to be re-initialized to these
     ; default values and interrupts (including NMIs)
     ; must be disabled during the picture copying
     ; process. NMIs cannot technically be disabled,
@@ -355,7 +354,7 @@ InitGfx:
 #else
     lda #$C8    ; multi-color mode off
 #endif
-    sta $d016   ; %00011000 ; no horizontal scroll, 40 columns, multimode on or off, defaulted high bits
+    sta $d016   ; %00011000 ; no horizontal scroll, 40 columns, multi-mode on or off, defaulted high bits
     lda #$80
     sta $d018   ; %10000000 ; bitmap data %0xx, 0: +$0000-$1FFF, 0-8191; screen color choices +$2000-$23FF, 8192-9215.
     lda #$00

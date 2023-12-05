@@ -1,8 +1,16 @@
 import { getChoices, reducePaletteChoices, ColorChoice } from "../common/color";
 import { PaletteChoices, PaletteRange  } from "../common/types";
-import { BaseDitheringCanvas, BasicParamDitherCanvas, OneColor_Canvas, ParamDitherCanvas, TwoColor_Canvas } from "./basecanvas";
+import {
+    BaseDitheringCanvas,
+    BasicParamDitherCanvas,
+    OneColor_Canvas,
+    TwoColor_Canvas,
+    CommonBlockParamDitherCanvas,
+    AddToHistogramFromCurrentColorAtHandler,
+    ScoredColorChoice,
+} from "./basecanvas";
 import { MAX_ITERATE_COUNT } from "./dithertron";
-import { range } from "../common/util";
+import { range, runtime_assert } from "../common/util";
 
 export class DitheringCanvas extends BaseDitheringCanvas {
     // just a wrapper for the base class so we can find it
@@ -11,10 +19,6 @@ export class DitheringCanvas extends BaseDitheringCanvas {
 export class Teletext_Canvas extends OneColor_Canvas {
     w = 2;
     h = 3;
-}
-export class VDPMode2_Canvas extends TwoColor_Canvas {
-    w = 8;
-    h = 1;
 }
 export class VCSColorPlayfield_Canvas extends TwoColor_Canvas {
     w = 40;
@@ -53,69 +57,7 @@ export class Apple2_Canvas extends TwoColor_Canvas {
     }
 }
 
-namespace VICII_Canvas_Details {
-    export interface UseBlockInfo {
-        w: number;
-        h: number;
-        xb?: number;
-        yb?: number;
-    };
-
-    export let prepare = function (defaults: UseBlockInfo, block?: UseBlockInfo): UseBlockInfo {
-        if (block === undefined) {
-            return prepare(defaults, defaults);
-        }
-        let result: UseBlockInfo = { ...block };
-        result.xb = (block.xb === undefined ? 0 : block.xb);
-        result.yb = (block.yb === undefined ? 0 : block.yb);
-        return result;
-    }
-}
-
-export class VICII_Canvas extends ParamDitherCanvas {
-    // FLI allows for the color choices of pixel values %01/%10 to change PER row as the
-    // screen address where the color information is stored is changeable for each scan line
-    // BUT the color ram for the %11 is not an address that can be changed so the
-    // color ram applies to the entire 4x8 macro block
-
-    // pixel values (for multi-mode):
-    // %00 = background color (global value)
-    // %01 = upper nybble of screen block (changeable per row 4x8 block size, 4x1 in FLI)
-    // %10 = lower nybble of screen block (changeable only at the 4x8 block size)
-    // %11 = lower nybble of color ram
-
-    // pixel values (for hires-mode):
-    // %0 = background color choice (stored in screen lower nybble, changeable per 8x8 block, 8x1 in FLI)
-    // %1 = color choice (stored in screen upper nybble, changeable per 8x8 block, 8x1 in FLI)
-    b: VICII_Canvas_Details.UseBlockInfo;
-    colors: number;
-
-    paletteChoices: PaletteChoices = {};
-    pixelPaletteChoices: number[];
-
-    // NOTE: cb = "color block"
-    //
-    // In multi-color mode, the pixel index color choices are either %00 for background,
-    // %10 lower nybble screen value, %01 for upper nybble screen value, and %11 for
-    // the color block. The color block values are kept as a separate set of parameters
-    // at the end of the screen color choice parameters as they are an entirely
-    // independent color choice data set which is immovable in memory (unlike screen
-    // ram which is address moveable). The block size of the color blocks (4x8) happen to
-    // be the same size as the screen color choice block sizes (4x8) in multi-color mode.
-    // However, in multi-color FLI mode the screen color choices have per row color
-    // choices (4x1) even though the color block sizes remain the same size (4x8).
-    //
-    // This the reason the color block parameters are split from the screen parameter
-    // color choices as they are not always a 1:1 pairing.
-    useCb: boolean;
-    cb: VICII_Canvas_Details.UseBlockInfo;
-    cbOffset: number = 0;   // the offset into the params array for the color block ram
-    extra: number = 0;
-
-    bitsPerColor: number;
-    pixelsPerByte: number;
-
-    fliMode: boolean = false;
+export class VICII_Canvas extends CommonBlockParamDitherCanvas {
 
     // FLI mode causes a VIC bug to appear coined the "fli bug". The issue is that
     // when $D011 is forced into a "bad line" condition which forces the VIC to
@@ -149,410 +91,116 @@ export class VICII_Canvas extends ParamDitherCanvas {
     blankRightScreenMirrorFliBugArea: boolean = false;
     blankFliBugColumnCount: number = 0;
 
-    // values chosen base on image
-    bgColor: number = 0;
-    auxColor: number = 0;
-    borderColor: number = 0;
-    globalValid: number[] = [];
+    override init(): void {
+        super.prepare();
 
-    // state machine for guessing
-    lastComputedCb: number = 0;
-
-    // TODO: choose global colors before init?
-    init() {
-        // adopt the system settings
-        this.b = VICII_Canvas_Details.prepare(this.sys.block, this.sys.block);
-        this.cb = VICII_Canvas_Details.prepare(this.sys.block, this.sys.cb);
-
-        this.useCb = this.sys.cb === undefined ? false : true;
-        this.colors = this.sys.block.colors;
-        this.extra = this.sys.param === undefined ? 0 : this.sys.param.extra;
-
-        // assume the background color is choosable (unless overridden)
-        this.preparePaletteChoices(this.sys.paletteChoices);
-
-        if (this.sys.fli != undefined) {
-            this.fliMode = true;
+        if (this.fliMode) {
             this.fliBug = this.sys.fli.bug;
             this.blankLeftScreenFliBugArea = this.sys.fli.blankLeft;
             this.blankRightScreenMirrorFliBugArea = this.sys.fli.blankRight;
             this.blankFliBugColumnCount = this.sys.fli.blankColumns;
-        }
-
-        // find global colors
-        this.prepareGlobalColorChoices();
-
-        this.bitsPerColor = Math.ceil(Math.log2(this.colors));
-        this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
-
-        // offset into the first byte of the color ram (which is after the screen data)
-        this.cbOffset = (this.width / this.b.w * this.height / this.b.h);
-        this.params = new Uint32Array(this.cbOffset + ((this.width / this.cb.w * this.height / this.cb.h) * (this.useCb ? 1 : 0)) + this.extra);
-
-        // console.log('blocks',this.b, this.cb, this.useCb, this.bitsPerColor, this.pixelsPerByte);
-        // console.log('palette',this.paletteChoices);
-        // console.log('colors',this.colors, this.globalValid, this.bgColor, this.auxColor, this.borderColor);
-        // console.log('choices',this.pixelPaletteChoices);
-        // console.log('picture', this.width, this.height, this.cbOffset, this.params.length);
-
-        // fill params of sub-blocks
-        for (var i = 0; i < this.params.length - this.extra; i++) {
-            this.guessParam(i);
-        }
-
-        // extra parameter for global colors
-        if (this.extra > 0)
-            this.params[this.params.length - this.extra] = this.bgColor | (this.auxColor << 4) | (this.borderColor << 8);
-    }
-    preparePixelPaletteChoices(): void {
-        let count : number = this.paletteChoices.colorsRange.max - this.paletteChoices.colorsRange.min + 1;
-        let ind = new Array<number>(count);
-        for(let l = 0, i = this.paletteChoices.colorsRange.min; i < this.paletteChoices.colorsRange.min + count; ++l, ++i) {
-            ind[l] = i;
-        }
-        this.pixelPaletteChoices = ind;
-    }
-    preparePaletteChoices(options?: PaletteChoices):void {
-        console.assert(this.pal.length > 0);
-        if (options === undefined) {
-            this.paletteChoices.background = false;
-            this.paletteChoices.aux = false;
-            this.paletteChoices.border = false;
-            this.paletteChoices.backgroundRange = { min: 0, max: this.pal.length - 1 };
-            this.paletteChoices.auxRange = { min: 0, max: this.pal.length - 1 };
-            this.paletteChoices.borderRange = { min: 0, max: this.pal.length - 1 };
-            this.paletteChoices.colors = this.colors;
-            this.paletteChoices.colorsRange = { min: 0, max: this.pal.length - 1 };
-
-            this.preparePixelPaletteChoices();
-            return;
-        }
-        this.paletteChoices.background = options.background === undefined ? false : options.background;
-        this.paletteChoices.aux = options.aux === undefined ? false : options.aux;
-        this.paletteChoices.border = options.aux === undefined ? false : options.border;
-
-        this.paletteChoices.backgroundRange = options.backgroundRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.backgroundRange;
-        this.paletteChoices.auxRange = options.auxRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.auxRange;
-        this.paletteChoices.borderRange = options.borderRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.borderRange;
-        this.paletteChoices.colorsRange = options.colorsRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.colorsRange;
-
-        this.paletteChoices.colors = options.colors === undefined ?
-            (this.colors - (this.paletteChoices.background?1:0) - (this.paletteChoices.aux?1:0) - (this.paletteChoices.border?1:0)) :
-            options.colors;
-        this.paletteChoices.colorsRange = { min: 0, max: this.pal.length - 1 };
-        this.preparePixelPaletteChoices();
-
-        // some basic sanity checks
-        console.assert(this.pal.length > this.paletteChoices.backgroundRange.max - this.paletteChoices.backgroundRange.min);
-        console.assert(this.pal.length > this.paletteChoices.auxRange.max - this.paletteChoices.auxRange.min);
-        console.assert(this.pal.length > this.paletteChoices.borderRange.max - this.paletteChoices.borderRange.min);
-    }
-    chooseMin(available: boolean, range: PaletteRange, current?: number): number {
-        if (!available)
-            return current;
-        if (current === undefined)
-            return range.min;
-        return Math.min(current, range.min);
-    }
-    chooseMax(available: boolean, range: PaletteRange, current?: number): number {
-        if (!available)
-            return current;
-        if (current === undefined)
-            return range.max;
-        return Math.max(current, range.max);
-    }
-    prepareMinMax(background: boolean, aux: boolean, border: boolean): PaletteRange {
-        let chosenMin: number | undefined = this.chooseMin(background, this.paletteChoices.backgroundRange);
-        chosenMin = this.chooseMin(aux, this.paletteChoices.auxRange, chosenMin);
-        chosenMin = this.chooseMin(border, this.paletteChoices.borderRange, chosenMin);
-        //chosenMin = this.chooseMin(true, this.paletteChoices.colorsRange, chosenMin); // do not include pixel choices in this range
-        chosenMin = chosenMin === undefined ? 0 : chosenMin;
-
-        let chosenMax: number | undefined = this.chooseMax(background, this.paletteChoices.backgroundRange);
-        chosenMax = this.chooseMax(aux, this.paletteChoices.auxRange, chosenMax);
-        chosenMax = this.chooseMax(border, this.paletteChoices.borderRange, chosenMax);
-        //chosenMax = this.chooseMax(true, this.paletteChoices.colorsRange, chosenMax); // do not include pixel choices in this range
-        chosenMax = chosenMax === undefined ? (this.pal.length - 1) : chosenMax;
-
-        return {min: chosenMin, max: chosenMax};
-    }
-    prepareGlobalColorChoices(): void {
-        let range = this.prepareMinMax(true, true, true);
-        let palSubset = this.pal.slice(range.min, range.max + 1);
-
-        // by default the choices result is ranked by color intensity
-        let choices = reducePaletteChoices(
-            this.ref,
-            palSubset,
-            palSubset.length,  // rank the entire palette subset (because restricted palettes may have to fallback)
-            1,
-            this.errfn);
-
-        // Need a ranking based on color usage, because if the color
-        // is selectable by a pixel then the most prominent selectable
-        // color should be chosen (to not waste a color for intensity
-        // reasons when a color is most useful as a pixel color choice);
-        // but if the color is not selectable by the color then fallback
-        // to color intensity (based on which top N colors are the
-        // most likely to be compatible with the picture);
-        let histoRankedChoices = choices.slice(0, choices.length);
-        histoRankedChoices.sort((a,b) => b.count - a.count);
-
-        // these are the possible choices for colors
-        let ranges: { id: number, selectable: boolean, range: PaletteRange }[] = [
-            { id: 0, selectable: this.paletteChoices.background, range: this.paletteChoices.backgroundRange },
-            { id: 1, selectable: this.paletteChoices.aux, range: this.paletteChoices.auxRange },
-            { id: 2, selectable: this.paletteChoices.border, range: this.paletteChoices.borderRange }
-        ];
-
-        // sort by the follow criteria:
-        // 1. colors that can be selected by pixels have priority over those that do not
-        // 2. colors that have the most restricted palettes
-        // 3. by id (if all other choices are equal)
-        ranges.sort((a,b) =>
-            (a.selectable == b.selectable) ? 
-                (((a.range.max - a.range.min) == (b.range.max - b.range.min)) ?
-                    a.id - b.id :
-                    (a.range.max - a.range.min) - (b.range.max - b.range.min)) :
-                (a.selectable ? -1 : 1));
-
-        let assignId = (choice: ColorChoice, option: { id: number, selectable: boolean, range: PaletteRange }) => {
-            let index = choice.ind + range.min; // palette might be a subset
-
-            // do not select the choice if the palette range restrictions do not allow it
-            if ((index < option.range.min) || (index > option.range.max))
-                return false;
-
-            switch (option.id) {
-                case 0: this.bgColor = index; break;
-                case 1: this.auxColor = index; break;
-                case 2: this.borderColor = index; break;
-            }
-            return true;
-        };
-
-        let findBestChoice = (searchList: ColorChoice[], altList: ColorChoice[], option: { id: number, selectable: boolean, range: PaletteRange }) => {
-            // based on the priority of the ranges, pick/assign a choice color to each
-            // option in the range, starting with the most important first (as
-            // defined by the sort order)
-            for (let c = 0; c < searchList.length; ++c) {
-                let choice = searchList[c];
-
-                // attempt to assign the choice to the color option
-                if (!assignId(choice, option))
-                    continue;   // if didn't get used, try next color
-
-                // find this color choice in the alternative array (so it can be removed)
-                let found = altList.findIndex((x) => x.ind == choice.ind);
-
-                // remove the entry from the alternatively ranked list
-                console.assert(found >= 0);
-                altList.splice(found, 1);
-
-                // prevent this choice from being used again
-                searchList.splice(c, 1);
-                break;
-            }
-        };
-
-        let firstNonSelectableColorFound = false;
-
-        // try to match a color choice with the options available
-        for (let i = 0; i < ranges.length; ++i) {
-            let option = ranges[i];
-
-            if ((!option.selectable) && (!firstNonSelectableColorFound)) {
-                // found all the required colors that can be chosen by a
-                // pixel so now re-rank the remaining color choices, putting
-                // the top N "compatible" based on picture histo usage at the
-                // top of the array, but sorted by intensity
-                // (where N is the number of remaining "other" colors to choose);
-                let topNChoices : { priority: number, choice: ColorChoice }[] = []
-                for (let c = 0; c < ranges.length - i; ++c) {
-                    if (c >= histoRankedChoices.length)
-                        continue; // make sure the colors are not exhausted
-
-                    // this color is high priority to pick
-                    let topChoice = histoRankedChoices[c];
-                    let priority = choices.findIndex((x) => x.ind == topChoice.ind);
-                    console.assert(priority >= 0);
-                    topNChoices.push({priority, choice: topChoice});
-                    // removing the choice from the list is okay because it's going to be
-                    // re-inserted at the top of the new choices list
-                    choices.splice(priority, 1);
-                }
-
-                // sort the top choices by intensity
-                topNChoices.sort((a,b) => a.priority - b.priority);
-
-                // put the top N at the front of the choices list
-                choices = (topNChoices.map((x) => x.choice)).concat(choices);
-                firstNonSelectableColorFound = true;
-            }
-
-            findBestChoice((option.selectable ? histoRankedChoices : choices), (option.selectable ? choices : histoRankedChoices), option);
-            // console.log("findBestChoice", i, option, histoRankedChoices, choices);
-        }
-
-        // When in FLI mode, the FLI bug messes with the left side of the screen
-        // thus making the color choices limited. This attempts to make the
-        // error are less obvious by tweaking the background and border colors.
-        if ((this.fliMode) && ((this.fliBug) || (this.blankLeftScreenFliBugArea) || (this.blankRightScreenMirrorFliBugArea)))  {
             if (!this.paletteChoices.background) {
-                this.bgColor = this.fliBugChoiceColor;
                 this.borderColor = this.fliBugChoiceColor;
-            } else {
-                this.borderColor = this.bgColor;
             }
         }
-
-        if (this.paletteChoices.background)
-            this.globalValid.push(this.bgColor);
-        if (this.paletteChoices.aux)
-            this.globalValid.push(this.auxColor);
-        if (this.paletteChoices.border)
-            this.globalValid.push(this.borderColor);
     }
-    getValidColors(index: number) {
-        let [ncols, col] = this.imageIndexToImageColumnInfo(index);
 
-        let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(index);
-        if (blank)
-            return [this.bgColor];
+    override getValidColors(imageIndex: number): number[] {
+        let offset = this.imageIndexToBlockOffset(imageIndex);
+        let cbOffset = this.imageIndexToCbOffset(imageIndex);
 
-        let p = this.imageIndexToParamOffset(index);
-        let c1 = this.params[p] & 0xf;
-        let c2 = (this.params[p] >> 4) & 0xf;
-        let c3 = (this.params[p] >> 8) & 0xf;
+        let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(imageIndex);
+        if (blank) {
+            if (!this.paletteChoices.background)
+                return [this.fliBugChoiceColor];
+            return [this.backgroundColor];
+        }
+
+        let extracted = this.extractColorsFromBlockParams(offset, this.paramInfo.cb ? 2 : 3);
+        if (this.paramInfo.cb) {
+            extracted.push(...this.extractColorsFromCbParams(cbOffset, 1));
+        }
 
         if (performBug) {
             // the choices are terrible in the "bug" fli area
-            c1 = c2 = this.fliBugChoiceColor;
-            c3 = this.fliBugCbColor;
+            extracted[0] = extracted[1] = this.fliBugChoiceColor;
+            extracted[2] = this.fliBugCbColor;
         }
 
         let valid: number[] = this.globalValid.slice(0, this.globalValid.length);
-        valid.push(c1, c2, c3);
+        valid.push(...extracted);
         valid = valid.slice(0, this.globalValid.length + this.paletteChoices.colors);
         return valid;
     }
-    guessParam(pUnknown: number) {
-        // do not let the caller compute the parameters for anything other that the
-        // bitmap area, as the other parameters are for the color block or the extra data
-        // as these values are computed as a result of processing the bitmap data
-        if (pUnknown >= this.cbOffset)
-            return;
+    override guessBlockParam(offset: number): void {
 
-        return this.actualGuessParam(pUnknown);
-    }
-    actualGuessParam(pUnknown: number) {
-        console.assert(pUnknown < this.params.length - this.extra);
+        let imageIndex = this.blockOffsetToImageIndex(offset);
 
-        // does color block ram exist (presumption true is that it does/must exist, false to disable)
-        const calculateCb = this.useCb && (this.iterateCount < MAX_ITERATE_COUNT / 2);
+        let cbOffset = this.imageIndexToCbOffset(imageIndex);
 
-        let isCalculatingCb = (pUnknown >= this.cbOffset);
-        if ((isCalculatingCb) && (!calculateCb))
-            return;
-
-        let index = this.paramOrCbParamOffsetToImageIndex(pUnknown);
-
-        let cbp = (isCalculatingCb ? pUnknown : this.imageIndexToCbParamOffset(index));
-        let p = (isCalculatingCb ? this.imageIndexToParamOffset(index) : pUnknown);
-
-        if (!isCalculatingCb) {
-            // Whenever the color block color changes the surrounding pixels that also
-            // could reference that color block should be forced to NOT choose the same
-            // color as this color is always available in the color block, and choosing
-            // this same color in the color block would be wasted. As param colors are
-            // "guessed" in the order of the array, this ensures the color block is
-            // always calculated BEFORE the pixel colors
-            //
-            // Extra logic filters out to only calculate for the first row of any color
-            // block area, and only calculate the color block is the current color block
-            // is different than the last computed color block.
-            if (calculateCb && (this.isImageIndexFirstRowOfColorBlock(index)) && (this.lastComputedCb != cbp)) {
-                this.actualGuessParam(cbp);
-            }
-        } else {
-            this.lastComputedCb = cbp;
-        }
-
-        let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(index);
-
-        console.assert((isCalculatingCb) || (p == pUnknown));
-        console.assert((!isCalculatingCb) || (cbp == pUnknown));
-
-        let useB = isCalculatingCb ? this.cb : this.b;
-
-        // rank all colors within the size of the block (and bordering values)
-        let histo = new Uint32Array(16);
-
-        // going to scan a pixel area that is the pixel (sub)block in size
-        // +/- pixels bleeding left/right and above/below
-        let [xStart, yStart] = this.paramOrCbParamOffsetToXy(p);
-
-        for (let y = yStart - useB.yb; y < yStart + useB.h + useB.yb; y++) {
-            for (let x = xStart - useB.xb; x < xStart + useB.w + useB.xb; x++) {
-                this.updateHisto(histo, this.pixelPaletteChoices, x, y);
-            }
-        }
+        let [performBug, blank, leftBlank, rightBlank, bugColumn] = this.isImageIndexInFliBugBlankingArea(imageIndex);
 
         // never choose the colors that are always valid and available
         // for every pixel (i.e. why waste the screen ram or color block
         // ram on a color that is always available everywhere)
-        if (this.paletteChoices.background)
-            histo[this.bgColor] = 0;
-        if (this.paletteChoices.aux)
-            histo[this.auxColor] = 0;
-        if (this.paletteChoices.border)
-            histo[this.borderColor] = 0;
 
         let cbColor: number = 0;
+        let pixelChoiceColors = this.pixelPaletteChoices;
 
-        if ((!isCalculatingCb) && (this.useCb)) {
+        if (this.paramInfo.cb) {
             // filter out the cb chosen color as there's no point in choosing the
             // same color option twice since it's already valid for this pixel
             // block area (just like the background color is valid)
-            histo[this.params[cbp] & 0xf] = 0;
+            let cbExtracted = this.extractColorsFromCbParams(cbOffset, 1);
+            pixelChoiceColors = this.spliceColor(cbExtracted[0], this.pixelPaletteChoices);
+        }
+
+        // reset histogram values
+        this.histogram.fill(0);
+        this.scores.fill(0);
+
+        // rank all colors within the size of the block (and bordering values)
+        if (!this.firstCommit)
+            this.addToBlockHistogramFromCurrentColor(offset, this.histogram, pixelChoiceColors);
+        let scored = this.addToBlockHistogramFrom(offset, this.histogram, this.scores, pixelChoiceColors, this.firstCommit ? this.ref : this.alt);
+
+        if (this.paramInfo.cb) {
+            // filter out the cb chosen color as there's no point in choosing the
+            // same color option twice since it's already valid for this pixel
+            // block area (just like the background color is valid)
+            let cbExtracted = this.extractColorsFromCbParams(cbOffset, 1);
+
+            this.histogram[cbExtracted[0]] = 0;
             // promote this value to the lower nybble of the 2nd least significant byte
             // as this value is needed later
-            cbColor = this.params[cbp] & 0xf;
+            cbColor = cbExtracted[0];
         }
 
         // get best choices for sub-block
-        let choices = getChoices(histo);
+        let choices = this.getScoredChoicesByCount(scored);
         let ind1 = choices[0] && choices[0].ind;
         let ind2 = choices[1] && choices[1].ind;
         let ind3 = choices[2] && choices[2].ind;
         if (ind1 === undefined)
-            ind1 = this.bgColor;
+            ind1 = this.backgroundColor;
         if (ind2 === undefined)
-            ind2 = this.bgColor;
+            ind2 = this.backgroundColor;
         if (ind3 === undefined)
-            ind3 = this.bgColor;
+            ind3 = this.backgroundColor;
 
-        if (!this.useCb) {
+        if (!this.paramInfo.cb) {
             cbColor = ind3;
         }
 
         if (leftBlank) {
             // force the chosen colors to all be background in the FLI bug area
-            cbColor = ind1 = ind2 = ind3 = this.bgColor;
+            cbColor = ind1 = ind2 = ind3 = this.backgroundColor;
             if (!this.paletteChoices.background)
                 ind1 = ind2 = this.fliBugChoiceColor;
         } else if (rightBlank) {
-            cbColor = ind1 = ind2 = ind3 = this.bgColor;
+            cbColor = ind1 = ind2 = ind3 = this.backgroundColor;
             if (!this.paletteChoices.background)
                 ind1 = ind2 = this.fliBugChoiceColor;
-        }
-
-        if (isCalculatingCb) {
-            if (performBug) {
-                ind1 = this.fliBugCbColor;
-            }
-            this.params[cbp] = cbColor = ind1;
-            return cbColor;
         }
 
         if (performBug) {
@@ -563,6 +211,11 @@ export class VICII_Canvas extends ParamDitherCanvas {
             cbColor = this.fliBugCbColor;
         }
 
+        let subsetChoices = [ ind1, ind2 ];
+        subsetChoices = subsetChoices.splice(0, this.paletteChoices.colors);
+
+        let sorted = [ ...subsetChoices.sort((a, b) => a - b), cbColor ];
+
         // Store the chosen colors in the lower and upper nybble
         // and put the chosen color block nybble into the low nybble of
         // the 2nd least significant byte. Even though this routine does
@@ -572,175 +225,117 @@ export class VICII_Canvas extends ParamDitherCanvas {
         // use the color block color as a choice. The export routine is
         // unaware of the separated dedicated color block and only looks
         // for the color choices attached with each "normal" pixel param.
-        return this.params[p] = (ind1 & 0xf) | ((ind2 << 4) & 0xf0) | ((cbColor << 8) & 0xf00);
-    }
-    updateHisto(histo: Uint32Array, colors: number[], x: number, y: number) {
-        let i = this.xyToImageIndex(x, y);
 
-        // get current color (or reference for 1st time)
-        let c1 = ((i === undefined) ? this.pal[this.bgColor] : this.indexed[i]);
-        histo[c1] += 100;
-        // get error color (TODO: why alt not img like 2-color kernels?)
-        let rgbcomp = ((i === undefined) ? this.pal[this.bgColor] : this.alt[i]);
-        let c2 = this.getClosest(rgbcomp, colors);
-        histo[c2] += 1 + this.noise;
+        this.updateBlockColorParam(offset, sorted);
     }
-    paramOrCbParamOffsetToImageIndex(pUnknown: number): number {
-        let isCalculatingCb = (pUnknown >= this.cbOffset);
-        let useB = (isCalculatingCb ? this.cb : this.b);
-        let useP = (isCalculatingCb ? (pUnknown - this.cbOffset) : pUnknown);
 
-        var ncols = this.width / useB.w;     // number of pixels in a row
-        var col = useP % ncols;                // column for pixel in X direction
-        var row = Math.floor(useP / ncols);    // row for pixel in Y direction
-        // index is the starting offset representing the image's pixel X/Y
-        var index = (col * useB.w) + (row * this.width * useB.h);
-        console.assert(index < (this.width * this.height));
-        return index;
+    override guessCbParam(offset: number): void {
+
+        // does color block ram exist (presumption true is that it does/must exist, false to disable)
+        if ((!this.paramInfo.cb) || (this.iterateCount > MAX_ITERATE_COUNT / 2))
+            return;
+
+        let imageIndex = this.cbOffsetToImageIndex(offset);
+
+        let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(imageIndex);
+
+        // reset histogram values
+        this.histogram.fill(0);
+        this.scores.fill(0);
+
+        // rank all colors within the size of the block (and bordering values)
+        if (!this.firstCommit)
+            this.addToCbHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
+        let scored = this.addToCbHistogramFrom(offset, this.histogram, this.scores, this.pixelPaletteChoices, this.firstCommit ? this.ref : this.alt);
+
+        // get best choices for sub-block
+        let choices = this.getScoredChoicesByCount(scored);
+        let cbColor = choices[0] && choices[0].ind;
+
+        if (leftBlank) {
+            // force the chosen colors to all be background in the FLI bug area
+            cbColor = this.backgroundColor;
+            if (!this.paletteChoices.background)
+                cbColor = this.fliBugCbColor;
+        } else if (rightBlank) {
+            cbColor = this.backgroundColor;
+            if (!this.paletteChoices.background)
+                cbColor = this.fliBugCbColor;
+        }
+
+        if (performBug) {
+            if (!this.paletteChoices.background)
+                cbColor = this.fliBugChoiceColor;
+        }
+
+        this.updateCbColorParam(offset, [cbColor]);
     }
 
     isImageIndexInFliBugBlankingArea(index: number): [boolean, boolean, boolean, boolean, number] {
-        let [ncols, col] = this.imageIndexToImageColumnInfo(index);
+        let { column } = this.imageIndexToBlockInfo(index);
 
-        let bugLogic = (this.fliBug && ((col >= 0) && (col < this.blankFliBugColumnCount))) && (!this.blankLeftScreenFliBugArea);
-        let leftBlank = this.blankLeftScreenFliBugArea && ((col >= 0) && (col < this.blankFliBugColumnCount));
-        let rightBlank = this.blankLeftScreenFliBugArea && this.blankRightScreenMirrorFliBugArea && ((col >= (ncols - this.blankFliBugColumnCount)) && (col < ncols));
+        let bugLogic = (this.fliBug && ((column >= 0) && (column < this.blankFliBugColumnCount))) && (!this.blankLeftScreenFliBugArea);
+        let leftBlank = this.blankLeftScreenFliBugArea && ((column >= 0) && (column < this.blankFliBugColumnCount));
+        let rightBlank = this.blankLeftScreenFliBugArea && this.blankRightScreenMirrorFliBugArea && ((column >= (this.block.columns - this.blankFliBugColumnCount)) && (column < this.block.columns));
         let blank = leftBlank || rightBlank;
 
-        return [bugLogic, blank, leftBlank, rightBlank, col];
-    }
-    imageIndexToImageColumnInfo(index: number): [number, number] {
-        let ncols = this.width / this.b.w;
-        let col = Math.floor(index / this.b.w) % ncols;
-        return [ncols, col];
+        return [bugLogic, blank, leftBlank, rightBlank, column];
     }
 
-    paramOrCbParamOffsetToXy(pUnknown: number): [number, number] {
-        let imageIndex = this.paramOrCbParamOffsetToImageIndex(pUnknown);
-        return this.imageIndexToXY(imageIndex);
-    }
-
-    imageIndexToXY(index: number): [number, number] {
-        return [index % this.width, Math.floor(index / this.width)];
-    }
-    xyToImageIndex(x: number, y: number): number | undefined {
-        if ((x < 0) || (y < 0))
-            return undefined;
-        if ((x >= this.width) || (y >= this.height))
-            return undefined;
-        return y * this.width + x;
-    }
-    imageIndexToParamOffset(index: number): number {
-        let [ncols, col] = this.imageIndexToImageColumnInfo(index);
-        let row = Math.floor(index / (this.width * this.b.h));
-        let p = col + row * ncols;
-        console.assert(p < this.cbOffset);
-        return p;
-    }
-    imageIndexToCbParamOffset(index: number): number {
-        if (!this.useCb)
-            return this.cbOffset;
-
-        var ncols = this.width / this.cb.w;
-        var col = Math.floor(index / this.cb.w) % ncols;
-        var row = Math.floor(index / (this.width * this.cb.h));
-        var cbp = this.cbOffset + col + row * ncols;
-        console.assert(cbp >= this.cbOffset);
-        console.assert(cbp < this.params.length - this.extra);
-        return cbp;
-    }
-    isImageIndexFirstRowOfColorBlock(index: number): boolean {
-        var ncols = this.width / this.b.w;
-        var row = Math.floor(index / (this.width * this.b.h));
-        return 0 == row % Math.floor(this.cb.h / this.b.h);
-    }
 }
 
-export class ZXSpectrum_Canvas extends TwoColor_Canvas {
-    w: number;
-    h: number;
-    xb: number | undefined;
-    yb: number | undefined;
-
-    darkPalette: Uint32Array;
-    brightPalette: Uint32Array;
-
+export class ZXSpectrum_Canvas extends CommonBlockParamDitherCanvas {
     darkColors: number[];
     brightColors: number[];
-    aux: boolean;
+    flipPalette: boolean;
 
     paletteRange: PaletteRange;
 
-    init() {
+    histogram = new Uint32Array(this.pal.length);   // temporary scratch histogram buffer
+    scores = new Uint32Array(this.pal.length);      // temporary scratch scores buffer
+
+    override init(): void {
+        super.prepare();
+
         this.darkColors = range(0, Math.floor(this.pal.length / 2));
         this.brightColors = range(Math.floor(this.pal.length / 2), this.pal.length);
-        this.w = this.sys.block.w;
-        this.h = this.sys.block.h;
-        this.paletteRange = { min: 0, max: this.pal.length };
-        this.paletteRange = this.sys.paletteChoices === undefined ?
-            this.paletteRange :
-            (this.sys.paletteChoices.colorsRange === undefined ? this.paletteRange : this.sys.paletteChoices.colorsRange);
-        this.aux = this.sys.paletteChoices === undefined ? false : (this.sys.paletteChoices.aux === undefined ? false : this.sys.paletteChoices.aux);
 
-        this.xb = (this.sys.cb === undefined ? this.border : this.sys.cb.xb);
-        this.yb = (this.sys.cb === undefined ? this.border : this.sys.cb.yb);
-        this.xb = (this.xb === undefined ? this.border : this.xb);
-        this.yb = (this.yb === undefined ? this.border : this.yb);
-
-        this.darkPalette = this.pal.slice(0, Math.floor(this.pal.length / 2));
-        this.brightPalette = this.pal.slice(Math.floor(this.pal.length / 2), this.pal.length);
-        super.init();
+        this.paletteRange = this.paletteChoices.colorsRange;
+        this.flipPalette = (this.sys.customize === undefined ? false : this.sys.customize.flipPalette);
     }
 
-    guessParam(p: number) {
-        let col = p % this.ncols;
-        let row = Math.floor(p / this.ncols);
-        let offset = col * this.w + row * (this.width * this.h);
+    override guessBlockParam(offset: number): void {
+    
+        let calculateHistogramForCell = (colors: number[], min: number, max: number) => {
 
-        let calculateHistoForCell = (colors: number[], min: number, max: number) => {
-            let histo = new Uint32Array(Math.floor(this.pal.length));
+            let addToCurrent: AddToHistogramFromCurrentColorAtHandler = (x: number, y: number, color: number | undefined, histogram: Uint32Array) => {
+                if (color === undefined)
+                    return;
 
-            // pixel overlap in 8x8 window
-            for (let y = -this.yb; y < this.h + this.yb; y++) {
-                let o = offset + y * this.width;
-                for (let x = -this.xb; x < this.w + this.xb; x++) {
-                    let c1 = this.indexed[o + x] | 0;
-                    // because the result becomes "pulled" towards the
-                    // reference image, the scoring needs to take into
-                    // account that the palette may have chosen the
-                    // other dark/bright versions instead so if the
-                    // palette then flips choices, the "pull" will
-                    // not happen properly if the previous color chosen
-                    // previously is not present on the new palette
-                    if ((c1 < min) || (c1 > max))
-                        histo[c1 ^ 0b1000] += 100;
-                    else
-                        histo[c1] += 100;
-                    let c2 = this.getClosest(this.alt[o + x] | 0, colors);
-                    histo[c2] += 1 + this.noise;
-                }
-            }
+                // because the result becomes "pulled" towards the
+                // reference image, the scoring needs to take into
+                // account that the palette may have chosen the
+                // other dark/bright versions instead so if the
+                // palette then flips choices, the "pull" will
+                // not happen properly if the previous color chosen
+                // previously is not present on the new palette
+                if ((color < min) || (color > max))
+                    this.addToHistogramFromCurrentColor(color ^ 0b1000, histogram);
+                else
+                    this.addToHistogramFromCurrentColor(color, histogram);
 
-            let choices = getChoices(histo);
+            };
+
+            // reset histogram values
+            this.histogram.fill(0);
+            this.scores.fill(0);
+
+            // rank all colors within the size of the block (and bordering values)
+            this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.allColors, undefined, addToCurrent);
+            let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, colors);
+
+            let choices = this.getScoredChoicesByCount(scored);
             return choices;
-        };
-
-        let scoreChoices = (choices: {count: number, ind: number}[], palette: Uint32Array) => {
-            let overallScore = 0;
-            for (let y = -this.yb; y < this.h + this.yb; y++) {
-                let o = offset + y * this.width;
-                for (let x = -this.xb; x < this.w + this.xb; x++) {
-                    let smallest: number = NaN;
-                    for (let c = 0; c < choices.length; ++c) {
-                        // score against the reference image, not against the dithered image
-                        let score = this.errfn(this.ref[o + x], palette[choices[c].ind]);
-                        if ((score < smallest) || (Number.isNaN(smallest)))
-                            smallest = score;
-                    }
-                    overallScore += smallest;
-                }
-            }
-            return overallScore;
         };
 
         // The Zx spectrum requires that the colors chosen be either both from the
@@ -755,19 +350,22 @@ export class ZXSpectrum_Canvas extends TwoColor_Canvas {
         // color is chosen otherwise the dark color is chosen by default.
 
         // pick the top two colors from bright and dark mode
-        let choices1 = calculateHistoForCell(this.darkColors, this.darkColors[0], this.darkColors[this.darkColors.length - 1]).slice(0, 2);
-        let choices2 = calculateHistoForCell(this.brightColors, this.brightColors[0], this.brightColors[this.brightColors.length - 1]).slice(0, 2);
+        let choices1 = calculateHistogramForCell(this.darkColors, this.darkColors[0], this.darkColors[this.darkColors.length - 1]).slice(0, 2);
+        let choices2 = calculateHistogramForCell(this.brightColors, this.brightColors[0], this.brightColors[this.brightColors.length - 1]).slice(0, 2);
 
         if (choices1.length < 2)
             choices1.push(choices1[0]);
         if (choices2.length < 2)
             choices2.push(choices2[0]);
 
-        console.assert(choices1.length >= 2);
-        console.assert(choices2.length >= 2);
+        runtime_assert(choices1.length >= 2);
+        runtime_assert(choices2.length >= 2);
 
-        let score1 = scoreChoices(choices1, this.pal);
-        let score2 = scoreChoices(choices2, this.pal);
+        let score1 = 0;
+        let score2 = 0;
+
+        choices1.forEach((x) => { score1 += x.score; });
+        choices2.forEach((x) => { score2 += x.score; });
 
         let result = score2 < score1 ? choices2 : choices1;
 
@@ -777,20 +375,516 @@ export class ZXSpectrum_Canvas extends TwoColor_Canvas {
             result = score2 < score1 ? choices1 : choices2;
         }
 
-        console.assert(result[0].ind >= this.paletteRange.min);
-        console.assert(result[0].ind <= this.paletteRange.max);
-        console.assert(result[1].ind >= this.paletteRange.min);
-        console.assert(result[1].ind <= this.paletteRange.max);
+        runtime_assert(result[0].ind >= this.paletteRange.min);
+        runtime_assert(result[0].ind <= this.paletteRange.max);
+        runtime_assert(result[1].ind >= this.paletteRange.min);
+        runtime_assert(result[1].ind <= this.paletteRange.max);
 
-        if (this.aux) {
+        if (this.flipPalette) {
             result[0].ind = (result[0].ind ^ 0b1000);
             result[1].ind = (result[1].ind ^ 0b1000);
         }
-        
-        this.updateParams(p, result);
+
+        let sorted = [result[0].ind, result[1].ind].sort((a, b) => a - b);
+        this.updateBlockColorParam(offset, sorted);
     }
 }
 
+export class Stic_Fgbg_Canvas extends CommonBlockParamDitherCanvas {
+
+    override init(): void {
+        super.init();
+    }
+
+    override guessBlockParam(offset: number): void {
+        // reset histogram values
+        this.histogram.fill(0);
+        this.scores.fill(0);
+
+        // rank all colors within the size of the block (and bordering values)
+        this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.backgroundColors);
+        let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, this.backgroundColors);
+
+        let choices = this.getScoredChoicesByCount(scored);
+
+        let foregroundChoice: ScoredColorChoice | undefined;
+        for (let i = 0; i < choices.length; ++i) {
+            // filter out illegal options
+            if ((choices[i].ind < this.pixelPaletteChoices[0]) || (choices[i].ind > this.pixelPaletteChoices[this.pixelPaletteChoices.length-1]))
+                continue;
+            foregroundChoice = choices[i];
+            choices.splice(i, 1);   // do not let this option get chosen again
+            break;
+        }
+
+        // have to choose something, even if it's bad...
+        foregroundChoice = (foregroundChoice === undefined ? { count: 0, ind: this.pixelPaletteChoices[0], score: 0 } : foregroundChoice);
+
+        let colors = choices.map((x) => { return x.ind; } );
+        this.updateBlockColorParam(offset, [ foregroundChoice.ind, ...colors ]);
+    }
+
+}
+
+export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
+
+    colorStack: number[] = [0, 0, 0, 0];
+
+    indirection: number[][] = [];
+
+    singleColorMode: boolean;
+
+    override init(): void {
+        super.init();
+
+        this.singleColorMode = (this.sys.customize === undefined ? false : this.sys.customize.singleColor);
+
+        this.makeIndirectionCombinations([]);
+        this.chooseColorStack();
+
+        // no longer need a redirection table
+        this.indirection = [];
+    }
+
+    makeIndirectionCombinations(current: number[]) {
+        if (current.length == this.colorStack.length) {
+            this.indirection.push(current)
+            return;
+        }
+
+        for (let i = 0; i < this.colorStack.length; ++i) {
+            let found = current.find((x) => x == i);
+            if (found !== undefined)
+                continue;
+
+            // new legal combination
+            this.makeIndirectionCombinations([...current, i]);
+        }
+    }
+
+    chooseColorStack(): void {
+
+        let chooseColors = (useColors: number[]) => {
+
+            let useColorStack = [ ...this.colorStack ];
+
+            this.histogram.fill(0);
+            this.scores.fill(0);
+
+            let lastScored: ScoredColorChoice[];
+            for (let offset = 0; offset < this.cb.size; ++offset) {
+                lastScored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColors);
+            }
+            
+            // choose the top N colors for use in the color stack
+            let choices = this.getScoredChoicesByCount(lastScored).slice(0, useColorStack.length);
+
+            if (this.singleColorMode) {
+                // choose the top color
+                choices = choices.splice(0, 1);
+            }
+
+            // must have chosen at least one color
+            runtime_assert(choices.length > 0);
+
+            // fill the color stack with rotating choices if too few colors were chosen
+            let startLength = choices.length;
+            for (let i = 0; choices.length < useColorStack.length; ++i) {
+                choices.push(choices[i % startLength]);
+            }
+
+            // must now have exactly "colorStack" choices in length
+            runtime_assert(choices.length == useColorStack.length);
+
+            // figure out which pattern is most likely to be useful, create the "default" color stack
+            useColorStack = choices.map((x) => { return x.ind; });
+
+            let lowestCombination: number = NaN;
+
+            if (!this.singleColorMode) {
+
+                let gridScore: number[][] = [];
+
+                // score each color's value in being used at every block
+                for (let offset = 0; offset < this.cb.size; ++offset) {
+                    this.histogram.fill(0);
+                    this.scores.fill(0);
+
+                    this.histogram.fill(0);
+                    this.scores.fill(0);
+                    let ranking = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColorStack);
+
+                    let rankedChoices = this.getScoredChoicesByCount(ranking);
+                    runtime_assert(rankedChoices.length <= useColorStack.length);
+
+                    let scoredColors: number[] = [];
+                    for (let n = 0; n < useColorStack.length; ++n) {
+                        let foundRank = useColorStack.length;
+                        for (let rank = 0; rank < rankedChoices.length; ++rank) {
+                            // find the rank of the choice by skipping over the rank that doesn't match the color
+                            if (rankedChoices[rank].ind != useColorStack[n])
+                                continue;
+                            foundRank = rank;
+                            break;
+                        }
+                        scoredColors.push(foundRank);
+                    }
+                    gridScore.push(scoredColors);
+                }
+
+                let lowestRank: number = NaN;
+                for (let i = 0; i < this.indirection.length; ++i) {
+
+                    // test this combination to see if it's a good choice
+                    let combination = this.indirection[i];
+
+                    let combinationRank = 0;
+                    let pos = 0;
+
+                    for (let offset = 0; offset < this.cb.size; ++offset) {
+                        let indexCurrent = combination[pos % useColorStack.length];
+                        let indexNext = combination[(pos + 1) % useColorStack.length];
+
+                        let rankCurrent = gridScore[offset][indexCurrent];
+                        let rankNext = gridScore[offset][indexNext];
+
+                        let useRank = rankCurrent;
+                        if (rankNext < rankCurrent) {
+                            // will want to advance color stack in this condition
+                            useRank = rankNext;
+                            ++pos;
+                        }
+                        combinationRank += useRank;
+                    }
+
+                    if ((combinationRank < lowestRank) || (Number.isNaN(lowestRank))) {
+                        lowestCombination = i;
+                        lowestRank = combinationRank;
+                    }
+                }
+            } else {
+                // all combinations are exactly the same since they all reference one color
+                lowestCombination = 0;
+            }
+
+            runtime_assert(!Number.isNaN(lowestCombination));
+
+            // have found the best possible combination, make a new color stack
+            let replacementColorStack: number[] = [];
+            for (let i = 0; i < this.indirection[lowestCombination].length; ++i) {
+                // re-arrange the current color stack based on the best combination
+                replacementColorStack.push(useColorStack[this.indirection[lowestCombination][i]]);
+            }
+
+            return replacementColorStack;
+        }
+
+        // attempt to fill and score the color choices for the full range
+        let fullColorStack = chooseColors(this.backgroundColors);
+        let fullScore = this.fillCb(fullColorStack);
+        let fullCbParams = new Uint32Array(this.cbParams);
+
+        // only do the pastel comparisons if the foreground colors are restricted due to GROM being used instead of GRAM
+        // and not in single color mode since the best color is chosen regardless of the palette magnitude difference
+        let hasRestrictedPalette = ((this.paletteChoices.colorsRange.max < this.paletteChoices.backgroundRange.max) && (!this.singleColorMode));
+
+        let pastelColorStack = (hasRestrictedPalette ? chooseColors(range(this.paletteChoices.colorsRange.max + 1, this.paletteChoices.backgroundRange.max + 1)) : fullColorStack);
+        let pastelScore = (hasRestrictedPalette ? this.fillCb(pastelColorStack) : fullScore);
+
+        // assume pastel will win
+        this.colorStack = pastelColorStack;
+
+        // If the pastel score is within the same magnitude of the full score (or even better) then choose the pastel colors.
+        // Generally using the pastel colors is favored because the BACKTAB cannot use the pastel colors in the foreground
+        // color, thus as long as the pastel colors aren't unusually bad as a choice for the color block choices then
+        // select those colors because otherwise they are not usable at all.
+        let pastelWins = (Math.ceil(Math.log2(pastelScore)) <= Math.ceil(Math.log2(fullScore)));
+
+        if (!pastelWins) {
+            // sorry pastel colors, you are a terrible choice, put back the full color range
+            this.cbParams = fullCbParams;
+            this.colorStack = fullColorStack;
+        }
+
+        // fill the extra params
+        for (let i = 0; i < this.colorStack.length; ++i) {
+            this.updateColorParam(i, this.extraParams, [ this.colorStack[i] ]);
+        }
+    }
+
+    fillCb(useColors: number[]): number {
+
+        // reset the scoring
+        let colorStackScore = 0;
+
+        // copy the chosen color stack into the extra params
+        this.colorStack.forEach((x, i) => { this.extraParams[i] = x; });
+        
+        if (!this.singleColorMode) {
+            let pos = 0;
+            for (let offset = 0; offset < this.cb.size; ++offset) {
+                let currentColor = useColors[pos % useColors.length];
+                let nextColor = useColors[(pos + 1) % useColors.length];
+
+                // can only choose the current color, or the next color in the color stack
+                let colors = (this.singleColorMode ? [ currentColor ] : [ currentColor, nextColor ]);
+
+                // reset the scratch histogram
+                this.histogram.fill(0);
+                this.scores.fill(0);
+                let scored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, colors);
+
+                let choices = this.getScoredChoicesByCount(scored);
+                runtime_assert(choices.length > 0);
+
+                let advance: number = choices[0].ind == nextColor ? 1 : 0;
+                colorStackScore += choices[0].score;
+
+                // store the chosen color cb color (and the boolean if the advancement had to happen to use this color)
+                this.updateCbColorParam(offset, [choices[0].ind, advance]);
+
+                if (advance)
+                    ++pos;
+            }
+        } else {
+            // only ever choose 1 color and never advance
+            for (let offset = 0; offset < this.cb.size; ++offset) {
+                let currentColor = useColors[0];
+                // store the chosen color cb color (and the boolean if the advancement had to happen to use this color)
+                this.updateCbColorParam(offset, [currentColor, 0]);
+            }
+        }
+
+        return colorStackScore;
+    }
+
+    override guessCellParams(): void {
+
+        if (!this.paramInfo.cell)
+            return;
+
+        let scoring: { offset: number, score: number } [] = [];
+
+        // strategically choose which cells can most benefit from the usage of pastel colors
+        for (let offset = 0; offset < this.cellParams.length; ++offset) {
+
+            let restrictColors = [ ...this.backgroundColors ];
+
+            // the first color is the color stack color
+            let cbColor = this.extractColorsFromCbParams(offset, 1)[0];
+    
+            let foundCbColorIndex = restrictColors.findIndex((x) => x == cbColor);
+            if (foundCbColorIndex >= 0) {
+                // this color is always available via the color block thus do not let it be wasted on a foreground color
+                restrictColors.splice(foundCbColorIndex, 1);
+            }
+
+            // reset histogram values
+            this.histogram.fill(0);
+            this.scores.fill(0);
+
+            // rank all colors within the size of the block
+            this.addToCellHistogramFromCurrentColor(offset, this.histogram, restrictColors);
+            let scored = this.addToCellHistogramFromAlt(offset, this.histogram, this.scores, restrictColors);
+
+            let choices = this.getScoredChoicesByCount(scored);
+            runtime_assert(choices.length > 0);
+
+            if ((choices[0].ind < this.paletteChoices.colorsRange.min) || (choices[0].ind > this.paletteChoices.colorsRange.max)) {
+                // this block would make use of a pastel color
+                scoring.push( { offset: offset, score: choices[0].score } );
+            } else {
+                scoring.push( { offset: offset, score: NaN } );
+            }
+        }
+
+        let filtered = scoring.filter((x) => !Number.isNaN(x.score));
+        let sorted = filtered.sort((a, b) => a.score - b.score);
+
+        // only have so many gram slots available, so pick not only those that would
+        // use the pastel color but those which are best represented by the pastel color
+        sorted = sorted.slice(0, 64);
+
+        // reset all the cell params to 0
+        this.cellParams.fill(0);
+
+        // a 1 indicates the this cell param is allowed to use the full range
+        sorted.forEach((x, index) => { this.updateCellColorParam(x.offset, [1, index], 0xff, 8); });
+    }
+
+    override guessBlockParam(offset: number): void {
+
+        let allowFullRange = false;
+        if (this.paramInfo.cell) {
+            // if the cell indicates it is allowed to use the full color range, then let it
+            allowFullRange = (this.extractColorsFromCellParams(offset, 1, 0xff, 8)[0] != 0);
+        }
+
+        let restrictColors = allowFullRange ? [ ...this.backgroundColors ] : [ ...this.pixelPaletteChoices ];
+
+        // the first color is the color stack color
+        let cbColor = this.extractColorsFromCbParams(offset, 1)[0];
+
+        let foundCbColorIndex = restrictColors.findIndex((x) => x == cbColor);
+        if (foundCbColorIndex >= 0) {
+            // this color is always available via the color block thus do not let it be wasted on a foreground color
+            restrictColors.splice(foundCbColorIndex, 1);
+        }
+
+        // reset histogram values
+        this.histogram.fill(0);
+        this.scores.fill(0);
+
+        // rank all colors within the size of the block (and bordering values)
+        this.addToBlockHistogramFromCurrentColor(offset, this.histogram, restrictColors);
+        let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, restrictColors);
+
+        let choices = this.getScoredChoicesByCount(scored);
+
+        let colors = (choices.map((x) => { return x.ind; } )).slice(0, this.paletteChoices.colors);
+        this.updateBlockColorParam(offset, colors);
+    }
+
+    override getValidColors(imageIndex: number): number[] {
+        let offset = this.imageIndexToBlockOffset(imageIndex);
+
+        let extracted = this.extractColorsFromBlockParams(offset, this.paletteChoices.colors);
+        let cbColor = this.extractColorsFromCbParams(offset, 1)[0];
+
+        let valid: number[] = [ cbColor, ...extracted ];
+        return valid;
+    }
+}
+
+export class Msx_Canvas extends CommonBlockParamDitherCanvas {
+}
+
+export class SNES_Canvas extends CommonBlockParamDitherCanvas {
+}
+
+export class SNES_Canvas_Direct extends CommonBlockParamDitherCanvas {
+
+    Bbpgggprrrp_to_Pal_Lut: Uint32Array;
+
+    pppFilteredPalettes: number[][] = [];
+
+    override init(): void {
+        super.init();
+
+        this.Bbpgggprrrp_to_Pal_Lut = new Uint32Array(this.pal.length);
+        
+        for (let i = 0; i < this.pal.length; ++i) {
+            let info = this.RgbToInfo(this.pal[i]);
+            this.Bbpgggprrrp_to_Pal_Lut[info.bbpgggprrrp] = i;
+        }
+
+        for (let ppp = 0; ppp < (1 << 3); ++ppp) {
+            let filteredByPpp = this.pixelPaletteChoices.filter((x) => { let info = this.colorToInfo(x); return (info.ppp == ppp) && (!(info.bbpgggprrrp == 0)); } );
+            this.pppFilteredPalettes.push(filteredByPpp);
+        }
+    }
+
+    RgbToInfo(rgb: number): { bbpgggprrrp: number, bbgggrrr :number, ppp: number, r: number, g: number, b: number } {
+        let bbpgggprrrp = ((rgb & 0b11110000) >> 4) | ((((rgb >> 8) & 0b11110000) >> 4) << 4) | ((((rgb >> 16) & 0b11100000) >> 5) << 8);
+        let bbgggrrr = ((rgb & 0b11100000) >> 5) | ((((rgb >> 8) & 0b11100000) >> 5) << 3) | ((((rgb >> 16) & 0b11000000) >> 6) << 6);
+        let ppp = ((rgb & 0b00010000) >> 4) | ((((rgb >> 8) & 0b00010000) >> 4) << 1) | ((((rgb >> 16) & 0b00100000) >> 5) << 2);
+        let r = (rgb & 0b11110000);
+        let g = ((rgb >> 8) & 0b11110000);
+        let b = ((rgb >> 16) & 0b11100000);
+
+        return { bbpgggprrrp, bbgggrrr, ppp, r, g, b };
+    }
+
+    BbgggrrrToBbpgggprrrp(bbgggrrr: number, ppp: number): number {
+
+        let bbpgggprrrp = ((bbgggrrr & 0b00000111) << 1) | (((bbgggrrr & 0b00111000) >> 3) << 4) | (((bbgggrrr & 0b11000000) >> 6) << 9);
+        bbpgggprrrp |= (ppp & 0b001) | (((ppp & 0b010) >> 1) << 4) | (((ppp & 0b100) >> 2) << 8);
+        return bbpgggprrrp;
+    }
+
+    BbpgggprrrpToInfo(bbpgggprrrp: number): { rgb: number, bbgggrrr :number, ppp: number, r: number, g: number, b: number } {
+        let rgb = ((bbpgggprrrp & 0b00000001111) << (0 + 4)) | (((bbpgggprrrp & 0b00011110000) >> 4) << (8 + 4)) | (((bbpgggprrrp & 0b11100000000) >> 8) << (16 + 5));
+        let bbgggrrr = ((bbpgggprrrp & 0b00000001110) >> 1) | (((bbpgggprrrp & 0b00011100000) >> 5) << 3) | (((bbpgggprrrp & 0b11000000000) >> 9) << 6);
+        let ppp = (bbpgggprrrp & 0b00000000001) | (((bbpgggprrrp & 0b00000010000) >> 4) << 1) | (((bbpgggprrrp & 0b00100000000) >> 8) << 2);
+
+        let r = (rgb & 0b11110000);
+        let g = ((rgb >> 8) & 0b11110000);
+        let b = ((rgb >> 16) & 0b11100000);
+
+        return { rgb, bbgggrrr, ppp, r, g, b };
+    }
+
+    BbpgggprrrpToColor(bbpgggprrrp: number): number {
+        return this.Bbpgggprrrp_to_Pal_Lut[bbpgggprrrp];
+    }
+
+    colorToInfo(color: number): { bbpgggprrrp: number, bbgggrrr :number, ppp: number } {
+        return this.RgbToInfo(this.pal[color]);
+    }
+
+    substituteColorForColorWithPpp(currentColor: number, ppp: number): number {
+        let info = this.colorToInfo(currentColor);
+        return this.BbpgggprrrpToColor(this.BbgggrrrToBbpgggprrrp(info.bbgggrrr, ppp));
+    }
+
+    override getValidColors(imageIndex: number): number[] {
+
+        let offset = this.imageIndexToBlockOffset(imageIndex);
+
+        let ppp = this.extractColorsFromBlockParams(offset, 1, 0x3, 2)[0];
+
+        // return palette filter to legal values with the same ppp
+        let valid = this.pppFilteredPalettes[ppp];
+        return valid;
+    }
+
+    override guessBlockParam(offset: number): void {
+
+        // reset histogram values
+        this.histogram.fill(0);
+        this.scores.fill(0);
+
+        // rank all colors regardless of which ppp value they might have selected
+        this.addToBlockHistogramFromCurrentColor(offset, this.histogram);
+        let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores);
+
+        let ranked = this.getScoredChoicesByCount(scored);
+
+        let lowestPpp = NaN;
+        let lowestPppScore = NaN;
+        for (let ppp = 0; ppp < (1 << 3); ++ppp) {
+
+            // construct a restricted palette color table based on the ppp (which may contain duplicate values)
+            let restrictedColors: number[] = ranked.map((x) => { return this.substituteColorForColorWithPpp(x.ind, ppp); });
+
+            // remove these duplicate values
+            restrictedColors = Array.from(new Set(restrictedColors));
+
+            this.histogram.fill(0);
+            this.scores.fill(0);
+    
+            this.addToBlockHistogramFromCurrentColor(offset, this.histogram, restrictedColors);
+            let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, restrictedColors);
+
+            let pppRanked = this.getScoredChoicesByCount(scored);
+
+            let totalPppScore = 0;
+            pppRanked.forEach((x) => { totalPppScore += x.score });
+
+            if ((totalPppScore < lowestPppScore) || (Number.isNaN(lowestPppScore))) {
+                lowestPppScore = totalPppScore;
+                lowestPpp = ppp;
+            }
+        }
+
+        // found the ppp value to use for this particular cell
+        runtime_assert(!Number.isNaN(lowestPpp));
+
+        // store the ppp value into the block color (since the this.indexed will hold the actual color)
+        this.updateBlockColorParam(offset, [ lowestPpp ], 0x3, 2);
+    }
+
+}
 
 export class NES_Canvas extends BasicParamDitherCanvas {
     w = 16;

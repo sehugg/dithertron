@@ -10,7 +10,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 0.936 * 2,
         conv: 'VICII_Canvas',
         pal: palettes.VIC_PAL_RGB,
-        block: { w:4, h:8, colors:4, xb:1, yb:2 },
+        block: { w:4, h:8, colors: 4, xb:1, yb:2 },
         cell: {w: 4, h: 8, msbToLsb: true },
         paletteChoices:{background: true},        
         cb: { w: 4, h: 8, xb: 1, yb: 2 },
@@ -152,7 +152,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         name: 'MSX/Coleco (TMS9918A)',
         width: 256,
         height: 192,
-        conv: 'VDPMode2_Canvas',
+        conv: 'Msx_Canvas',
         pal: palettes.TMS9918_RGB,
         block: { w: 8, h: 1, colors: 2 },
         cell: {w: 8, h: 8, msbToLsb: true },
@@ -235,7 +235,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.ZXSPECTRUM_RGB,
         block: { w: 8, h: 8, colors: 2 },
         cell: { w: 8, h: 8, msbToLsb: true },
-        toNative: 'exportZXSpectrum',
+        toNative: 'exportZXSpectrum'
     },
     {
         id: 'zx.dark',
@@ -247,7 +247,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         block: { w: 8, h: 8, colors: 2 },
         cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: { colorsRange: { min: 0, max: 7 } },
-        toNative: 'exportZXSpectrum',
+        toNative: 'exportZXSpectrum'
     },
     {
         id: 'zx.bright',
@@ -259,7 +259,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         block: { w: 8, h: 8, colors: 2 },
         cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: { colorsRange: { min: 8, max: 15 } },
-        toNative: 'exportZXSpectrum',
+        toNative: 'exportZXSpectrum'
     },
     {
         id: 'zx.dark.bright',
@@ -270,8 +270,9 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.ZXSPECTRUM_RGB,
         block: { w: 8, h: 8, colors: 2 },
         cell: { w: 8, h: 8, msbToLsb: true },
-        paletteChoices: { aux: true, colorsRange: { min: 0, max: 7 } }, // aux is used to signal the special mode
-        toNative: 'exportZXSpectrum',
+        paletteChoices: { colorsRange: { min: 0, max: 7 } }, // aux is used to signal the special mode
+        customize: { flipPalette: true },
+        toNative: 'exportZXSpectrum'
     },
     {
         id: 'zx.bright.dark',
@@ -282,8 +283,9 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.ZXSPECTRUM_RGB,
         block: { w: 8, h: 8, colors: 2 },
         cell: { w: 8, h: 8, msbToLsb: true },
-        paletteChoices: { aux: true, colorsRange: { min: 8, max: 15 } }, // aux is used to signal the special mode
-        toNative: 'exportZXSpectrum',
+        paletteChoices: { colorsRange: { min: 8, max: 15 } }, // aux is used to signal the special mode
+        customize: { flipPalette: true },
+        toNative: 'exportZXSpectrum'
     },
     {
         id: 'cpc.mode0',
@@ -321,12 +323,12 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 1.5,
         conv: 'VICII_Canvas',
         pal: palettes.VIC20_PAL_RGB,
-        block: { w: 8, h: 8, colors: 2 },           // can choose the background, or one foreground color
+        block: { w: 8, h: 8, colors: 2 },               // can choose the background, or one foreground color
         cell: {w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
-            background: true,                       // pixels can choose the background color
-            backgroundRange: { min: 0, max: 7 },    // (but with a reduced color palette)
-            colorsRange: { min: 0, max: 7 }         // pixels can only choose from a reduced color palette
+            background: true,                           // pixels can choose the background color
+            backgroundRange: { min: 0, max: 7 },        // (but with a reduced color palette)
+            colorsRange: { min: 0, max: 7 }             // pixels can only choose from a reduced color palette
         },
         toNative:'exportVicHires',
     },
@@ -338,18 +340,358 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 3,
         conv: 'VICII_Canvas',
         pal: palettes.VIC20_PAL_RGB,
-        block: { w: 4, h: 8, colors: 4 },           // can choose background, aux, border and one foreground color
-        cell: {w: 4, h: 8, msbToLsb: true },
+        block: { w: 4, h: 8, colors: 4 },               // can choose background, aux, border and one foreground color
+        cell: {w: 4, h: 8, msbToLsb: true },    
         paletteChoices: {
-            background: true,                       // pixels can choose the background color
+            background: true,                           // pixels can choose the background color
             backgroundRange: { min: 0, max: 15 },
-            aux: true,                              // pixels can choose the aux color
+            aux: true,                                  // pixels can choose the aux color
             auxRange: { min: 0, max: 15},
-            border: true,                           // pixels can choose the border color
-            borderRange: { min: 0, max: 7 },        // (but with a reduced palette)
-            colorsRange: { min: 0, max: 7 }         // a reduced palette applies to the pixel colors
+            border: true,                               // pixels can choose the border color
+            borderRange: { min: 0, max: 7 },            // (but with a reduced palette)
+            colorsRange: { min: 0, max: 7 }             // a reduced palette applies to the pixel colors
         },
         toNative:'exportVicMulti',
+    },
+    {
+        id: 'nes.1bpp',
+        name: 'NES (1bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 2, msbToLsb: false },  // bit plane colors are stored LSB to MSB
+        cell: { w: 8, h: 8, msbToLsb: true },                // cell pixels are stored MSB to LSB
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 1 },
+            auxRange: { min: 0, max: 1 },
+            borderRange: { min: 0, max: 1 },
+            colorsRange: { min: 0, max: 1 }
+        },
+        reduce: 2,
+        customize: { outputTileset: false, outputPalette: true },
+        toNative:'exportSNES'
+    },
+    {
+        id: 'nes.2bpp',
+        name: 'NES (2bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 3 },
+            auxRange: { min: 0, max: 3 },
+            borderRange: { min: 0, max: 3 },
+            colorsRange: { min: 0, max: 3 }
+        },
+        reduce: 4,
+        customize: { outputTileset: false, outputPalette: true },
+        toNative:'exportSNES'
+    },
+    {
+        id: 'snes.2bpp',
+        name: 'SNES (+Gameboy/GBC) (2bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 3 },
+            auxRange: { min: 0, max: 3 },
+            borderRange: { min: 0, max: 3 },
+            colorsRange: { min: 0, max: 3 }
+        },
+        customize: { outputTileset: false, outputPalette: false, planeToMemory: 'interleaved' },
+        reduce: 4,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'snes.3bpp',
+        name: 'SNES (3bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 8, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 7 },
+            auxRange: { min: 0, max: 7 },
+            borderRange: { min: 0, max: 7 },
+            colorsRange: { min: 0, max: 7 }
+        },
+        reduce: 8,
+        customize: { planeToMemory: 'interleaved' },
+        toNative:'exportSNES'
+    },
+    {
+        id: 'snes.4bpp',
+        name: 'SNES (4bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 15 },
+            auxRange: { min: 0, max: 15},
+            borderRange: { min: 0, max: 15 },
+            colorsRange: { min: 0, max: 15 }
+        },
+        customize: { planeToMemory: 'interleaved' },
+        reduce: 16,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'snes.8bpp',
+        name: 'SNES (8bpp) (8x8) (32x32) Planar',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 255 },
+            auxRange: { min: 0, max: 255 },
+            borderRange: { min: 0, max: 255 },
+            colorsRange: { min: 0, max: 255 }
+        },
+        customize: { planeToMemory: 'interleaved' },
+        reduce: 256,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'snes.mode7',
+        name: 'SNES (Mode 7) (8bpp) (8x8) (32x32)',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 255 },
+            auxRange: { min: 0, max: 255 },
+            borderRange: { min: 0, max: 255 },
+            colorsRange: { min: 0, max: 255 }
+        },
+        customize: { bitsInPlane: 8, planes: 1 },
+        reduce: 256,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'neo.geopocket',
+        name: 'NEO Geo Pocket Color (2pp) (8x8) (32x32)',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 255 },
+            auxRange: { min: 0, max: 255 },
+            borderRange: { min: 0, max: 255 },
+            colorsRange: { min: 0, max: 255 }
+        },
+        customize: { outputTileset: false, outputPalette: false, bitsInPlane: 2, planes: 1, planeLittleEndian: false },
+        reduce: 256,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'virtualboy',
+        name: 'Virtual Boy (2pp) (8x8) (32x32)',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 3 },
+            auxRange: { min: 0, max: 3 },
+            borderRange: { min: 0, max: 3 },
+            colorsRange: { min: 0, max: 3 }
+        },
+        customize: { outputTileset: false, outputPalette: false, bitsInPlane: 2, planes: 1, planeLittleEndian: true },
+        reduce: 4,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'gg.4pp',
+        name: 'Game Gear (+Sega Master Systems/Wonder Color) (4bpp) (8x8) (32x32) Linear',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 15 },
+            auxRange: { min: 0, max: 15 },
+            borderRange: { min: 0, max: 15 },
+            colorsRange: { min: 0, max: 15 }
+        },
+        customize: { outputTileset: false, outputPalette: false, planeToMemory: 'linear' },
+        reduce: 16,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'genesis',
+        name: 'Genesis/x68k (4pp) (8x8) (32x32)',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.SNES_B5G5R5_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 15 },
+            auxRange: { min: 0, max: 15 },
+            borderRange: { min: 0, max: 15 },
+            colorsRange: { min: 0, max: 15 }
+        },
+        customize: { outputTileset: false, outputPalette: false, bitsInPlane: 4, planes: 1, planeLittleEndian: true },
+        reduce: 16,
+        toNative:'exportSNES'
+    },
+    {
+        id: 'snes.8bpp.direct',
+        name: 'SNES (8bpp) (8x8) (32x32) Direct Color',
+        width: 32*8,
+        height: 32*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas_Direct',
+        pal: palettes.SNES_BBPGGGPRRRP,
+        block: { w: 8, h: 8, colors: 2048, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: {
+            backgroundRange: { min: 0, max: 2047 },
+            auxRange: { min: 0, max: 2047 },
+            borderRange: { min: 0, max: 2047 },
+            colorsRange: { min: 0, max: 2047 }
+        },
+        customize: { outputTileset: true, outputPalette: false, transformColor: 'bbgggrrr', planes: 8 },
+        toNative:'exportSNES'
+    },
+    {
+        id: 'stic',
+        name: 'Intellivision STIC (GRAM/GROM) (FGBG)',
+        width: 8*8,    // actual is 20x12 but the gram only allows for 64 gram cards
+        height: 8*8,
+        conv: 'Stic_Fgbg_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: { backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+        toNative: 'exportSticFgbg'
+    },
+    {
+        id: 'stic.stack.grom',
+        name: 'Intellivision STIC (GROM only) (Color Stack Mode)',
+        width: 20*8,
+        height: 12*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        cb: { w: 8, h: 8, xb: 0, yb: 0 },   // important to leave xb/yb as 0 (so no color bleeding happens in scoring of stack colors)
+        param: { extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+        toNative: 'exportSticColorStack'
+    },
+    {
+        id: 'stic.stack.gram',
+        name: 'Intellivision STIC (GRAM only) (Color Stack Mode)',
+        width: 8*8,    // actual is 20x12 but the gram only allows for 64 gram cards
+        height: 8*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        cb: { w: 8, h: 8 },
+        param: { extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 15 } },
+        toNative: 'exportSticColorStack'
+    },
+    {
+        id: 'stic.stack.gromram',
+        name: 'Intellivision STIC (GROM+GRAM) (Color Stack Mode)',
+        width: 20*8,
+        height: 12*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true, xb: 0, yb: 0 }, // important that xb/yb are 0 (so no color bleeding happens in scoring)
+        cb: { w: 8, h: 8 },
+        // the cell params will carry the array of which cells will use the gram (instead of the grom)
+        param: { cell: true, extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+        toNative: 'exportSticColorStack'
+    },
+    {
+        id: 'stic.stack.grom.single',
+        name: 'Intellivision STIC (GROM only) (Single BG Color Stack)',
+        width: 20*8,
+        height: 12*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        cb: { w: 8, h: 8, xb: 0, yb: 0 },   // important to leave xb/yb as 0 (so no color bleeding happens in scoring of stack colors)
+        param: { extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+        customize: { singleColor: true },
+        toNative: 'exportSticColorStack'
+    },
+    {
+        id: 'stic.stack.gram.single',
+        name: 'Intellivision STIC (GRAM only) (Single BG Color Stack)',
+        width: 8*8,    // actual is 20x12 but the gram only allows for 64 gram cards
+        height: 8*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        cb: { w: 8, h: 8 },
+        param: { extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 15 } },
+        customize: { singleColor: true },
+        toNative: 'exportSticColorStack'
+    },    
+    {
+        id: 'stic.stack.gromram.single',
+        name: 'Intellivision STIC (GROM+GRAM) (Single BG Color Stack)',
+        width: 20*8,
+        height: 12*8,
+        conv: 'Stic_ColorStack_Canvas',
+        pal: palettes.INTELLIVISION_STIC_RGB,
+        block: { w: 8, h: 8, colors: 2 },
+        cell: { w: 8, h: 8, msbToLsb: true, xb: 0, yb: 0 }, // important that xb/yb are 0 (so no color bleeding happens in scoring)
+        cb: { w: 8, h: 8 },
+        // the cell params will carry the array of which cells will use the gram (instead of the grom)
+        param: { cell: true, extra: 4 },
+        paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+        customize: { singleColor: true },
+        toNative: 'exportSticColorStack'
     },
     {
         id: 'nes4f',

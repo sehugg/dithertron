@@ -25,7 +25,8 @@ export class Centroid {
     }
 }
 
-export function reducePaletteChoices(imageData: Uint32Array, 
+export function reducePaletteChoices(
+    imageData: Uint32Array, 
     colors: Uint32Array, 
     count: number, 
     diversity: number,
@@ -95,7 +96,8 @@ export function reducePaletteChoices(imageData: Uint32Array,
     return result;
 }
 
-export function reducePalette(imageData: Uint32Array,
+export function reducePalette(
+    imageData: Uint32Array,
     colors: Uint32Array,
     count: number,
     diversity: number,
