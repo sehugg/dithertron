@@ -1,21 +1,6 @@
 "use strict";
 (() => {
   var __defProp = Object.defineProperty;
-  var __getOwnPropSymbols = Object.getOwnPropertySymbols;
-  var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __propIsEnum = Object.prototype.propertyIsEnumerable;
-  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-  var __spreadValues = (a, b) => {
-    for (var prop in b || (b = {}))
-      if (__hasOwnProp.call(b, prop))
-        __defNormalProp(a, prop, b[prop]);
-    if (__getOwnPropSymbols)
-      for (var prop of __getOwnPropSymbols(b)) {
-        if (__propIsEnum.call(b, prop))
-          __defNormalProp(a, prop, b[prop]);
-      }
-    return a;
-  };
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
@@ -26,11 +11,19 @@
     return x * x;
   }
   function range(start, end) {
-    var arr = [];
-    for (var i = start; i < end; i++) {
-      arr.push(i);
+    let result = new Array(end - start);
+    for (let i = start; i < end; i++) {
+      result[i - start] = i;
     }
-    return arr;
+    return result;
+  }
+  function runtime_assert(condition, message) {
+    if (condition)
+      return;
+    if (message == void 0)
+      console.assert(condition);
+    else
+      console.assert(condition, message);
   }
 
   // src/common/color.ts
@@ -719,6 +712,40 @@
     RGB(255, 255, 255)
     // 0x0F Bright White
   ];
+  var INTELLIVISION_STIC_RGB = [
+    RGB(0, 0, 0),
+    // Black            // primary color set
+    RGB(0, 117, 255),
+    // Blue
+    RGB(255, 76, 57),
+    // Red
+    RGB(209, 185, 81),
+    // Tan
+    RGB(9, 185, 0),
+    // Dark Green
+    RGB(48, 223, 16),
+    // Green
+    RGB(255, 229, 1),
+    // Yellow
+    RGB(255, 255, 255),
+    // White
+    RGB(140, 140, 140),
+    // Gray             // pastel color set
+    RGB(40, 229, 192),
+    // Cyan
+    RGB(255, 160, 46),
+    // Orange
+    RGB(100, 103, 0),
+    // Brown
+    RGB(255, 41, 255),
+    // Pink
+    RGB(140, 143, 255),
+    // Light Blue
+    RGB(124, 237, 0),
+    // Yellow Green
+    RGB(196, 43, 252)
+    // Purple
+  ];
   var AMSTRAD_CPC_RGB = [
     0,
     8388752,
@@ -824,6 +851,8 @@
   var AMIGA_OCS_COLOR_RGB = RGB_444;
   var IIGS_COLOR_RGB = RGB_444;
   var GAMEGEAR_COLOR_RGB = RGB_444;
+  var SNES_B5G5R5_RGB = generateSNESB5G5R5();
+  var SNES_BBPGGGPRRRP = generateSNESDirectColor();
   var MC6847_PALETTE0 = [
     RGB(48, 210, 0),
     /* NTSC: RGB( 28, 213,  16), */
@@ -865,6 +894,33 @@
       pal[i] = RGB(r * rs, g * gs, b * bs);
     }
     return pal;
+  }
+  function generateSNESB5G5R5() {
+    let result = new Uint32Array(1 << 5 + 5 + 5);
+    let i = 0;
+    for (let r = 0; r < 1 << 5; ++r) {
+      for (let g = 0; g < 1 << 5; ++g) {
+        for (let b = 0; b < 1 << 5; ++b, ++i) {
+          let color = r << 3 | g << 3 + 8 | b << 3 + 16;
+          color |= (r & 28) >> 2 | (g & 28) >> 2 << 8 | (b & 28) >> 2 << 16;
+          result[i] = color;
+        }
+      }
+    }
+    return result;
+  }
+  function generateSNESDirectColor() {
+    let result = new Uint32Array(1 << 4 + 4 + 3);
+    let i = 0;
+    for (let r = 0; r < 1 << 4; ++r) {
+      for (let g = 0; g < 1 << 4; ++g) {
+        for (let b = 0; b < 1 << 3; ++b, ++i) {
+          let color = r << 4 | g << 4 + 8 | b << 5 + 16;
+          result[i] = color;
+        }
+      }
+    }
+    return result;
   }
 
   // src/settings/systems.ts
@@ -1019,7 +1075,7 @@
       name: "MSX/Coleco (TMS9918A)",
       width: 256,
       height: 192,
-      conv: "VDPMode2_Canvas",
+      conv: "Msx_Canvas",
       pal: TMS9918_RGB,
       block: { w: 8, h: 1, colors: 2 },
       cell: { w: 8, h: 8, msbToLsb: true },
@@ -1137,8 +1193,9 @@
       pal: ZXSPECTRUM_RGB,
       block: { w: 8, h: 8, colors: 2 },
       cell: { w: 8, h: 8, msbToLsb: true },
-      paletteChoices: { aux: true, colorsRange: { min: 0, max: 7 } },
+      paletteChoices: { colorsRange: { min: 0, max: 7 } },
       // aux is used to signal the special mode
+      customize: { flipPalette: true },
       toNative: "exportZXSpectrum"
     },
     {
@@ -1150,8 +1207,9 @@
       pal: ZXSPECTRUM_RGB,
       block: { w: 8, h: 8, colors: 2 },
       cell: { w: 8, h: 8, msbToLsb: true },
-      paletteChoices: { aux: true, colorsRange: { min: 8, max: 15 } },
+      paletteChoices: { colorsRange: { min: 8, max: 15 } },
       // aux is used to signal the special mode
+      customize: { flipPalette: true },
       toNative: "exportZXSpectrum"
     },
     {
@@ -1227,6 +1285,355 @@
         // a reduced palette applies to the pixel colors
       },
       toNative: "exportVicMulti"
+    },
+    {
+      id: "nes.1bpp",
+      name: "NES (1bpp) (8x8) (32x32) Planar",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 2, msbToLsb: false },
+      // bit plane colors are stored LSB to MSB
+      cell: { w: 8, h: 8, msbToLsb: true },
+      // cell pixels are stored MSB to LSB
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 1 },
+        auxRange: { min: 0, max: 1 },
+        borderRange: { min: 0, max: 1 },
+        colorsRange: { min: 0, max: 1 }
+      },
+      reduce: 2,
+      customize: { outputTileset: false, outputPalette: true },
+      toNative: "exportSNES"
+    },
+    {
+      id: "nes.2bpp",
+      name: "NES (2bpp) (8x8) (32x32) Planar",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 3 },
+        auxRange: { min: 0, max: 3 },
+        borderRange: { min: 0, max: 3 },
+        colorsRange: { min: 0, max: 3 }
+      },
+      reduce: 4,
+      customize: { outputTileset: false, outputPalette: true },
+      toNative: "exportSNES"
+    },
+    {
+      id: "snes.2bpp",
+      name: "SNES (+Gameboy/GBC) (2bpp) (8x8) (32x32) Planar",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 3 },
+        auxRange: { min: 0, max: 3 },
+        borderRange: { min: 0, max: 3 },
+        colorsRange: { min: 0, max: 3 }
+      },
+      customize: { outputTileset: false, outputPalette: false, planeToMemory: "interleaved" },
+      reduce: 4,
+      toNative: "exportSNES"
+    },
+    {
+      id: "snes.3bpp",
+      name: "SNES (3bpp) (8x8) (32x32) Planar",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 8, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 7 },
+        auxRange: { min: 0, max: 7 },
+        borderRange: { min: 0, max: 7 },
+        colorsRange: { min: 0, max: 7 }
+      },
+      reduce: 8,
+      customize: { planeToMemory: "interleaved" },
+      toNative: "exportSNES"
+    },
+    {
+      id: "snes.4bpp",
+      name: "SNES (4bpp) (8x8) (32x32) Planar",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 15 },
+        auxRange: { min: 0, max: 15 },
+        borderRange: { min: 0, max: 15 },
+        colorsRange: { min: 0, max: 15 }
+      },
+      customize: { planeToMemory: "interleaved" },
+      reduce: 16,
+      toNative: "exportSNES"
+    },
+    {
+      id: "snes.8bpp",
+      name: "SNES (8bpp) (8x8) (32x32) Planar",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 255 },
+        auxRange: { min: 0, max: 255 },
+        borderRange: { min: 0, max: 255 },
+        colorsRange: { min: 0, max: 255 }
+      },
+      customize: { planeToMemory: "interleaved" },
+      reduce: 256,
+      toNative: "exportSNES"
+    },
+    {
+      id: "snes.mode7",
+      name: "SNES (Mode 7) (8bpp) (8x8) (32x32)",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 255 },
+        auxRange: { min: 0, max: 255 },
+        borderRange: { min: 0, max: 255 },
+        colorsRange: { min: 0, max: 255 }
+      },
+      customize: { bitsInPlane: 8, planes: 1 },
+      reduce: 256,
+      toNative: "exportSNES"
+    },
+    {
+      id: "neo.geopocket",
+      name: "NEO Geo Pocket Color (2pp) (8x8) (32x32)",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 255 },
+        auxRange: { min: 0, max: 255 },
+        borderRange: { min: 0, max: 255 },
+        colorsRange: { min: 0, max: 255 }
+      },
+      customize: { outputTileset: false, outputPalette: false, bitsInPlane: 2, planes: 1, planeLittleEndian: false },
+      reduce: 256,
+      toNative: "exportSNES"
+    },
+    {
+      id: "virtualboy",
+      name: "Virtual Boy (2pp) (8x8) (32x32)",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 3 },
+        auxRange: { min: 0, max: 3 },
+        borderRange: { min: 0, max: 3 },
+        colorsRange: { min: 0, max: 3 }
+      },
+      customize: { outputTileset: false, outputPalette: false, bitsInPlane: 2, planes: 1, planeLittleEndian: true },
+      reduce: 4,
+      toNative: "exportSNES"
+    },
+    {
+      id: "gg.4pp",
+      name: "Game Gear (+Sega Master Systems/Wonder Color) (4bpp) (8x8) (32x32) Linear",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 15 },
+        auxRange: { min: 0, max: 15 },
+        borderRange: { min: 0, max: 15 },
+        colorsRange: { min: 0, max: 15 }
+      },
+      customize: { outputTileset: false, outputPalette: false, planeToMemory: "linear" },
+      reduce: 16,
+      toNative: "exportSNES"
+    },
+    {
+      id: "genesis",
+      name: "Genesis/x68k (4pp) (8x8) (32x32)",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: SNES_B5G5R5_RGB,
+      block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 15 },
+        auxRange: { min: 0, max: 15 },
+        borderRange: { min: 0, max: 15 },
+        colorsRange: { min: 0, max: 15 }
+      },
+      customize: { outputTileset: false, outputPalette: false, bitsInPlane: 4, planes: 1, planeLittleEndian: true },
+      reduce: 16,
+      toNative: "exportSNES"
+    },
+    {
+      id: "snes.8bpp.direct",
+      name: "SNES (8bpp) (8x8) (32x32) Direct Color",
+      width: 32 * 8,
+      height: 32 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas_Direct",
+      pal: SNES_BBPGGGPRRRP,
+      block: { w: 8, h: 8, colors: 2048, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: {
+        backgroundRange: { min: 0, max: 2047 },
+        auxRange: { min: 0, max: 2047 },
+        borderRange: { min: 0, max: 2047 },
+        colorsRange: { min: 0, max: 2047 }
+      },
+      customize: { outputTileset: true, outputPalette: false, transformColor: "bbgggrrr", planes: 8 },
+      toNative: "exportSNES"
+    },
+    {
+      id: "stic",
+      name: "Intellivision STIC (GRAM/GROM) (FGBG)",
+      width: 8 * 8,
+      // actual is 20x12 but the gram only allows for 64 gram cards
+      height: 8 * 8,
+      conv: "Stic_Fgbg_Canvas",
+      pal: INTELLIVISION_STIC_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: { backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+      toNative: "exportSticFgbg"
+    },
+    {
+      id: "stic.stack.grom",
+      name: "Intellivision STIC (GROM only) (Color Stack Mode)",
+      width: 20 * 8,
+      height: 12 * 8,
+      conv: "Stic_ColorStack_Canvas",
+      pal: INTELLIVISION_STIC_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      cb: { w: 8, h: 8, xb: 0, yb: 0 },
+      // important to leave xb/yb as 0 (so no color bleeding happens in scoring of stack colors)
+      param: { extra: 4 },
+      paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+      toNative: "exportSticColorStack"
+    },
+    {
+      id: "stic.stack.gram",
+      name: "Intellivision STIC (GRAM only) (Color Stack Mode)",
+      width: 8 * 8,
+      // actual is 20x12 but the gram only allows for 64 gram cards
+      height: 8 * 8,
+      conv: "Stic_ColorStack_Canvas",
+      pal: INTELLIVISION_STIC_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      cb: { w: 8, h: 8 },
+      param: { extra: 4 },
+      paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 15 } },
+      toNative: "exportSticColorStack"
+    },
+    {
+      id: "stic.stack.gromram",
+      name: "Intellivision STIC (GROM+GRAM) (Color Stack Mode)",
+      width: 20 * 8,
+      height: 12 * 8,
+      conv: "Stic_ColorStack_Canvas",
+      pal: INTELLIVISION_STIC_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true, xb: 0, yb: 0 },
+      // important that xb/yb are 0 (so no color bleeding happens in scoring)
+      cb: { w: 8, h: 8 },
+      // the cell params will carry the array of which cells will use the gram (instead of the grom)
+      param: { cell: true, extra: 4 },
+      paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+      toNative: "exportSticColorStack"
+    },
+    {
+      id: "stic.stack.grom.single",
+      name: "Intellivision STIC (GROM only) (Single BG Color Stack)",
+      width: 20 * 8,
+      height: 12 * 8,
+      conv: "Stic_ColorStack_Canvas",
+      pal: INTELLIVISION_STIC_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      cb: { w: 8, h: 8, xb: 0, yb: 0 },
+      // important to leave xb/yb as 0 (so no color bleeding happens in scoring of stack colors)
+      param: { extra: 4 },
+      paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+      customize: { singleColor: true },
+      toNative: "exportSticColorStack"
+    },
+    {
+      id: "stic.stack.gram.single",
+      name: "Intellivision STIC (GRAM only) (Single BG Color Stack)",
+      width: 8 * 8,
+      // actual is 20x12 but the gram only allows for 64 gram cards
+      height: 8 * 8,
+      conv: "Stic_ColorStack_Canvas",
+      pal: INTELLIVISION_STIC_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      cb: { w: 8, h: 8 },
+      param: { extra: 4 },
+      paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 15 } },
+      customize: { singleColor: true },
+      toNative: "exportSticColorStack"
+    },
+    {
+      id: "stic.stack.gromram.single",
+      name: "Intellivision STIC (GROM+GRAM) (Single BG Color Stack)",
+      width: 20 * 8,
+      height: 12 * 8,
+      conv: "Stic_ColorStack_Canvas",
+      pal: INTELLIVISION_STIC_RGB,
+      block: { w: 8, h: 8, colors: 2 },
+      cell: { w: 8, h: 8, msbToLsb: true, xb: 0, yb: 0 },
+      // important that xb/yb are 0 (so no color bleeding happens in scoring)
+      cb: { w: 8, h: 8 },
+      // the cell params will carry the array of which cells will use the gram (instead of the grom)
+      param: { cell: true, extra: 4 },
+      paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
+      customize: { singleColor: true },
+      toNative: "exportSticColorStack"
     },
     {
       id: "nes4f",
@@ -1654,10 +2061,14 @@
     Compucolor_Canvas: () => Compucolor_Canvas,
     DitheringCanvas: () => DitheringCanvas,
     HAM6_Canvas: () => HAM6_Canvas,
+    Msx_Canvas: () => Msx_Canvas,
     NES_Canvas: () => NES_Canvas,
+    SNES_Canvas: () => SNES_Canvas,
+    SNES_Canvas_Direct: () => SNES_Canvas_Direct,
+    Stic_ColorStack_Canvas: () => Stic_ColorStack_Canvas,
+    Stic_Fgbg_Canvas: () => Stic_Fgbg_Canvas,
     Teletext_Canvas: () => Teletext_Canvas,
     VCSColorPlayfield_Canvas: () => VCSColorPlayfield_Canvas,
-    VDPMode2_Canvas: () => VDPMode2_Canvas,
     VICII_Canvas: () => VICII_Canvas,
     ZXSpectrum_Canvas: () => ZXSpectrum_Canvas
   });
@@ -1701,9 +2112,12 @@
       this.ref = new Uint32Array(img);
       this.alt = new Uint32Array(this.ref);
       this.err = new Float32Array(this.ref.length * 3);
-      this.indexed = new Uint8Array(this.ref.length);
+      this.indexed = new Uint32Array(this.ref.length);
       this.changes = 0;
       this.reset();
+    }
+    content() {
+      return { params: this.params };
     }
     reset() {
       this.img = new Uint32Array(this.ref);
@@ -1739,9 +2153,16 @@
         this.err[errofs + i] = 0;
       }
       const errmag = (Math.abs(err[0]) + Math.abs(err[1] * 2) + Math.abs(err[2])) / (256 * 4);
-      if (this.indexed[offset] != palidx && errmag >= this.errorThreshold) {
-        this.indexed[offset] = palidx;
-        this.changes++;
+      if (this.indexed[offset] != palidx) {
+        let shouldChange = errmag >= this.errorThreshold;
+        if (!shouldChange) {
+          let existingValue = this.indexed[offset];
+          shouldChange = valid.find((x) => existingValue === x) === void 0;
+        }
+        if (shouldChange) {
+          this.indexed[offset] = palidx;
+          this.changes++;
+        }
       }
       this.img[offset] = rgbimg;
     }
@@ -1750,15 +2171,15 @@
     }
     iterate() {
       this.changes = 0;
+      this.commit();
       for (var i = 0; i < this.img.length; i++) {
         this.update(i);
       }
-      this.commit();
       this.iterateCount++;
     }
     commit() {
     }
-    getValidColors(offset) {
+    getValidColors(imageIndex) {
       return range(0, this.pal.length);
     }
   };
@@ -1771,6 +2192,11 @@
       for (var i = 0; i < this.params.length; i++) {
         this.guessParam(i);
       }
+    }
+    content() {
+      return {
+        params: this.params
+      };
     }
   };
   var BasicParamDitherCanvas = class extends ParamDitherCanvas {
@@ -1800,9 +2226,9 @@
         this.guessParam(i);
       }
     }
-    getValidColors(offset) {
-      var col = Math.floor(offset / this.w) % this.ncols;
-      var row = Math.floor(offset / (this.width * this.h));
+    getValidColors(imageIndex) {
+      var col = Math.floor(imageIndex / this.w) % this.ncols;
+      var row = Math.floor(imageIndex / (this.width * this.h));
       var i = col + row * this.ncols;
       var c1 = this.params[i] & 255;
       var c2 = this.params[i] >> 8 & 255;
@@ -1847,8 +2273,8 @@
       this.bgColor = 0;
       super.init();
     }
-    getValidColors(offset) {
-      return [this.bgColor, super.getValidColors(offset)[0]];
+    getValidColors(imageIndex) {
+      return [this.bgColor, super.getValidColors(imageIndex)[0]];
     }
     updateParams(p, choices) {
       for (let c of choices) {
@@ -1857,6 +2283,637 @@
           break;
         }
       }
+    }
+  };
+  var BlockParamDitherCanvas = class extends BaseDitheringCanvas {
+    constructor() {
+      super(...arguments);
+      this.blockParams = new Uint32Array(0);
+      this.cbParams = new Uint32Array(0);
+      this.cellParams = new Uint32Array(0);
+      this.extraParams = new Uint32Array(0);
+      this.fliMode = false;
+      this.fullPaletteMode = false;
+      this.paletteBits = Math.ceil(Math.log2(this.pal.length));
+      this.paletteBitFilter = (1 << this.paletteBits) - 1;
+      // values chosen base on image
+      this.backgroundColor = 0;
+      this.auxColor = 0;
+      this.borderColor = 0;
+    }
+    content() {
+      return {
+        width: this.width,
+        height: this.height,
+        block: this.block,
+        cb: this.cb,
+        cell: this.cell,
+        fullPaletteMode: this.fullPaletteMode,
+        fliMode: this.fliMode,
+        paramInfo: this.paramInfo,
+        bitsPerColor: this.bitsPerColor,
+        pixelsPerByte: this.pixelsPerByte,
+        backgroundColor: this.backgroundColor,
+        borderColor: this.borderColor,
+        auxColor: this.auxColor,
+        paletteChoices: this.paletteChoices,
+        paletteBits: this.paletteBits,
+        paletteBitFilter: this.paletteBitFilter,
+        blockParams: this.blockParams,
+        cbParams: this.cbParams,
+        cellParams: this.cellParams,
+        extraParams: this.extraParams
+      };
+    }
+    // functions that are designed to be overridden
+    init() {
+      super.init();
+    }
+    commit() {
+      super.commit();
+    }
+    getValidColors(imageIndex) {
+      return super.getValidColors(imageIndex);
+    }
+  };
+  function extractColorsFromParam(param, totalToExtract, paletteBitFilter, paletteBits) {
+    if (0 == totalToExtract)
+      return [];
+    let value = param;
+    let result = [];
+    while (totalToExtract > 0) {
+      result.push(value & paletteBitFilter);
+      value >>= paletteBits;
+      --totalToExtract;
+    }
+    return result;
+  }
+  function extractColorsFromParams(offset, params, totalToExtract, paletteBitFilter, paletteBits) {
+    if (0 == totalToExtract)
+      return [];
+    runtime_assert(offset < params.length);
+    return extractColorsFromParam(params[offset], totalToExtract, paletteBitFilter, paletteBits);
+  }
+  var CommonBlockParamDitherCanvas = class extends BlockParamDitherCanvas {
+    constructor() {
+      super(...arguments);
+      // colors legal for block colors (excluding any selectable background, border, aux colors)
+      this.globalValid = [];
+      // an array of selectable global colors
+      this.foundColorsByUsage = [];
+      // which colors best represent the entire image
+      this.foundColorsByColorIntensity = [];
+      // which colors are most compatible ranked by intensity
+      this.histogramScoreCurrent = 100;
+      this.histogram = new Uint32Array(this.pal.length);
+      // temporary scratch histogram buffer
+      this.scores = new Uint32Array(this.pal.length);
+      // temporary scratch scores buffer
+      this.firstCommit = false;
+    }
+    init() {
+      this.prepare();
+    }
+    prepare() {
+      super.init();
+      this.prepareDefaults();
+      this.prepareGlobalColorChoices();
+      this.allocateParams();
+      let bestPrefill = () => {
+        if (this.pixelPaletteChoices.length > 0)
+          return this.pixelPaletteChoices[0];
+        if (this.allColors.length > 0)
+          return this.allColors[0];
+        return this.backgroundColor;
+      };
+      this.indexed.fill(bestPrefill());
+    }
+    prepareDefaults() {
+      this.block = {
+        w: this.sys.block === void 0 ? this.sys.cell === void 0 ? this.sys.cb.w : this.sys.cell.w : this.sys.block.w,
+        h: this.sys.block === void 0 ? this.sys.cell === void 0 ? this.sys.cb.h : this.sys.cell.h : this.sys.block.h,
+        colors: this.sys.block === void 0 ? 2 : this.sys.block.colors,
+        xb: this.sys.block === void 0 ? this.sys.cb === void 0 ? 0 : this.sys.cb.xb === void 0 ? 0 : this.sys.cb.xb : this.sys.block.xb === void 0 ? 0 : this.sys.block.xb,
+        yb: this.sys.block === void 0 ? this.sys.cb === void 0 ? 0 : this.sys.cb.yb === void 0 ? 0 : this.sys.cb.yb : this.sys.block.yb === void 0 ? 0 : this.sys.block.yb,
+        columns: 0,
+        rows: 0,
+        size: 0,
+        msbToLsb: this.sys.block === void 0 ? true : this.sys.block.msbToLsb === void 0 ? true : this.sys.block.msbToLsb
+      };
+      this.block.columns = Math.ceil(this.width / this.block.w);
+      this.block.rows = Math.ceil(this.height / this.block.h);
+      this.block.size = this.block.columns * this.block.rows;
+      this.cb = {
+        w: this.sys.cb === void 0 ? this.block.w : this.sys.cb.w,
+        h: this.sys.cb === void 0 ? this.block.h : this.sys.cb.h,
+        xb: this.sys.cb === void 0 ? this.block.xb : this.sys.cb.xb === void 0 ? this.block.xb : this.sys.cb.xb,
+        yb: this.sys.cb === void 0 ? this.block.yb : this.sys.cb.yb === void 0 ? this.block.yb : this.sys.cb.yb,
+        columns: 0,
+        rows: 0,
+        size: 0,
+        msbToLsb: this.sys.cb === void 0 ? true : this.sys.cb.msbToLsb === void 0 ? true : this.sys.cb.msbToLsb
+      };
+      this.cb.columns = Math.ceil(this.width / this.cb.w);
+      this.cb.rows = Math.ceil(this.height / this.cb.h);
+      this.cb.size = this.cb.columns * this.cb.rows;
+      this.cell = {
+        w: this.sys.cell === void 0 ? this.cb.w : this.sys.cell.w,
+        h: this.sys.cell === void 0 ? this.cb.h : this.sys.cell.h,
+        xb: this.sys.cell === void 0 ? this.block.xb : this.sys.cell.xb === void 0 ? this.block.xb : this.sys.cell.xb,
+        yb: this.sys.cell === void 0 ? this.block.yb : this.sys.cell.yb === void 0 ? this.block.yb : this.sys.cell.yb,
+        columns: 0,
+        rows: 0,
+        size: 0,
+        msbToLsb: this.sys.cell === void 0 ? true : this.sys.cell.msbToLsb
+      };
+      this.cell.columns = Math.ceil(this.width / this.cell.w);
+      this.cell.rows = Math.ceil(this.height / this.cell.h);
+      this.cell.size = this.cell.rows * this.cell.columns;
+      this.fliMode = this.sys.fli !== void 0;
+      this.paramInfo = {
+        block: this.sys.param === void 0 ? this.sys.block !== void 0 : this.sys.param.block === void 0 ? this.sys.block !== void 0 : this.sys.param.block,
+        cb: this.sys.param === void 0 ? this.sys.cb !== void 0 : this.sys.param.cb === void 0 ? this.sys.cb !== void 0 : this.sys.param.cb,
+        cell: this.sys.param === void 0 ? false : this.sys.param.cell === void 0 ? false : this.sys.param.cell,
+        extra: this.sys.param === void 0 ? 0 : this.sys.param.extra
+      };
+      this.bitsPerColor = Math.ceil(Math.log2(this.block.colors));
+      this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
+      runtime_assert(this.paletteBits > 0);
+      this.preparePaletteChoices(this.sys.paletteChoices);
+      this.fullPaletteMode = this.paletteChoices.colors >= this.pal.length;
+      this.firstCommit = this.paletteChoices.prefillReference;
+    }
+    spliceColor(color, colors) {
+      let found = colors.findIndex((x) => x == color);
+      if (found < 0)
+        return colors;
+      return [...colors.slice(0, found), ...colors.slice(found + 1)];
+    }
+    preparePixelPaletteChoices() {
+      let count = this.paletteChoices.colorsRange.max - this.paletteChoices.colorsRange.min + 1;
+      this.pixelPaletteChoices = range(this.paletteChoices.colorsRange.min, this.paletteChoices.colorsRange.max + 1);
+      this.allColors = range(0, this.pal.length);
+      this.backgroundColors = range(this.paletteChoices.backgroundRange.min, this.paletteChoices.backgroundRange.max + 1);
+      this.auxColors = range(this.paletteChoices.auxRange.min, this.paletteChoices.auxRange.max + 1);
+      this.borderColors = range(this.paletteChoices.borderRange.min, this.paletteChoices.borderRange.max + 1);
+      this.blockColors = range(this.paletteChoices.colorsRange.min, this.paletteChoices.colorsRange.max + 1);
+    }
+    preparePaletteChoices(options) {
+      runtime_assert(this.pal.length > 0);
+      if (options === void 0) {
+        this.paletteChoices = {
+          prefillReference: false,
+          background: false,
+          aux: false,
+          border: false,
+          backgroundRange: { min: 0, max: this.pal.length - 1 },
+          auxRange: { min: 0, max: this.pal.length - 1 },
+          borderRange: { min: 0, max: this.pal.length - 1 },
+          colors: this.block.colors,
+          colorsRange: { min: 0, max: this.pal.length - 1 }
+        };
+        this.preparePixelPaletteChoices();
+        return;
+      }
+      this.paletteChoices = {
+        prefillReference: options.prefillReference === void 0 ? false : options.prefillReference,
+        background: options.background === void 0 ? false : options.background,
+        aux: options.aux === void 0 ? false : options.aux,
+        border: options.aux === void 0 ? false : options.border,
+        backgroundRange: options.backgroundRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.backgroundRange,
+        auxRange: options.auxRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.auxRange,
+        borderRange: options.borderRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.borderRange,
+        colors: this.block.colors,
+        colorsRange: options.colorsRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.colorsRange
+      };
+      this.paletteChoices.colors = options.colors === void 0 ? this.block.colors - (this.paletteChoices.background ? 1 : 0) - (this.paletteChoices.aux ? 1 : 0) - (this.paletteChoices.border ? 1 : 0) : options.colors;
+      this.preparePixelPaletteChoices();
+      runtime_assert(this.pal.length > this.paletteChoices.backgroundRange.max - this.paletteChoices.backgroundRange.min);
+      runtime_assert(this.pal.length > this.paletteChoices.auxRange.max - this.paletteChoices.auxRange.min);
+      runtime_assert(this.pal.length > this.paletteChoices.borderRange.max - this.paletteChoices.borderRange.min);
+    }
+    chooseMin(available, range2, current) {
+      if (!available)
+        return current;
+      if (current === void 0)
+        return range2.min;
+      return Math.min(current, range2.min);
+    }
+    chooseMax(available, range2, current) {
+      if (!available)
+        return current;
+      if (current === void 0)
+        return range2.max;
+      return Math.max(current, range2.max);
+    }
+    prepareMinMax(background, aux, border) {
+      let chosenMin = this.chooseMin(background, this.paletteChoices.backgroundRange);
+      chosenMin = this.chooseMin(aux, this.paletteChoices.auxRange, chosenMin);
+      chosenMin = this.chooseMin(border, this.paletteChoices.borderRange, chosenMin);
+      chosenMin = chosenMin === void 0 ? 0 : chosenMin;
+      let chosenMax = this.chooseMax(background, this.paletteChoices.backgroundRange);
+      chosenMax = this.chooseMax(aux, this.paletteChoices.auxRange, chosenMax);
+      chosenMax = this.chooseMax(border, this.paletteChoices.borderRange, chosenMax);
+      chosenMax = chosenMax === void 0 ? this.pal.length - 1 : chosenMax;
+      return { min: chosenMin, max: chosenMax };
+    }
+    prepareGlobalColorChoices() {
+      let range2 = this.prepareMinMax(true, true, true);
+      let palSubset = this.pal.slice(range2.min, range2.max + 1);
+      let choices = reducePaletteChoices(
+        this.ref,
+        palSubset,
+        palSubset.length,
+        // rank the entire palette subset (because restricted palettes may have to fallback)
+        1,
+        this.errfn
+      );
+      let histoRankedChoices = choices.slice(0, choices.length);
+      histoRankedChoices.sort((a, b) => b.count - a.count);
+      this.foundColorsByUsage = histoRankedChoices.slice(0, histoRankedChoices.length);
+      this.foundColorsByColorIntensity = choices.slice(0, choices.length);
+      let ranges = [
+        { id: 0, selectable: this.paletteChoices.background, range: this.paletteChoices.backgroundRange },
+        { id: 1, selectable: this.paletteChoices.aux, range: this.paletteChoices.auxRange },
+        { id: 2, selectable: this.paletteChoices.border, range: this.paletteChoices.borderRange }
+      ];
+      ranges.sort((a, b) => a.selectable == b.selectable ? a.range.max - a.range.min == b.range.max - b.range.min ? a.id - b.id : a.range.max - a.range.min - (b.range.max - b.range.min) : a.selectable ? -1 : 1);
+      let assignId = (choice, option) => {
+        let index = choice.ind + range2.min;
+        if (index < option.range.min || index > option.range.max)
+          return false;
+        switch (option.id) {
+          case 0:
+            this.backgroundColor = index;
+            break;
+          case 1:
+            this.auxColor = index;
+            break;
+          case 2:
+            this.borderColor = index;
+            break;
+        }
+        return true;
+      };
+      let findBestChoice = (searchList, altList, option) => {
+        for (let c = 0; c < searchList.length; ++c) {
+          let choice = searchList[c];
+          if (!assignId(choice, option))
+            continue;
+          let found = altList.findIndex((x) => x.ind == choice.ind);
+          runtime_assert(found >= 0);
+          altList.splice(found, 1);
+          searchList.splice(c, 1);
+          break;
+        }
+      };
+      let firstNonSelectableColorFound = false;
+      for (let i = 0; i < ranges.length; ++i) {
+        let option = ranges[i];
+        if (!option.selectable && !firstNonSelectableColorFound) {
+          let topNChoices = [];
+          for (let c = 0; c < ranges.length - i; ++c) {
+            if (c >= histoRankedChoices.length)
+              continue;
+            let topChoice = histoRankedChoices[c];
+            let priority = choices.findIndex((x) => x.ind == topChoice.ind);
+            runtime_assert(priority >= 0);
+            topNChoices.push({ priority, choice: topChoice });
+            choices.splice(priority, 1);
+          }
+          topNChoices.sort((a, b) => a.priority - b.priority);
+          choices = topNChoices.map((x) => x.choice).concat(choices);
+          firstNonSelectableColorFound = true;
+        }
+        findBestChoice(option.selectable ? histoRankedChoices : choices, option.selectable ? choices : histoRankedChoices, option);
+      }
+      if (this.paletteChoices.background)
+        this.globalValid.push(this.backgroundColor);
+      if (this.paletteChoices.aux)
+        this.globalValid.push(this.auxColor);
+      if (this.paletteChoices.border)
+        this.globalValid.push(this.borderColor);
+      if (this.paletteChoices.background)
+        this.pixelPaletteChoices = this.spliceColor(this.backgroundColor, this.pixelPaletteChoices);
+      if (this.paletteChoices.aux)
+        this.pixelPaletteChoices = this.spliceColor(this.auxColor, this.pixelPaletteChoices);
+      if (this.paletteChoices.border)
+        this.pixelPaletteChoices = this.spliceColor(this.borderColor, this.pixelPaletteChoices);
+    }
+    allocateParams() {
+      this.blockParams = new Uint32Array(this.paramInfo.block ? this.block.size : 0);
+      this.cbParams = new Uint32Array(this.paramInfo.cb ? this.cb.size : 0);
+      this.cellParams = new Uint32Array(this.paramInfo.cell ? this.cell.size : 0);
+      this.extraParams = new Uint32Array(this.paramInfo.extra);
+      this.params = this.blockParams;
+    }
+    imageIndexToInfo(index, info) {
+      let column = Math.floor(index / info.w) % info.columns;
+      let row = Math.floor(index / (this.width * info.h));
+      return { column, row };
+    }
+    imageIndexToBlockInfo(index) {
+      return this.imageIndexToInfo(index, this.block);
+    }
+    imageIndexToCbInfo(index) {
+      return this.imageIndexToInfo(index, this.cb);
+    }
+    imageIndexToCellInfo(index) {
+      return this.imageIndexToInfo(index, this.cell);
+    }
+    imageIndexToOffset(index, info) {
+      let { column, row } = this.imageIndexToInfo(index, info);
+      let offset = row * info.columns + column;
+      return offset;
+    }
+    imageIndexToBlockOffset(index) {
+      return this.imageIndexToOffset(index, this.block);
+    }
+    imageIndexToCbOffset(index) {
+      return this.imageIndexToOffset(index, this.cb);
+    }
+    imageIndexToCellOffset(index) {
+      return this.imageIndexToOffset(index, this.cell);
+    }
+    imageIndexToXY(index) {
+      return { x: index % this.width, y: Math.floor(index / this.width) };
+    }
+    xyToImageIndex(x, y) {
+      if (x < 0 || y < 0)
+        return void 0;
+      if (x >= this.width || y >= this.height)
+        return void 0;
+      return y * this.width + x;
+    }
+    offsetToInfo(offset, info) {
+      let column = offset % info.columns;
+      let row = Math.floor(offset / info.columns);
+      return { column, row };
+    }
+    offsetToBlockInfo(offset) {
+      return this.offsetToInfo(offset, this.block);
+    }
+    offsetToCbInfo(offset) {
+      return this.offsetToInfo(offset, this.cb);
+    }
+    offsetToCellInfo(offset) {
+      return this.offsetToInfo(offset, this.cell);
+    }
+    offsetToImageIndex(offset, info) {
+      let { column, row } = this.offsetToInfo(offset, info);
+      let index = row * this.width * info.h + column * info.w;
+      return index;
+    }
+    blockOffsetToImageIndex(offset) {
+      return this.offsetToImageIndex(offset, this.block);
+    }
+    cbOffsetToImageIndex(offset) {
+      return this.offsetToImageIndex(offset, this.cb);
+    }
+    cellOffsetToImageIndex(offset) {
+      return this.offsetToImageIndex(offset, this.cell);
+    }
+    currentColorAtXY(x, y, orColor) {
+      let imageIndex = this.xyToImageIndex(x, y);
+      return imageIndex === void 0 ? orColor : this.indexed[imageIndex];
+    }
+    addToHistogramFromCurrentColor(color, histogram) {
+      runtime_assert(color < histogram.length);
+      histogram[color] += this.histogramScoreCurrent;
+    }
+    addToHistogramAtXYFromCurrentColor(x, y, color, histogram) {
+      if (color === void 0)
+        return;
+      this.addToHistogramFromCurrentColor(color, histogram);
+    }
+    addToHistogramAtOffsetFromCurrentColor(offset, info, histogram, colors, orColor, fnAddToHistogram) {
+      let imageIndex = this.offsetToImageIndex(offset, info);
+      let start = this.imageIndexToXY(imageIndex);
+      for (let y = start.y - info.yb; y < start.y + info.h + info.yb; ++y) {
+        for (let x = start.x - info.xb; x < start.x + info.w + info.xb; ++x) {
+          let color = this.currentColorAtXY(x, y, orColor);
+          if (colors !== void 0) {
+            if (colors.find((x2) => x2 == color) === void 0)
+              continue;
+          }
+          if (fnAddToHistogram === void 0)
+            this.addToHistogramAtXYFromCurrentColor(x, y, color, histogram);
+          else
+            fnAddToHistogram(x, y, color, histogram);
+        }
+      }
+    }
+    addToBlockHistogramFromCurrentColor(offset, histogram, colors, orColor, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFromCurrentColor(offset, this.block, histogram, colors, orColor, fnAddToHistogram);
+    }
+    addToCbHistogramFromCurrentColor(offset, histogram, colors, orColor, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFromCurrentColor(offset, this.cb, histogram, colors, orColor, fnAddToHistogram);
+    }
+    addToCellHistogramFromCurrentColor(offset, histogram, colors, orColor, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFromCurrentColor(offset, this.cell, histogram, colors, orColor, fnAddToHistogram);
+    }
+    scoreColorAtXYFrom(x, y, scores, colors, from) {
+      let imageIndex = this.xyToImageIndex(x, y);
+      if (imageIndex === void 0)
+        return void 0;
+      let rgb = from[imageIndex];
+      let colorToPalIndex = (i) => {
+        return colors === void 0 ? i : colors[i];
+      };
+      let closestColor = NaN;
+      let closestScore = NaN;
+      for (let i = 0; i < (colors === void 0 ? scores.length : colors.length); ++i) {
+        let rgbPalette = this.pal[colorToPalIndex(i)];
+        let score = this.errfn(rgb, rgbPalette);
+        runtime_assert(colorToPalIndex(i) < scores.length);
+        scores[colorToPalIndex(i)] += score;
+        if (score < closestScore || Number.isNaN(closestScore)) {
+          closestScore = score;
+          closestColor = colorToPalIndex(i);
+        }
+      }
+      return Number.isNaN(closestColor) ? void 0 : { closestColor, closestScore };
+    }
+    scoreColorAtXYFromAlt(x, y, scores, colors) {
+      return this.scoreColorAtXYFrom(x, y, scores, colors, this.alt);
+    }
+    scoreColorAtXYFromRef(x, y, scores, colors) {
+      return this.scoreColorAtXYFrom(x, y, scores, colors, this.ref);
+    }
+    mergeHistogram(dest, source1, source2, colors) {
+      runtime_assert(source1.length == source2.length);
+      runtime_assert(dest.length == source1.length);
+      if (colors === void 0) {
+        for (let i = 0; i < dest.length; ++i) {
+          dest[i] = source1[i] + source2[i];
+        }
+        return;
+      }
+      for (let i = 0; i < colors.length; ++i) {
+        dest[colors[i]] = source1[colors[i]] + source2[colors[i]];
+      }
+    }
+    addToHistogramFromClosest(closest, histogram) {
+      histogram[closest.closestColor] += 1 + this.noise;
+    }
+    addToHistogramFromClosestAtXY(x, y, closest, histogram) {
+      if (closest === void 0)
+        return;
+      return this.addToHistogramFromClosest(closest, histogram);
+    }
+    addToHistogramAtOffsetFrom(offset, info, histogram, scores, colors, from, fnAddToHistogram) {
+      let total = 0;
+      let imageIndex = this.offsetToImageIndex(offset, info);
+      let start = this.imageIndexToXY(imageIndex);
+      for (let y = start.y - info.yb; y < start.y + info.h + info.yb; ++y) {
+        for (let x = start.x - info.xb; x < start.x + info.w + info.xb; ++x) {
+          let closest = this.scoreColorAtXYFrom(x, y, scores, colors, from);
+          if (fnAddToHistogram === void 0)
+            this.addToHistogramFromClosestAtXY(x, y, closest, histogram);
+          else
+            fnAddToHistogram(x, y, closest, histogram);
+        }
+      }
+      let scored = colors === void 0 ? range(0, scores.length).map((x) => {
+        return { ind: x, score: scores[x], count: histogram[x] };
+      }) : colors.map((x) => {
+        return { ind: x, score: scores[x], count: histogram[x] };
+      });
+      return scored;
+    }
+    addToBlockHistogramFrom(offset, histogram, scores, colors, from, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.block, histogram, scores, colors, from, fnAddToHistogram);
+    }
+    addToCbHistogramFrom(offset, histogram, scores, colors, from, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.cb, histogram, scores, colors, from, fnAddToHistogram);
+    }
+    addToCellHistogramFrom(offset, histogram, scores, colors, from, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.cell, histogram, scores, colors, from, fnAddToHistogram);
+    }
+    addToBlockHistogramFromAlt(offset, histogram, scores, colors, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.block, histogram, scores, colors, this.alt, fnAddToHistogram);
+    }
+    addToCbHistogramFromAlt(offset, histogram, scores, colors, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.cb, histogram, scores, colors, this.alt, fnAddToHistogram);
+    }
+    addToCellHistogramFromAlt(offset, histogram, scores, colors, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.cell, histogram, scores, colors, this.alt, fnAddToHistogram);
+    }
+    addToBlockHistogramFromRef(offset, histogram, scores, colors, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.block, histogram, scores, colors, this.ref, fnAddToHistogram);
+    }
+    addToCbHistogramFromRef(offset, histogram, scores, colors, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.cb, histogram, scores, colors, this.ref, fnAddToHistogram);
+    }
+    addToCellHistogramFromRef(offset, histogram, scores, colors, fnAddToHistogram) {
+      return this.addToHistogramAtOffsetFrom(offset, this.cell, histogram, scores, colors, this.ref, fnAddToHistogram);
+    }
+    getScoredChoicesByCount(scored) {
+      let result = scored.filter((x) => x.count > 0);
+      result.sort((a, b) => b.count - a.count);
+      return result;
+    }
+    getScoredChoicesByScore(scored) {
+      let result = scored.filter((x) => x.count > 0);
+      result.sort((a, b) => a.score - b.score);
+      return result;
+    }
+    updateColorParam(offset, params, colorChoices, overrideFilter, overrideBits) {
+      runtime_assert(offset < params.length);
+      if (colorChoices.length < 1) {
+        params[offset] = 0;
+        return;
+      }
+      let value = 0;
+      for (let i = colorChoices.length - 1; i >= 0; --i) {
+        value <<= overrideBits === void 0 ? this.paletteBits : overrideBits;
+        value |= colorChoices[i] & (overrideFilter === void 0 ? this.paletteBitFilter : overrideFilter);
+      }
+      params[offset] = value;
+    }
+    updateBlockColorParam(offset, colorChoices, overrideFilter, overrideBits) {
+      this.updateColorParam(offset, this.blockParams, colorChoices, overrideFilter, overrideBits);
+    }
+    updateCbColorParam(offset, colorChoices, overrideFilter, overrideBits) {
+      this.updateColorParam(offset, this.cbParams, colorChoices, overrideFilter, overrideBits);
+    }
+    updateCellColorParam(offset, colorChoices, overrideFilter, overrideBits) {
+      this.updateColorParam(offset, this.cellParams, colorChoices, overrideFilter, overrideBits);
+    }
+    extractColorsFromParams(offset, params, totalToExtract, overrideFilter, overrideBits) {
+      return extractColorsFromParams(offset, params, totalToExtract, overrideFilter === void 0 ? this.paletteBitFilter : overrideFilter, overrideBits === void 0 ? this.paletteBits : overrideBits);
+    }
+    extractColorsFromBlockParams(offset, totalToExtract, overrideFilter, overrideBits) {
+      return extractColorsFromParams(offset, this.blockParams, totalToExtract, overrideFilter === void 0 ? this.paletteBitFilter : overrideFilter, overrideBits === void 0 ? this.paletteBits : overrideBits);
+    }
+    extractColorsFromCbParams(offset, totalToExtract, overrideFilter, overrideBits) {
+      return extractColorsFromParams(offset, this.cbParams, totalToExtract, overrideFilter === void 0 ? this.paletteBitFilter : overrideFilter, overrideBits === void 0 ? this.paletteBits : overrideBits);
+    }
+    extractColorsFromCellParams(offset, totalToExtract, overrideFilter, overrideBits) {
+      return extractColorsFromParams(offset, this.cellParams, totalToExtract, overrideFilter === void 0 ? this.paletteBitFilter : overrideFilter, overrideBits === void 0 ? this.paletteBits : overrideBits);
+    }
+    commit() {
+      this.guessExtraParams();
+      this.guessCellParams();
+      this.guessCbParams();
+      this.guessBlockParams();
+      this.firstCommit = false;
+    }
+    getValidColors(imageIndex) {
+      let offset = this.imageIndexToBlockOffset(imageIndex);
+      if (this.fullPaletteMode)
+        return this.pixelPaletteChoices;
+      let extracted = this.extractColorsFromBlockParams(offset, this.paletteChoices.colors);
+      if (this.globalValid.length == 0 && extracted.length <= this.paletteChoices.colors)
+        return extracted;
+      let valid = this.globalValid.slice(0, this.globalValid.length);
+      valid.push(...extracted);
+      valid = valid.slice(0, this.globalValid.length + this.paletteChoices.colors);
+      return valid;
+    }
+    guessBlockParams() {
+      for (let i = 0; i < this.blockParams.length; ++i) {
+        this.guessBlockParam(i);
+      }
+    }
+    guessCbParams() {
+      for (let i = 0; i < this.cbParams.length; ++i) {
+        this.guessCbParam(i);
+      }
+    }
+    guessCellParams() {
+      for (let i = 0; i < this.cellParams.length; ++i) {
+        this.guessCellParam(i);
+      }
+    }
+    guessExtraParams() {
+      for (let i = 0; i < this.extraParams.length; ++i) {
+        this.guessExtraParam(i);
+      }
+    }
+    guessBlockParam(offset) {
+      if (this.fullPaletteMode)
+        return;
+      this.histogram.fill(0);
+      this.scores.fill(0);
+      if (!this.firstCommit)
+        this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
+      let scored = this.addToBlockHistogramFrom(offset, this.histogram, this.scores, this.pixelPaletteChoices, this.firstCommit ? this.ref : this.alt);
+      let choices = this.getScoredChoicesByCount(scored);
+      let colors = choices.map((x) => {
+        return x.ind;
+      }).slice(0, this.block.colors - this.globalValid.length);
+      while (colors.length < this.block.colors - this.globalValid.length) {
+        colors.push(this.pixelPaletteChoices[0] || this.backgroundColor);
+      }
+      colors = colors.sort((a, b) => a - b);
+      this.updateBlockColorParam(offset, colors);
+    }
+    guessCbParam(offset) {
+    }
+    guessCellParam(offset) {
+    }
+    guessExtraParam(offset) {
     }
   };
 
@@ -1869,13 +2926,6 @@
       super(...arguments);
       this.w = 2;
       this.h = 3;
-    }
-  };
-  var VDPMode2_Canvas = class extends TwoColor_Canvas {
-    constructor() {
-      super(...arguments);
-      this.w = 8;
-      this.h = 1;
     }
   };
   var VCSColorPlayfield_Canvas = class extends TwoColor_Canvas {
@@ -1921,27 +2971,9 @@
         return [0, 1, 2, 5];
     }
   };
-  var VICII_Canvas_Details;
-  ((VICII_Canvas_Details2) => {
-    ;
-    VICII_Canvas_Details2.prepare = function(defaults, block) {
-      if (block === void 0) {
-        return (0, VICII_Canvas_Details2.prepare)(defaults, defaults);
-      }
-      let result = __spreadValues({}, block);
-      result.xb = block.xb === void 0 ? 0 : block.xb;
-      result.yb = block.yb === void 0 ? 0 : block.yb;
-      return result;
-    };
-  })(VICII_Canvas_Details || (VICII_Canvas_Details = {}));
-  var VICII_Canvas = class extends ParamDitherCanvas {
+  var VICII_Canvas = class extends CommonBlockParamDitherCanvas {
     constructor() {
       super(...arguments);
-      this.paletteChoices = {};
-      this.cbOffset = 0;
-      // the offset into the params array for the color block ram
-      this.extra = 0;
-      this.fliMode = false;
       // FLI mode causes a VIC bug to appear coined the "fli bug". The issue is that
       // when $D011 is forced into a "bad line" condition which forces the VIC to
       // refetch color data and the CPU stalls the VIC long enough that exactly 3 character
@@ -1975,427 +3007,518 @@
       this.blankLeftScreenFliBugArea = false;
       this.blankRightScreenMirrorFliBugArea = false;
       this.blankFliBugColumnCount = 0;
-      // values chosen base on image
-      this.bgColor = 0;
-      this.auxColor = 0;
-      this.borderColor = 0;
-      this.globalValid = [];
-      // state machine for guessing
-      this.lastComputedCb = 0;
     }
-    // TODO: choose global colors before init?
     init() {
-      this.b = VICII_Canvas_Details.prepare(this.sys.block, this.sys.block);
-      this.cb = VICII_Canvas_Details.prepare(this.sys.block, this.sys.cb);
-      this.useCb = this.sys.cb === void 0 ? false : true;
-      this.colors = this.sys.block.colors;
-      this.extra = this.sys.param === void 0 ? 0 : this.sys.param.extra;
-      this.preparePaletteChoices(this.sys.paletteChoices);
-      if (this.sys.fli != void 0) {
-        this.fliMode = true;
+      super.prepare();
+      if (this.fliMode) {
         this.fliBug = this.sys.fli.bug;
         this.blankLeftScreenFliBugArea = this.sys.fli.blankLeft;
         this.blankRightScreenMirrorFliBugArea = this.sys.fli.blankRight;
         this.blankFliBugColumnCount = this.sys.fli.blankColumns;
-      }
-      this.prepareGlobalColorChoices();
-      this.bitsPerColor = Math.ceil(Math.log2(this.colors));
-      this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
-      this.cbOffset = this.width / this.b.w * this.height / this.b.h;
-      this.params = new Uint32Array(this.cbOffset + this.width / this.cb.w * this.height / this.cb.h * (this.useCb ? 1 : 0) + this.extra);
-      for (var i = 0; i < this.params.length - this.extra; i++) {
-        this.guessParam(i);
-      }
-      if (this.extra > 0)
-        this.params[this.params.length - this.extra] = this.bgColor | this.auxColor << 4 | this.borderColor << 8;
-    }
-    preparePixelPaletteChoices() {
-      let count = this.paletteChoices.colorsRange.max - this.paletteChoices.colorsRange.min + 1;
-      let ind = new Array(count);
-      for (let l = 0, i = this.paletteChoices.colorsRange.min; i < this.paletteChoices.colorsRange.min + count; ++l, ++i) {
-        ind[l] = i;
-      }
-      this.pixelPaletteChoices = ind;
-    }
-    preparePaletteChoices(options) {
-      console.assert(this.pal.length > 0);
-      if (options === void 0) {
-        this.paletteChoices.background = false;
-        this.paletteChoices.aux = false;
-        this.paletteChoices.border = false;
-        this.paletteChoices.backgroundRange = { min: 0, max: this.pal.length - 1 };
-        this.paletteChoices.auxRange = { min: 0, max: this.pal.length - 1 };
-        this.paletteChoices.borderRange = { min: 0, max: this.pal.length - 1 };
-        this.paletteChoices.colors = this.colors;
-        this.paletteChoices.colorsRange = { min: 0, max: this.pal.length - 1 };
-        this.preparePixelPaletteChoices();
-        return;
-      }
-      this.paletteChoices.background = options.background === void 0 ? false : options.background;
-      this.paletteChoices.aux = options.aux === void 0 ? false : options.aux;
-      this.paletteChoices.border = options.aux === void 0 ? false : options.border;
-      this.paletteChoices.backgroundRange = options.backgroundRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.backgroundRange;
-      this.paletteChoices.auxRange = options.auxRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.auxRange;
-      this.paletteChoices.borderRange = options.borderRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.borderRange;
-      this.paletteChoices.colorsRange = options.colorsRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.colorsRange;
-      this.paletteChoices.colors = options.colors === void 0 ? this.colors - (this.paletteChoices.background ? 1 : 0) - (this.paletteChoices.aux ? 1 : 0) - (this.paletteChoices.border ? 1 : 0) : options.colors;
-      this.paletteChoices.colorsRange = { min: 0, max: this.pal.length - 1 };
-      this.preparePixelPaletteChoices();
-      console.assert(this.pal.length > this.paletteChoices.backgroundRange.max - this.paletteChoices.backgroundRange.min);
-      console.assert(this.pal.length > this.paletteChoices.auxRange.max - this.paletteChoices.auxRange.min);
-      console.assert(this.pal.length > this.paletteChoices.borderRange.max - this.paletteChoices.borderRange.min);
-    }
-    chooseMin(available, range2, current) {
-      if (!available)
-        return current;
-      if (current === void 0)
-        return range2.min;
-      return Math.min(current, range2.min);
-    }
-    chooseMax(available, range2, current) {
-      if (!available)
-        return current;
-      if (current === void 0)
-        return range2.max;
-      return Math.max(current, range2.max);
-    }
-    prepareMinMax(background, aux, border) {
-      let chosenMin = this.chooseMin(background, this.paletteChoices.backgroundRange);
-      chosenMin = this.chooseMin(aux, this.paletteChoices.auxRange, chosenMin);
-      chosenMin = this.chooseMin(border, this.paletteChoices.borderRange, chosenMin);
-      chosenMin = chosenMin === void 0 ? 0 : chosenMin;
-      let chosenMax = this.chooseMax(background, this.paletteChoices.backgroundRange);
-      chosenMax = this.chooseMax(aux, this.paletteChoices.auxRange, chosenMax);
-      chosenMax = this.chooseMax(border, this.paletteChoices.borderRange, chosenMax);
-      chosenMax = chosenMax === void 0 ? this.pal.length - 1 : chosenMax;
-      return { min: chosenMin, max: chosenMax };
-    }
-    prepareGlobalColorChoices() {
-      let range2 = this.prepareMinMax(true, true, true);
-      let palSubset = this.pal.slice(range2.min, range2.max + 1);
-      let choices = reducePaletteChoices(
-        this.ref,
-        palSubset,
-        palSubset.length,
-        // rank the entire palette subset (because restricted palettes may have to fallback)
-        1,
-        this.errfn
-      );
-      let histoRankedChoices = choices.slice(0, choices.length);
-      histoRankedChoices.sort((a, b) => b.count - a.count);
-      let ranges = [
-        { id: 0, selectable: this.paletteChoices.background, range: this.paletteChoices.backgroundRange },
-        { id: 1, selectable: this.paletteChoices.aux, range: this.paletteChoices.auxRange },
-        { id: 2, selectable: this.paletteChoices.border, range: this.paletteChoices.borderRange }
-      ];
-      ranges.sort((a, b) => a.selectable == b.selectable ? a.range.max - a.range.min == b.range.max - b.range.min ? a.id - b.id : a.range.max - a.range.min - (b.range.max - b.range.min) : a.selectable ? -1 : 1);
-      let assignId = (choice, option) => {
-        let index = choice.ind + range2.min;
-        if (index < option.range.min || index > option.range.max)
-          return false;
-        switch (option.id) {
-          case 0:
-            this.bgColor = index;
-            break;
-          case 1:
-            this.auxColor = index;
-            break;
-          case 2:
-            this.borderColor = index;
-            break;
-        }
-        return true;
-      };
-      let findBestChoice = (searchList, altList, option) => {
-        for (let c = 0; c < searchList.length; ++c) {
-          let choice = searchList[c];
-          if (!assignId(choice, option))
-            continue;
-          let found = altList.findIndex((x) => x.ind == choice.ind);
-          console.assert(found >= 0);
-          altList.splice(found, 1);
-          searchList.splice(c, 1);
-          break;
-        }
-      };
-      let firstNonSelectableColorFound = false;
-      for (let i = 0; i < ranges.length; ++i) {
-        let option = ranges[i];
-        if (!option.selectable && !firstNonSelectableColorFound) {
-          let topNChoices = [];
-          for (let c = 0; c < ranges.length - i; ++c) {
-            if (c >= histoRankedChoices.length)
-              continue;
-            let topChoice = histoRankedChoices[c];
-            let priority = choices.findIndex((x) => x.ind == topChoice.ind);
-            console.assert(priority >= 0);
-            topNChoices.push({ priority, choice: topChoice });
-            choices.splice(priority, 1);
-          }
-          topNChoices.sort((a, b) => a.priority - b.priority);
-          choices = topNChoices.map((x) => x.choice).concat(choices);
-          firstNonSelectableColorFound = true;
-        }
-        findBestChoice(option.selectable ? histoRankedChoices : choices, option.selectable ? choices : histoRankedChoices, option);
-      }
-      if (this.fliMode && (this.fliBug || this.blankLeftScreenFliBugArea || this.blankRightScreenMirrorFliBugArea)) {
         if (!this.paletteChoices.background) {
-          this.bgColor = this.fliBugChoiceColor;
           this.borderColor = this.fliBugChoiceColor;
-        } else {
-          this.borderColor = this.bgColor;
         }
       }
-      if (this.paletteChoices.background)
-        this.globalValid.push(this.bgColor);
-      if (this.paletteChoices.aux)
-        this.globalValid.push(this.auxColor);
-      if (this.paletteChoices.border)
-        this.globalValid.push(this.borderColor);
     }
-    getValidColors(index) {
-      let [ncols, col] = this.imageIndexToImageColumnInfo(index);
-      let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(index);
-      if (blank)
-        return [this.bgColor];
-      let p = this.imageIndexToParamOffset(index);
-      let c1 = this.params[p] & 15;
-      let c2 = this.params[p] >> 4 & 15;
-      let c3 = this.params[p] >> 8 & 15;
+    getValidColors(imageIndex) {
+      let offset = this.imageIndexToBlockOffset(imageIndex);
+      let cbOffset = this.imageIndexToCbOffset(imageIndex);
+      let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(imageIndex);
+      if (blank) {
+        if (!this.paletteChoices.background)
+          return [this.fliBugChoiceColor];
+        return [this.backgroundColor];
+      }
+      let extracted = this.extractColorsFromBlockParams(offset, this.paramInfo.cb ? 2 : 3);
+      if (this.paramInfo.cb) {
+        extracted.push(...this.extractColorsFromCbParams(cbOffset, 1));
+      }
       if (performBug) {
-        c1 = c2 = this.fliBugChoiceColor;
-        c3 = this.fliBugCbColor;
+        extracted[0] = extracted[1] = this.fliBugChoiceColor;
+        extracted[2] = this.fliBugCbColor;
       }
       let valid = this.globalValid.slice(0, this.globalValid.length);
-      valid.push(c1, c2, c3);
+      valid.push(...extracted);
       valid = valid.slice(0, this.globalValid.length + this.paletteChoices.colors);
       return valid;
     }
-    guessParam(pUnknown) {
-      if (pUnknown >= this.cbOffset)
-        return;
-      return this.actualGuessParam(pUnknown);
-    }
-    actualGuessParam(pUnknown) {
-      console.assert(pUnknown < this.params.length - this.extra);
-      const calculateCb = this.useCb && this.iterateCount < MAX_ITERATE_COUNT / 2;
-      let isCalculatingCb = pUnknown >= this.cbOffset;
-      if (isCalculatingCb && !calculateCb)
-        return;
-      let index = this.paramOrCbParamOffsetToImageIndex(pUnknown);
-      let cbp = isCalculatingCb ? pUnknown : this.imageIndexToCbParamOffset(index);
-      let p = isCalculatingCb ? this.imageIndexToParamOffset(index) : pUnknown;
-      if (!isCalculatingCb) {
-        if (calculateCb && this.isImageIndexFirstRowOfColorBlock(index) && this.lastComputedCb != cbp) {
-          this.actualGuessParam(cbp);
-        }
-      } else {
-        this.lastComputedCb = cbp;
-      }
-      let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(index);
-      console.assert(isCalculatingCb || p == pUnknown);
-      console.assert(!isCalculatingCb || cbp == pUnknown);
-      let useB = isCalculatingCb ? this.cb : this.b;
-      let histo = new Uint32Array(16);
-      let [xStart, yStart] = this.paramOrCbParamOffsetToXy(p);
-      for (let y = yStart - useB.yb; y < yStart + useB.h + useB.yb; y++) {
-        for (let x = xStart - useB.xb; x < xStart + useB.w + useB.xb; x++) {
-          this.updateHisto(histo, this.pixelPaletteChoices, x, y);
-        }
-      }
-      if (this.paletteChoices.background)
-        histo[this.bgColor] = 0;
-      if (this.paletteChoices.aux)
-        histo[this.auxColor] = 0;
-      if (this.paletteChoices.border)
-        histo[this.borderColor] = 0;
+    guessBlockParam(offset) {
+      let imageIndex = this.blockOffsetToImageIndex(offset);
+      let cbOffset = this.imageIndexToCbOffset(imageIndex);
+      let [performBug, blank, leftBlank, rightBlank, bugColumn] = this.isImageIndexInFliBugBlankingArea(imageIndex);
       let cbColor = 0;
-      if (!isCalculatingCb && this.useCb) {
-        histo[this.params[cbp] & 15] = 0;
-        cbColor = this.params[cbp] & 15;
+      let pixelChoiceColors = this.pixelPaletteChoices;
+      if (this.paramInfo.cb) {
+        let cbExtracted = this.extractColorsFromCbParams(cbOffset, 1);
+        pixelChoiceColors = this.spliceColor(cbExtracted[0], this.pixelPaletteChoices);
       }
-      let choices = getChoices(histo);
+      this.histogram.fill(0);
+      this.scores.fill(0);
+      if (!this.firstCommit)
+        this.addToBlockHistogramFromCurrentColor(offset, this.histogram, pixelChoiceColors);
+      let scored = this.addToBlockHistogramFrom(offset, this.histogram, this.scores, pixelChoiceColors, this.firstCommit ? this.ref : this.alt);
+      if (this.paramInfo.cb) {
+        let cbExtracted = this.extractColorsFromCbParams(cbOffset, 1);
+        this.histogram[cbExtracted[0]] = 0;
+        cbColor = cbExtracted[0];
+      }
+      let choices = this.getScoredChoicesByCount(scored);
       let ind1 = choices[0] && choices[0].ind;
       let ind2 = choices[1] && choices[1].ind;
       let ind3 = choices[2] && choices[2].ind;
       if (ind1 === void 0)
-        ind1 = this.bgColor;
+        ind1 = this.backgroundColor;
       if (ind2 === void 0)
-        ind2 = this.bgColor;
+        ind2 = this.backgroundColor;
       if (ind3 === void 0)
-        ind3 = this.bgColor;
-      if (!this.useCb) {
+        ind3 = this.backgroundColor;
+      if (!this.paramInfo.cb) {
         cbColor = ind3;
       }
       if (leftBlank) {
-        cbColor = ind1 = ind2 = ind3 = this.bgColor;
+        cbColor = ind1 = ind2 = ind3 = this.backgroundColor;
         if (!this.paletteChoices.background)
           ind1 = ind2 = this.fliBugChoiceColor;
       } else if (rightBlank) {
-        cbColor = ind1 = ind2 = ind3 = this.bgColor;
+        cbColor = ind1 = ind2 = ind3 = this.backgroundColor;
         if (!this.paletteChoices.background)
           ind1 = ind2 = this.fliBugChoiceColor;
-      }
-      if (isCalculatingCb) {
-        if (performBug) {
-          ind1 = this.fliBugCbColor;
-        }
-        this.params[cbp] = cbColor = ind1;
-        return cbColor;
       }
       if (performBug) {
         ind1 = ind2 = this.fliBugChoiceColor;
         cbColor = this.fliBugCbColor;
       }
-      return this.params[p] = ind1 & 15 | ind2 << 4 & 240 | cbColor << 8 & 3840;
+      let subsetChoices = [ind1, ind2];
+      subsetChoices = subsetChoices.splice(0, this.paletteChoices.colors);
+      let sorted = [...subsetChoices.sort((a, b) => a - b), cbColor];
+      this.updateBlockColorParam(offset, sorted);
     }
-    updateHisto(histo, colors, x, y) {
-      let i = this.xyToImageIndex(x, y);
-      let c1 = i === void 0 ? this.pal[this.bgColor] : this.indexed[i];
-      histo[c1] += 100;
-      let rgbcomp = i === void 0 ? this.pal[this.bgColor] : this.alt[i];
-      let c2 = this.getClosest(rgbcomp, colors);
-      histo[c2] += 1 + this.noise;
-    }
-    paramOrCbParamOffsetToImageIndex(pUnknown) {
-      let isCalculatingCb = pUnknown >= this.cbOffset;
-      let useB = isCalculatingCb ? this.cb : this.b;
-      let useP = isCalculatingCb ? pUnknown - this.cbOffset : pUnknown;
-      var ncols = this.width / useB.w;
-      var col = useP % ncols;
-      var row = Math.floor(useP / ncols);
-      var index = col * useB.w + row * this.width * useB.h;
-      console.assert(index < this.width * this.height);
-      return index;
+    guessCbParam(offset) {
+      if (!this.paramInfo.cb || this.iterateCount > MAX_ITERATE_COUNT / 2)
+        return;
+      let imageIndex = this.cbOffsetToImageIndex(offset);
+      let [performBug, blank, leftBlank, rightBlank, bugCol] = this.isImageIndexInFliBugBlankingArea(imageIndex);
+      this.histogram.fill(0);
+      this.scores.fill(0);
+      if (!this.firstCommit)
+        this.addToCbHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
+      let scored = this.addToCbHistogramFrom(offset, this.histogram, this.scores, this.pixelPaletteChoices, this.firstCommit ? this.ref : this.alt);
+      let choices = this.getScoredChoicesByCount(scored);
+      let cbColor = choices[0] && choices[0].ind;
+      if (leftBlank) {
+        cbColor = this.backgroundColor;
+        if (!this.paletteChoices.background)
+          cbColor = this.fliBugCbColor;
+      } else if (rightBlank) {
+        cbColor = this.backgroundColor;
+        if (!this.paletteChoices.background)
+          cbColor = this.fliBugCbColor;
+      }
+      if (performBug) {
+        if (!this.paletteChoices.background)
+          cbColor = this.fliBugChoiceColor;
+      }
+      this.updateCbColorParam(offset, [cbColor]);
     }
     isImageIndexInFliBugBlankingArea(index) {
-      let [ncols, col] = this.imageIndexToImageColumnInfo(index);
-      let bugLogic = this.fliBug && (col >= 0 && col < this.blankFliBugColumnCount) && !this.blankLeftScreenFliBugArea;
-      let leftBlank = this.blankLeftScreenFliBugArea && (col >= 0 && col < this.blankFliBugColumnCount);
-      let rightBlank = this.blankLeftScreenFliBugArea && this.blankRightScreenMirrorFliBugArea && (col >= ncols - this.blankFliBugColumnCount && col < ncols);
+      let { column } = this.imageIndexToBlockInfo(index);
+      let bugLogic = this.fliBug && (column >= 0 && column < this.blankFliBugColumnCount) && !this.blankLeftScreenFliBugArea;
+      let leftBlank = this.blankLeftScreenFliBugArea && (column >= 0 && column < this.blankFliBugColumnCount);
+      let rightBlank = this.blankLeftScreenFliBugArea && this.blankRightScreenMirrorFliBugArea && (column >= this.block.columns - this.blankFliBugColumnCount && column < this.block.columns);
       let blank = leftBlank || rightBlank;
-      return [bugLogic, blank, leftBlank, rightBlank, col];
-    }
-    imageIndexToImageColumnInfo(index) {
-      let ncols = this.width / this.b.w;
-      let col = Math.floor(index / this.b.w) % ncols;
-      return [ncols, col];
-    }
-    paramOrCbParamOffsetToXy(pUnknown) {
-      let imageIndex = this.paramOrCbParamOffsetToImageIndex(pUnknown);
-      return this.imageIndexToXY(imageIndex);
-    }
-    imageIndexToXY(index) {
-      return [index % this.width, Math.floor(index / this.width)];
-    }
-    xyToImageIndex(x, y) {
-      if (x < 0 || y < 0)
-        return void 0;
-      if (x >= this.width || y >= this.height)
-        return void 0;
-      return y * this.width + x;
-    }
-    imageIndexToParamOffset(index) {
-      let [ncols, col] = this.imageIndexToImageColumnInfo(index);
-      let row = Math.floor(index / (this.width * this.b.h));
-      let p = col + row * ncols;
-      console.assert(p < this.cbOffset);
-      return p;
-    }
-    imageIndexToCbParamOffset(index) {
-      if (!this.useCb)
-        return this.cbOffset;
-      var ncols = this.width / this.cb.w;
-      var col = Math.floor(index / this.cb.w) % ncols;
-      var row = Math.floor(index / (this.width * this.cb.h));
-      var cbp = this.cbOffset + col + row * ncols;
-      console.assert(cbp >= this.cbOffset);
-      console.assert(cbp < this.params.length - this.extra);
-      return cbp;
-    }
-    isImageIndexFirstRowOfColorBlock(index) {
-      var ncols = this.width / this.b.w;
-      var row = Math.floor(index / (this.width * this.b.h));
-      return 0 == row % Math.floor(this.cb.h / this.b.h);
+      return [bugLogic, blank, leftBlank, rightBlank, column];
     }
   };
-  var ZXSpectrum_Canvas = class extends TwoColor_Canvas {
+  var ZXSpectrum_Canvas = class extends CommonBlockParamDitherCanvas {
+    constructor() {
+      super(...arguments);
+      this.histogram = new Uint32Array(this.pal.length);
+      // temporary scratch histogram buffer
+      this.scores = new Uint32Array(this.pal.length);
+    }
+    // temporary scratch scores buffer
     init() {
+      super.prepare();
       this.darkColors = range(0, Math.floor(this.pal.length / 2));
       this.brightColors = range(Math.floor(this.pal.length / 2), this.pal.length);
-      this.w = this.sys.block.w;
-      this.h = this.sys.block.h;
-      this.paletteRange = { min: 0, max: this.pal.length };
-      this.paletteRange = this.sys.paletteChoices === void 0 ? this.paletteRange : this.sys.paletteChoices.colorsRange === void 0 ? this.paletteRange : this.sys.paletteChoices.colorsRange;
-      this.aux = this.sys.paletteChoices === void 0 ? false : this.sys.paletteChoices.aux === void 0 ? false : this.sys.paletteChoices.aux;
-      this.xb = this.sys.cb === void 0 ? this.border : this.sys.cb.xb;
-      this.yb = this.sys.cb === void 0 ? this.border : this.sys.cb.yb;
-      this.xb = this.xb === void 0 ? this.border : this.xb;
-      this.yb = this.yb === void 0 ? this.border : this.yb;
-      this.darkPalette = this.pal.slice(0, Math.floor(this.pal.length / 2));
-      this.brightPalette = this.pal.slice(Math.floor(this.pal.length / 2), this.pal.length);
-      super.init();
+      this.paletteRange = this.paletteChoices.colorsRange;
+      this.flipPalette = this.sys.customize === void 0 ? false : this.sys.customize.flipPalette;
     }
-    guessParam(p) {
-      let col = p % this.ncols;
-      let row = Math.floor(p / this.ncols);
-      let offset = col * this.w + row * (this.width * this.h);
-      let calculateHistoForCell = (colors, min, max) => {
-        let histo = new Uint32Array(Math.floor(this.pal.length));
-        for (let y = -this.yb; y < this.h + this.yb; y++) {
-          let o = offset + y * this.width;
-          for (let x = -this.xb; x < this.w + this.xb; x++) {
-            let c1 = this.indexed[o + x] | 0;
-            if (c1 < min || c1 > max)
-              histo[c1 ^ 8] += 100;
-            else
-              histo[c1] += 100;
-            let c2 = this.getClosest(this.alt[o + x] | 0, colors);
-            histo[c2] += 1 + this.noise;
-          }
-        }
-        let choices = getChoices(histo);
+    guessBlockParam(offset) {
+      let calculateHistogramForCell = (colors, min, max) => {
+        let addToCurrent = (x, y, color, histogram) => {
+          if (color === void 0)
+            return;
+          if (color < min || color > max)
+            this.addToHistogramFromCurrentColor(color ^ 8, histogram);
+          else
+            this.addToHistogramFromCurrentColor(color, histogram);
+        };
+        this.histogram.fill(0);
+        this.scores.fill(0);
+        this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.allColors, void 0, addToCurrent);
+        let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, colors);
+        let choices = this.getScoredChoicesByCount(scored);
         return choices;
       };
-      let scoreChoices = (choices, palette) => {
-        let overallScore = 0;
-        for (let y = -this.yb; y < this.h + this.yb; y++) {
-          let o = offset + y * this.width;
-          for (let x = -this.xb; x < this.w + this.xb; x++) {
-            let smallest = NaN;
-            for (let c = 0; c < choices.length; ++c) {
-              let score = this.errfn(this.ref[o + x], palette[choices[c].ind]);
-              if (score < smallest || Number.isNaN(smallest))
-                smallest = score;
-            }
-            overallScore += smallest;
-          }
-        }
-        return overallScore;
-      };
-      let choices1 = calculateHistoForCell(this.darkColors, this.darkColors[0], this.darkColors[this.darkColors.length - 1]).slice(0, 2);
-      let choices2 = calculateHistoForCell(this.brightColors, this.brightColors[0], this.brightColors[this.brightColors.length - 1]).slice(0, 2);
+      let choices1 = calculateHistogramForCell(this.darkColors, this.darkColors[0], this.darkColors[this.darkColors.length - 1]).slice(0, 2);
+      let choices2 = calculateHistogramForCell(this.brightColors, this.brightColors[0], this.brightColors[this.brightColors.length - 1]).slice(0, 2);
       if (choices1.length < 2)
         choices1.push(choices1[0]);
       if (choices2.length < 2)
         choices2.push(choices2[0]);
-      console.assert(choices1.length >= 2);
-      console.assert(choices2.length >= 2);
-      let score1 = scoreChoices(choices1, this.pal);
-      let score2 = scoreChoices(choices2, this.pal);
+      runtime_assert(choices1.length >= 2);
+      runtime_assert(choices2.length >= 2);
+      let score1 = 0;
+      let score2 = 0;
+      choices1.forEach((x) => {
+        score1 += x.score;
+      });
+      choices2.forEach((x) => {
+        score2 += x.score;
+      });
       let result = score2 < score1 ? choices2 : choices1;
       if (result[0].ind < this.paletteRange.min || result[0].ind > this.paletteRange.max) {
         result = score2 < score1 ? choices1 : choices2;
       }
-      console.assert(result[0].ind >= this.paletteRange.min);
-      console.assert(result[0].ind <= this.paletteRange.max);
-      console.assert(result[1].ind >= this.paletteRange.min);
-      console.assert(result[1].ind <= this.paletteRange.max);
-      if (this.aux) {
+      runtime_assert(result[0].ind >= this.paletteRange.min);
+      runtime_assert(result[0].ind <= this.paletteRange.max);
+      runtime_assert(result[1].ind >= this.paletteRange.min);
+      runtime_assert(result[1].ind <= this.paletteRange.max);
+      if (this.flipPalette) {
         result[0].ind = result[0].ind ^ 8;
         result[1].ind = result[1].ind ^ 8;
       }
-      this.updateParams(p, result);
+      let sorted = [result[0].ind, result[1].ind].sort((a, b) => a - b);
+      this.updateBlockColorParam(offset, sorted);
+    }
+  };
+  var Stic_Fgbg_Canvas = class extends CommonBlockParamDitherCanvas {
+    init() {
+      super.init();
+    }
+    guessBlockParam(offset) {
+      this.histogram.fill(0);
+      this.scores.fill(0);
+      this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.backgroundColors);
+      let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, this.backgroundColors);
+      let choices = this.getScoredChoicesByCount(scored);
+      let foregroundChoice;
+      for (let i = 0; i < choices.length; ++i) {
+        if (choices[i].ind < this.pixelPaletteChoices[0] || choices[i].ind > this.pixelPaletteChoices[this.pixelPaletteChoices.length - 1])
+          continue;
+        foregroundChoice = choices[i];
+        choices.splice(i, 1);
+        break;
+      }
+      foregroundChoice = foregroundChoice === void 0 ? { count: 0, ind: this.pixelPaletteChoices[0], score: 0 } : foregroundChoice;
+      let colors = choices.map((x) => {
+        return x.ind;
+      });
+      this.updateBlockColorParam(offset, [foregroundChoice.ind, ...colors]);
+    }
+  };
+  var Stic_ColorStack_Canvas = class extends CommonBlockParamDitherCanvas {
+    constructor() {
+      super(...arguments);
+      this.colorStack = [0, 0, 0, 0];
+      this.indirection = [];
+    }
+    init() {
+      super.init();
+      this.singleColorMode = this.sys.customize === void 0 ? false : this.sys.customize.singleColor;
+      this.makeIndirectionCombinations([]);
+      this.chooseColorStack();
+      this.indirection = [];
+    }
+    makeIndirectionCombinations(current) {
+      if (current.length == this.colorStack.length) {
+        this.indirection.push(current);
+        return;
+      }
+      for (let i = 0; i < this.colorStack.length; ++i) {
+        let found = current.find((x) => x == i);
+        if (found !== void 0)
+          continue;
+        this.makeIndirectionCombinations([...current, i]);
+      }
+    }
+    chooseColorStack() {
+      let chooseColors = (useColors) => {
+        let useColorStack = [...this.colorStack];
+        this.histogram.fill(0);
+        this.scores.fill(0);
+        let lastScored;
+        for (let offset = 0; offset < this.cb.size; ++offset) {
+          lastScored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColors);
+        }
+        let choices = this.getScoredChoicesByCount(lastScored).slice(0, useColorStack.length);
+        if (this.singleColorMode) {
+          choices = choices.splice(0, 1);
+        }
+        runtime_assert(choices.length > 0);
+        let startLength = choices.length;
+        for (let i = 0; choices.length < useColorStack.length; ++i) {
+          choices.push(choices[i % startLength]);
+        }
+        runtime_assert(choices.length == useColorStack.length);
+        useColorStack = choices.map((x) => {
+          return x.ind;
+        });
+        let lowestCombination = NaN;
+        if (!this.singleColorMode) {
+          let gridScore = [];
+          for (let offset = 0; offset < this.cb.size; ++offset) {
+            this.histogram.fill(0);
+            this.scores.fill(0);
+            this.histogram.fill(0);
+            this.scores.fill(0);
+            let ranking = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColorStack);
+            let rankedChoices = this.getScoredChoicesByCount(ranking);
+            runtime_assert(rankedChoices.length <= useColorStack.length);
+            let scoredColors = [];
+            for (let n = 0; n < useColorStack.length; ++n) {
+              let foundRank = useColorStack.length;
+              for (let rank = 0; rank < rankedChoices.length; ++rank) {
+                if (rankedChoices[rank].ind != useColorStack[n])
+                  continue;
+                foundRank = rank;
+                break;
+              }
+              scoredColors.push(foundRank);
+            }
+            gridScore.push(scoredColors);
+          }
+          let lowestRank = NaN;
+          for (let i = 0; i < this.indirection.length; ++i) {
+            let combination = this.indirection[i];
+            let combinationRank = 0;
+            let pos = 0;
+            for (let offset = 0; offset < this.cb.size; ++offset) {
+              let indexCurrent = combination[pos % useColorStack.length];
+              let indexNext = combination[(pos + 1) % useColorStack.length];
+              let rankCurrent = gridScore[offset][indexCurrent];
+              let rankNext = gridScore[offset][indexNext];
+              let useRank = rankCurrent;
+              if (rankNext < rankCurrent) {
+                useRank = rankNext;
+                ++pos;
+              }
+              combinationRank += useRank;
+            }
+            if (combinationRank < lowestRank || Number.isNaN(lowestRank)) {
+              lowestCombination = i;
+              lowestRank = combinationRank;
+            }
+          }
+        } else {
+          lowestCombination = 0;
+        }
+        runtime_assert(!Number.isNaN(lowestCombination));
+        let replacementColorStack = [];
+        for (let i = 0; i < this.indirection[lowestCombination].length; ++i) {
+          replacementColorStack.push(useColorStack[this.indirection[lowestCombination][i]]);
+        }
+        return replacementColorStack;
+      };
+      let fullColorStack = chooseColors(this.backgroundColors);
+      let fullScore = this.fillCb(fullColorStack);
+      let fullCbParams = new Uint32Array(this.cbParams);
+      let hasRestrictedPalette = this.paletteChoices.colorsRange.max < this.paletteChoices.backgroundRange.max && !this.singleColorMode;
+      let pastelColorStack = hasRestrictedPalette ? chooseColors(range(this.paletteChoices.colorsRange.max + 1, this.paletteChoices.backgroundRange.max + 1)) : fullColorStack;
+      let pastelScore = hasRestrictedPalette ? this.fillCb(pastelColorStack) : fullScore;
+      this.colorStack = pastelColorStack;
+      let pastelWins = Math.ceil(Math.log2(pastelScore)) <= Math.ceil(Math.log2(fullScore));
+      if (!pastelWins) {
+        this.cbParams = fullCbParams;
+        this.colorStack = fullColorStack;
+      }
+      for (let i = 0; i < this.colorStack.length; ++i) {
+        this.updateColorParam(i, this.extraParams, [this.colorStack[i]]);
+      }
+    }
+    fillCb(useColors) {
+      let colorStackScore = 0;
+      this.colorStack.forEach((x, i) => {
+        this.extraParams[i] = x;
+      });
+      if (!this.singleColorMode) {
+        let pos = 0;
+        for (let offset = 0; offset < this.cb.size; ++offset) {
+          let currentColor = useColors[pos % useColors.length];
+          let nextColor = useColors[(pos + 1) % useColors.length];
+          let colors = this.singleColorMode ? [currentColor] : [currentColor, nextColor];
+          this.histogram.fill(0);
+          this.scores.fill(0);
+          let scored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, colors);
+          let choices = this.getScoredChoicesByCount(scored);
+          runtime_assert(choices.length > 0);
+          let advance = choices[0].ind == nextColor ? 1 : 0;
+          colorStackScore += choices[0].score;
+          this.updateCbColorParam(offset, [choices[0].ind, advance]);
+          if (advance)
+            ++pos;
+        }
+      } else {
+        for (let offset = 0; offset < this.cb.size; ++offset) {
+          let currentColor = useColors[0];
+          this.updateCbColorParam(offset, [currentColor, 0]);
+        }
+      }
+      return colorStackScore;
+    }
+    guessCellParams() {
+      if (!this.paramInfo.cell)
+        return;
+      let scoring = [];
+      for (let offset = 0; offset < this.cellParams.length; ++offset) {
+        let restrictColors = [...this.backgroundColors];
+        let cbColor = this.extractColorsFromCbParams(offset, 1)[0];
+        let foundCbColorIndex = restrictColors.findIndex((x) => x == cbColor);
+        if (foundCbColorIndex >= 0) {
+          restrictColors.splice(foundCbColorIndex, 1);
+        }
+        this.histogram.fill(0);
+        this.scores.fill(0);
+        this.addToCellHistogramFromCurrentColor(offset, this.histogram, restrictColors);
+        let scored = this.addToCellHistogramFromAlt(offset, this.histogram, this.scores, restrictColors);
+        let choices = this.getScoredChoicesByCount(scored);
+        runtime_assert(choices.length > 0);
+        if (choices[0].ind < this.paletteChoices.colorsRange.min || choices[0].ind > this.paletteChoices.colorsRange.max) {
+          scoring.push({ offset, score: choices[0].score });
+        } else {
+          scoring.push({ offset, score: NaN });
+        }
+      }
+      let filtered = scoring.filter((x) => !Number.isNaN(x.score));
+      let sorted = filtered.sort((a, b) => a.score - b.score);
+      sorted = sorted.slice(0, 64);
+      this.cellParams.fill(0);
+      sorted.forEach((x, index) => {
+        this.updateCellColorParam(x.offset, [1, index], 255, 8);
+      });
+    }
+    guessBlockParam(offset) {
+      let allowFullRange = false;
+      if (this.paramInfo.cell) {
+        allowFullRange = this.extractColorsFromCellParams(offset, 1, 255, 8)[0] != 0;
+      }
+      let restrictColors = allowFullRange ? [...this.backgroundColors] : [...this.pixelPaletteChoices];
+      let cbColor = this.extractColorsFromCbParams(offset, 1)[0];
+      let foundCbColorIndex = restrictColors.findIndex((x) => x == cbColor);
+      if (foundCbColorIndex >= 0) {
+        restrictColors.splice(foundCbColorIndex, 1);
+      }
+      this.histogram.fill(0);
+      this.scores.fill(0);
+      this.addToBlockHistogramFromCurrentColor(offset, this.histogram, restrictColors);
+      let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, restrictColors);
+      let choices = this.getScoredChoicesByCount(scored);
+      let colors = choices.map((x) => {
+        return x.ind;
+      }).slice(0, this.paletteChoices.colors);
+      this.updateBlockColorParam(offset, colors);
+    }
+    getValidColors(imageIndex) {
+      let offset = this.imageIndexToBlockOffset(imageIndex);
+      let extracted = this.extractColorsFromBlockParams(offset, this.paletteChoices.colors);
+      let cbColor = this.extractColorsFromCbParams(offset, 1)[0];
+      let valid = [cbColor, ...extracted];
+      return valid;
+    }
+  };
+  var Msx_Canvas = class extends CommonBlockParamDitherCanvas {
+  };
+  var SNES_Canvas = class extends CommonBlockParamDitherCanvas {
+  };
+  var SNES_Canvas_Direct = class extends CommonBlockParamDitherCanvas {
+    constructor() {
+      super(...arguments);
+      this.pppFilteredPalettes = [];
+    }
+    init() {
+      super.init();
+      this.Bbpgggprrrp_to_Pal_Lut = new Uint32Array(this.pal.length);
+      for (let i = 0; i < this.pal.length; ++i) {
+        let info = this.RgbToInfo(this.pal[i]);
+        this.Bbpgggprrrp_to_Pal_Lut[info.bbpgggprrrp] = i;
+      }
+      for (let ppp = 0; ppp < 1 << 3; ++ppp) {
+        let filteredByPpp = this.pixelPaletteChoices.filter((x) => {
+          let info = this.colorToInfo(x);
+          return info.ppp == ppp && !(info.bbpgggprrrp == 0);
+        });
+        this.pppFilteredPalettes.push(filteredByPpp);
+      }
+    }
+    RgbToInfo(rgb) {
+      let bbpgggprrrp = (rgb & 240) >> 4 | (rgb >> 8 & 240) >> 4 << 4 | (rgb >> 16 & 224) >> 5 << 8;
+      let bbgggrrr = (rgb & 224) >> 5 | (rgb >> 8 & 224) >> 5 << 3 | (rgb >> 16 & 192) >> 6 << 6;
+      let ppp = (rgb & 16) >> 4 | (rgb >> 8 & 16) >> 4 << 1 | (rgb >> 16 & 32) >> 5 << 2;
+      let r = rgb & 240;
+      let g = rgb >> 8 & 240;
+      let b = rgb >> 16 & 224;
+      return { bbpgggprrrp, bbgggrrr, ppp, r, g, b };
+    }
+    BbgggrrrToBbpgggprrrp(bbgggrrr, ppp) {
+      let bbpgggprrrp = (bbgggrrr & 7) << 1 | (bbgggrrr & 56) >> 3 << 4 | (bbgggrrr & 192) >> 6 << 9;
+      bbpgggprrrp |= ppp & 1 | (ppp & 2) >> 1 << 4 | (ppp & 4) >> 2 << 8;
+      return bbpgggprrrp;
+    }
+    BbpgggprrrpToInfo(bbpgggprrrp) {
+      let rgb = (bbpgggprrrp & 15) << 0 + 4 | (bbpgggprrrp & 240) >> 4 << 8 + 4 | (bbpgggprrrp & 1792) >> 8 << 16 + 5;
+      let bbgggrrr = (bbpgggprrrp & 14) >> 1 | (bbpgggprrrp & 224) >> 5 << 3 | (bbpgggprrrp & 1536) >> 9 << 6;
+      let ppp = bbpgggprrrp & 1 | (bbpgggprrrp & 16) >> 4 << 1 | (bbpgggprrrp & 256) >> 8 << 2;
+      let r = rgb & 240;
+      let g = rgb >> 8 & 240;
+      let b = rgb >> 16 & 224;
+      return { rgb, bbgggrrr, ppp, r, g, b };
+    }
+    BbpgggprrrpToColor(bbpgggprrrp) {
+      return this.Bbpgggprrrp_to_Pal_Lut[bbpgggprrrp];
+    }
+    colorToInfo(color) {
+      return this.RgbToInfo(this.pal[color]);
+    }
+    substituteColorForColorWithPpp(currentColor, ppp) {
+      let info = this.colorToInfo(currentColor);
+      return this.BbpgggprrrpToColor(this.BbgggrrrToBbpgggprrrp(info.bbgggrrr, ppp));
+    }
+    getValidColors(imageIndex) {
+      let offset = this.imageIndexToBlockOffset(imageIndex);
+      let ppp = this.extractColorsFromBlockParams(offset, 1, 3, 2)[0];
+      let valid = this.pppFilteredPalettes[ppp];
+      return valid;
+    }
+    guessBlockParam(offset) {
+      this.histogram.fill(0);
+      this.scores.fill(0);
+      this.addToBlockHistogramFromCurrentColor(offset, this.histogram);
+      let scored = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores);
+      let ranked = this.getScoredChoicesByCount(scored);
+      let lowestPpp = NaN;
+      let lowestPppScore = NaN;
+      for (let ppp = 0; ppp < 1 << 3; ++ppp) {
+        let restrictedColors = ranked.map((x) => {
+          return this.substituteColorForColorWithPpp(x.ind, ppp);
+        });
+        restrictedColors = Array.from(new Set(restrictedColors));
+        this.histogram.fill(0);
+        this.scores.fill(0);
+        this.addToBlockHistogramFromCurrentColor(offset, this.histogram, restrictedColors);
+        let scored2 = this.addToBlockHistogramFromAlt(offset, this.histogram, this.scores, restrictedColors);
+        let pppRanked = this.getScoredChoicesByCount(scored2);
+        let totalPppScore = 0;
+        pppRanked.forEach((x) => {
+          totalPppScore += x.score;
+        });
+        if (totalPppScore < lowestPppScore || Number.isNaN(lowestPppScore)) {
+          lowestPppScore = totalPppScore;
+          lowestPpp = ppp;
+        }
+      }
+      runtime_assert(!Number.isNaN(lowestPpp));
+      this.updateBlockColorParam(offset, [lowestPpp], 3, 2);
     }
   };
   var NES_Canvas = class extends BasicParamDitherCanvas {
@@ -2542,7 +3665,7 @@
           height: this.dithcanv.height,
           pal: this.dithcanv.pal,
           indexed: this.dithcanv.indexed,
-          params: this.dithcanv.params,
+          content: this.dithcanv.content(),
           final
         });
       }
