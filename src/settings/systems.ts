@@ -1103,6 +1103,22 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.ATARIST_RGB,
         reduce: 16,
     },
+    {
+        id: 'phememo-d30.landscape',
+        name: 'Phomemo D30 (landscape)',
+        width: 288,
+        height: 88,
+        conv: 'DitheringCanvas',
+        pal: palettes.MONO_RGB,
+    },
+    {
+        id: 'phememo-d30.portrait',
+        name: 'Phomemo D30 (portrait)',
+        width: 88,
+        height: 288,
+        conv: 'DitheringCanvas',
+        pal: palettes.MONO_RGB,
+    },
 ];
 
 export var SYSTEM_LOOKUP: { [id: string]: DithertronSettings } = {};
