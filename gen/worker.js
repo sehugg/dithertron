@@ -2046,6 +2046,22 @@
       conv: "DitheringCanvas",
       pal: ATARIST_RGB,
       reduce: 16
+    },
+    {
+      id: "phememo-d30.landscape",
+      name: "Phomemo D30 (landscape)",
+      width: 288,
+      height: 88,
+      conv: "DitheringCanvas",
+      pal: MONO_RGB
+    },
+    {
+      id: "phememo-d30.portrait",
+      name: "Phomemo D30 (portrait)",
+      width: 88,
+      height: 288,
+      conv: "DitheringCanvas",
+      pal: MONO_RGB
     }
   ];
   var SYSTEM_LOOKUP = {};
