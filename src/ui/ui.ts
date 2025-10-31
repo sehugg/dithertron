@@ -91,8 +91,51 @@ const ERROR_FUNCS = [
 
 //
 
+var fingerprintErrorShown = false;
+
+function showFingerprintError(err: any) {
+    if (fingerprintErrorShown) return;
+    fingerprintErrorShown = true;
+
+    const errorMsg = err?.message || String(err);
+    console.error("Canvas access error:", err);
+
+    // Check if it's likely a fingerprinting protection issue
+    if (errorMsg.includes('fingerprint') || errorMsg.includes('canvas') || errorMsg.includes('getImageData')) {
+        alert(
+            "⚠️ Canvas Access Blocked\n\n" +
+            "Dithertron cannot access canvas image data. This is usually caused by browser fingerprinting protection.\n\n" +
+            "To fix this:\n" +
+            "• Firefox: Disable 'Enhanced Tracking Protection' for this site (shield icon in address bar)\n" +
+            "• Brave: Disable 'Block fingerprinting' in Shields settings\n" +
+            "• Other browsers: Check privacy/security settings\n\n" +
+            "Technical details: " + errorMsg
+        );
+    }
+}
+
+function testCanvasAccess(): boolean {
+    try {
+        const testCanvas = document.createElement('canvas');
+        testCanvas.width = testCanvas.height = 1;
+        const ctx = testCanvas.getContext('2d');
+        ctx.fillStyle = 'rgb(255, 0, 0)';
+        ctx.fillRect(0, 0, 1, 1);
+        ctx.getImageData(0, 0, 1, 1);
+        return true;
+    } catch (e) {
+        showFingerprintError(e);
+        return false;
+    }
+}
+
 function getCanvasImageData(canvas: HTMLCanvasElement) {
-    return new Uint32Array(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+    try {
+        return new Uint32Array(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+    } catch (e) {
+        showFingerprintError(e);
+        throw e;
+    }
 }
 function drawRGBA(dest: HTMLCanvasElement, arr: Uint32Array) {
     var ctx = dest.getContext('2d');
@@ -167,6 +210,8 @@ function convertImage() {
         */
     }).then(() => {
         reprocessImage();
+    }).catch((err) => {
+        showFingerprintError(err);
     });
 }
 
@@ -384,6 +429,9 @@ function repopulateSystemSelector(currentSystem: DithertronSettings) {
 export function startUI() {
 
     window.addEventListener('load', function () {
+        // Test canvas access early to warn users about fingerprinting protection
+        testCanvasAccess();
+
         document.querySelector('input[type="file"]').addEventListener('change', function (event) {
             var inputElement = event.target as HTMLInputElement;
             var file = inputElement.files && inputElement.files[0];
