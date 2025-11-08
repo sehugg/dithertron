@@ -98,8 +98,7 @@
           }
         }
       }
-      if (nchanged == 0)
-        break;
+      if (nchanged == 0) break;
     }
     var result = inds.map((ind) => {
       return { ind, count: histo[ind] };
@@ -108,8 +107,7 @@
     return result;
   }
   function reducePalette(imageData, colors, count, diversity, distfn) {
-    if (colors.length == count)
-      return new Uint32Array(colors);
+    if (colors.length == count) return new Uint32Array(colors);
     var choices = reducePaletteChoices(imageData, colors, count, diversity, distfn);
     console.log("reducePalette", colors.length, "to", choices.length);
     return new Uint32Array(choices.map((x) => colors[x.ind]));
@@ -2066,8 +2064,7 @@
   ];
   var SYSTEM_LOOKUP = {};
   SYSTEMS.forEach((sys) => {
-    if (sys)
-      SYSTEM_LOOKUP[sys.id || sys.name] = sys;
+    if (sys) SYSTEM_LOOKUP[sys.id || sys.name] = sys;
   });
 
   // src/dither/canvas.ts
@@ -2232,8 +2229,7 @@
       this.allColors = null;
     }
     init() {
-      if (!this.allColors)
-        this.allColors = range(0, this.pal.length);
+      if (!this.allColors) this.allColors = range(0, this.pal.length);
       this.indexed.fill(this.allColors[0]);
       this.ncols = this.width / this.w;
       this.nrows = this.height / this.h;
@@ -3588,8 +3584,7 @@
       }
       var choices = getChoices(histo);
       choices.forEach((ch) => {
-        if (ch.ind >= 1 && ch.ind <= 4)
-          this.params[p] = ch.ind - 1;
+        if (ch.ind >= 1 && ch.ind <= 4) this.params[p] = ch.ind - 1;
       });
     }
   };
@@ -3634,10 +3629,8 @@
     iterate() {
       if (this.dithcanv == null) {
         var sys = this.sysparams;
-        if (!sys)
-          throw new Error("no sysparams");
-        if (!this.sourceImageData)
-          throw new Error("no sourceImageData");
+        if (!sys) throw new Error("no sysparams");
+        if (!this.sourceImageData) throw new Error("no sourceImageData");
         var pal = new Uint32Array(sys.pal);
         var errfn = ERROR_FUNCTIONS[sys.errfn || "perceptual"] || getRGBAErrorPerceptual;
         if (sys.reduce) {
@@ -3655,11 +3648,9 @@
           pal = pal2;
         }
         var convFunction = canvas_exports[sys.conv];
-        if (!convFunction)
-          throw new Error("no convFunction for " + sys.conv);
+        if (!convFunction) throw new Error("no convFunction for " + sys.conv);
         this.dithcanv = new convFunction(this.sourceImageData, sys.width, pal);
-        if (!this.dithcanv)
-          throw new Error("no convFunction() for " + sys.conv);
+        if (!this.dithcanv) throw new Error("no convFunction() for " + sys.conv);
         this.dithcanv.sys = sys;
         this.dithcanv.errfn = errfn;
         this.dithcanv.noise = sys.noise ? 1 << sys.noise : 0;
@@ -3707,10 +3698,8 @@
       this.timer = void 0;
     }
     start() {
-      if (this.sysparams == null)
-        return;
-      if (this.sourceImageData == null)
-        return;
+      if (this.sysparams == null) return;
+      if (this.sourceImageData == null) return;
       if (this.timer == null) {
         const msec = 50;
         var fn = () => {
