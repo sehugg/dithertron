@@ -39,7 +39,7 @@ export class Dithertron implements DithertronInterface {
             var sys = this.sysparams;
             if (!sys) throw new Error("no sysparams");
             if (!this.sourceImageData) throw new Error("no sourceImageData");
-            var pal = new Uint32Array(sys.pal);
+            var pal: Uint32Array = new Uint32Array(sys.pal);
             var errfn = (ERROR_FUNCTIONS as any)[sys.errfn || 'perceptual'] || getRGBAErrorPerceptual;
             if (sys.reduce) {
                 pal = reducePalette(this.sourceImageData, pal,

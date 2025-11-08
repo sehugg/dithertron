@@ -27,10 +27,10 @@
     "pica": "^9.0.0"
   },
   "devDependencies": {
-    "esbuild": "^0.19.5",
+    "esbuild": "^0.25.12",
     "express": "^4.18.2",
     "jpeg-js": "^0.4.4",
-    "nightwatch": "^3.3.0",
+    "nightwatch": "^3.12.3",
     "tap": "^18.5.8",
     "typescript": "^5.0.4"
   }
