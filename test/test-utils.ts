@@ -28,7 +28,13 @@ export async function getThumbnail(dt: Dithertron, useRef: boolean) {
   return new Uint32Array(resizedImageData.buffer);
 }
 
+// cache of decoded+resized source images, keyed by url and target dimensions
+const imageDataCache = new Map<string, Uint32Array>();
+
 export async function fetchImageData(url: string, system: DithertronSettings): Promise<Uint32Array> {
+  const key = url + '|' + system.width + 'x' + system.height;
+  const cached = imageDataCache.get(key);
+  if (cached) return cached;
   // fetch image via Node
   const jpegData = fs.readFileSync(url);
   const jpegImageData = jpeg.decode(jpegData, {});
@@ -42,7 +48,9 @@ export async function fetchImageData(url: string, system: DithertronSettings): P
     toWidth: system.width,
     toHeight: system.height
   });
-  return new Uint32Array(resizedImageData.buffer);
+  const result = new Uint32Array(resizedImageData.buffer);
+  imageDataCache.set(key, result);
+  return result;
 }
 
 export async function loadDither(sysid: string, imagename: string) {
