@@ -363,7 +363,7 @@ export abstract class BlockParamDitherCanvas extends BaseDitheringCanvas {
     abstract prepareGlobalColorChoices(): void;
     abstract allocateParams(): void;
 
-    abstract currentColorAtXY(x: number, y: number, orColor?: number): number;
+    abstract currentColorAtXY(x: number, y: number, orColor?: number): number | undefined;
     abstract addToHistogramAtXYFromCurrentColor(x: number, y: number, color: number | undefined, histogram: Uint32Array);
     abstract addToHistogramFromClosestAtXY(x: number, y: number, closest: ClosestScore | undefined, histogram: Uint32Array, scores: Uint32Array): void;
 
@@ -477,10 +477,10 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
     override prepareDefaults(): void {
         this.block = {
             w: (this.sys.block === undefined ?
-                    (this.sys.cell === undefined ? this.sys.cb.w : this.sys.cell.w) :
+                    (this.sys.cell === undefined ? this.sys.cb!.w : this.sys.cell.w) :
                     this.sys.block.w),
             h: (this.sys.block === undefined ?
-                    (this.sys.cell === undefined ? this.sys.cb.h : this.sys.cell.h) :
+                    (this.sys.cell === undefined ? this.sys.cb!.h : this.sys.cell.h) :
                     this.sys.block.h),
             colors: (this.sys.block === undefined ? 2 : this.sys.block.colors ),
             xb: (this.sys.block === undefined ?
@@ -541,7 +541,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
             block: (this.sys.param === undefined ? (this.sys.block !== undefined) : (this.sys.param.block === undefined ? this.sys.block !== undefined : this.sys.param.block)),
             cb: (this.sys.param === undefined ? (this.sys.cb !== undefined) : (this.sys.param.cb === undefined ? this.sys.cb !== undefined : this.sys.param.cb)),
             cell: (this.sys.param === undefined ? false : (this.sys.param.cell === undefined ? false : this.sys.param.cell)),
-            extra: (this.sys.param === undefined ? 0 : this.sys.param.extra)
+            extra: (this.sys.param === undefined ? 0 : (this.sys.param.extra ?? 0))
         };
 
         this.bitsPerColor = Math.ceil(Math.log2(this.block.colors));
@@ -592,7 +592,7 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
             prefillReference: options.prefillReference === undefined ? false : options.prefillReference,
             background: options.background === undefined ? false : options.background,
             aux: options.aux === undefined ? false : options.aux,
-            border:  options.aux === undefined ? false : options.border,
+            border:  options.border === undefined ? false : options.border,
             backgroundRange: options.backgroundRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.backgroundRange,
             auxRange: options.auxRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.auxRange,
             borderRange: options.borderRange === undefined ? { min: 0, max: this.pal.length - 1 } : options.borderRange,
@@ -610,14 +610,14 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         runtime_assert(this.pal.length > this.paletteChoices.auxRange.max - this.paletteChoices.auxRange.min);
         runtime_assert(this.pal.length > this.paletteChoices.borderRange.max - this.paletteChoices.borderRange.min);
     }
-    chooseMin(available: boolean, range: PaletteRange, current?: number): number {
+    chooseMin(available: boolean, range: PaletteRange, current?: number): number | undefined {
         if (!available)
             return current;
         if (current === undefined)
             return range.min;
         return Math.min(current, range.min);
     }
-    chooseMax(available: boolean, range: PaletteRange, current?: number): number {
+    chooseMax(available: boolean, range: PaletteRange, current?: number): number | undefined {
         if (!available)
             return current;
         if (current === undefined)

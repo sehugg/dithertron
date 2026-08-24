@@ -15,9 +15,9 @@ const THUMB_WIDTH = 20;
 const THUMB_HEIGHT = 12;
 
 export async function getThumbnail(dt: Dithertron, useRef: boolean) {
-  const picaInstance = new pica();
+  const picaInstance = new (pica as any)();
   const img = useRef ? dt.sourceImageData : dt.dithcanv?.img;
-  const src = new Uint8Array(img.buffer);
+  const src = new Uint8Array(img!.buffer);
   const resizedImageData = await picaInstance.resizeBuffer({
     src,
     width: dt.dithcanv?.width,
@@ -34,7 +34,7 @@ export async function fetchImageData(url: string, system: DithertronSettings): P
   const jpegImageData = jpeg.decode(jpegData, {});
   const width = jpegImageData.width;
   const height = jpegImageData.height;
-  const picaInstance = new pica();
+  const picaInstance = new (pica as any)();
   const resizedImageData = await picaInstance.resizeBuffer({
     src: jpegImageData.data,
     width,
@@ -106,8 +106,8 @@ export interface TestOptions extends Partial<DithertronSettings> {
 export function doTest(sysid: string, imagename: string, options: TestOptions) {
   t.test("Dither " + sysid + " " + imagename, async t => {
     const maxiters = options.maxiters || 50;
-    const maxbelow = (options.quality * 1) || 100;
-    const avgbelow = (options.quality * 0.5) || 50;
+    const maxbelow = ((options.quality ?? 0) * 1) || 100;
+    const avgbelow = ((options.quality ?? 0) * 0.5) || 50;
     var dt = await loadDither(sysid, imagename);
     if (options.paletteDiversity == null) { options.paletteDiversity = 1.2; }
     if (!options.ditherfn) { options.ditherfn = kernels.SIERRALITE; }

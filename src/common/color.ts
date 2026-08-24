@@ -219,7 +219,7 @@ export function getClosestRGB(rgb:number, inds:number[], pal:Uint32Array, distfn
 }
 
 export function scoreRGBDistances(rgb:number, inds:number[], pal:Uint32Array, distfn:RGBDistanceFunction) {
-    let scores = [];
+    let scores: {i:number, ind:number, rgb:number, col:number, score:number}[] = [];
     for (let i=0; i<inds.length; i++) {
         var col = pal[inds[i]];
         var score = distfn(rgb, col);

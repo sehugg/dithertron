@@ -22,7 +22,7 @@ export interface DithertronInterface {
 }
 
 export class Dithertron implements DithertronInterface {
-    sysparams: DithertronSettings = SYSTEMS[0];
+    sysparams: DithertronSettings = SYSTEMS[0]!;
     dithcanv: canvas.DitheringCanvas | null = null;
     sourceImageData: Uint32Array | null = null;
     pixelsAvailable: ((msg: PixelsAvailableMessage) => void) | null = null;

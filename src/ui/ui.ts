@@ -118,7 +118,7 @@ function testCanvasAccess(): boolean {
     try {
         const testCanvas = document.createElement('canvas');
         testCanvas.width = testCanvas.height = 1;
-        const ctx = testCanvas.getContext('2d');
+        const ctx = testCanvas.getContext('2d')!;
         ctx.fillStyle = 'rgb(255, 0, 0)';
         ctx.fillRect(0, 0, 1, 1);
         ctx.getImageData(0, 0, 1, 1);
@@ -131,14 +131,14 @@ function testCanvasAccess(): boolean {
 
 function getCanvasImageData(canvas: HTMLCanvasElement) {
     try {
-        return new Uint32Array(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+        return new Uint32Array(canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
     } catch (e) {
         showFingerprintError(e);
         throw e;
     }
 }
 function drawRGBA(dest: HTMLCanvasElement, arr: Uint32Array) {
-    var ctx = dest.getContext('2d');
+    var ctx = dest.getContext('2d')!;
     var imageData = ctx.createImageData(dest.width, dest.height);
     var datau32 = new Uint32Array(imageData.data.buffer);
     if (datau32.length == arr.length) {
@@ -254,7 +254,7 @@ function processImageDirectly() {
     cropper.clear();
     cropper.disable();
     // copy the image to resizeCanvas
-    const ctx = resizeCanvas.getContext('2d');
+    const ctx = resizeCanvas.getContext('2d')!;
     ctx.drawImage(sourceImage, 0, 0);
     reprocessImage();
 }
@@ -402,7 +402,7 @@ function repopulateSystemSelector(currentSystem: DithertronSettings) {
     sel.empty();
     let [currentParentName, currentSubtypeName] = currentSystem.name.split(' (');
     let allParents = new Set<String>();
-    let optgroup = null;
+    let optgroup: JQuery<HTMLElement> | null = null;
     SYSTEMS.forEach(sys => {
         if (sys == null) {
             sel.append($("<option disabled></option>"));
@@ -415,7 +415,7 @@ function repopulateSystemSelector(currentSystem: DithertronSettings) {
                     optgroup = $("<optgroup />").attr("label", currentParentName);
                     sel.append(optgroup);
                 }
-                optgroup.append(opt);
+                optgroup!.append(opt);
             } else if (!allParents.has(parentName)) {
                 let opt = $("<option />").text(parentName).val(sys.id);
                 sel.append(opt);
@@ -432,7 +432,7 @@ export function startUI() {
         // Test canvas access early to warn users about fingerprinting protection
         testCanvasAccess();
 
-        document.querySelector('input[type="file"]').addEventListener('change', function (event) {
+        document.querySelector('input[type="file"]')!.addEventListener('change', function (event) {
             var inputElement = event.target as HTMLInputElement;
             var file = inputElement.files && inputElement.files[0];
             if (file) {
@@ -477,7 +477,7 @@ export function startUI() {
         }
 
         const qs = decodeQueryString(window.location.hash.substring(1));
-        const currentSystemId = qs['sys'] || SYSTEMS[0].id;
+        const currentSystemId = qs['sys'] || SYSTEMS[0]!.id;
         const currentSystem = SYSTEM_LOOKUP[currentSystemId];
         setTargetSystem(currentSystem);
 

@@ -95,10 +95,10 @@ export class VICII_Canvas extends CommonBlockParamDitherCanvas {
         super.prepare();
 
         if (this.fliMode) {
-            this.fliBug = this.sys.fli.bug;
-            this.blankLeftScreenFliBugArea = this.sys.fli.blankLeft;
-            this.blankRightScreenMirrorFliBugArea = this.sys.fli.blankRight;
-            this.blankFliBugColumnCount = this.sys.fli.blankColumns;
+            this.fliBug = this.sys.fli!.bug;
+            this.blankLeftScreenFliBugArea = this.sys.fli!.blankLeft;
+            this.blankRightScreenMirrorFliBugArea = this.sys.fli!.blankRight;
+            this.blankFliBugColumnCount = this.sys.fli!.blankColumns;
             if (!this.paletteChoices.background) {
                 this.borderColor = this.fliBugChoiceColor;
             }
@@ -472,7 +472,7 @@ export class Stic_ColorStack_Canvas extends CommonBlockParamDitherCanvas {
             this.histogram.fill(0);
             this.scores.fill(0);
 
-            let lastScored: ScoredColorChoice[];
+            let lastScored: ScoredColorChoice[] = [];
             for (let offset = 0; offset < this.cb.size; ++offset) {
                 lastScored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColors);
             }

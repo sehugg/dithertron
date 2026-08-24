@@ -23,13 +23,13 @@ function remapBits(x: number, arr?: number[]): number {
 
 function convertImagesToWords(images: Uint32Array[], fmt: PixelEditorImageFormat): ArrayLike<number> {
     if (fmt.destfmt) fmt = fmt.destfmt;
-    var width = fmt.w;
-    var height = fmt.h;
+    var width = fmt.w!;
+    var height = fmt.h!;
     var count = fmt.count || 1;
     var bpp = fmt.bpp || 1;
     var nplanes = fmt.np || 1;
     var bitsperword = fmt.bpw || 8;
-    var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
+    var wordsperline = fmt.sl || Math.ceil(fmt.w! * bpp / bitsperword);
     var mask = (1 << bpp) - 1;
     var pofs = fmt.pofs || wordsperline * height * count;
     var skip = fmt.skip || 0;
@@ -255,10 +255,10 @@ function getDefaultedCellExporterMapper(
     values: CellExporterMapper_Iterate_Values,
     mapper?: CellExporterMapper): CellExporterMapper | undefined {
 
-    let fullPaletteMode = mapper.fullPaletteMode === undefined ? values.fullPaletteMode : mapper.fullPaletteMode;
-
     if (mapper === undefined)
         return undefined;
+
+    let fullPaletteMode = mapper.fullPaletteMode === undefined ? values.fullPaletteMode : mapper.fullPaletteMode;
 
     if (mapper.prepare === undefined)
         throw 'The "prepare" method is required.';
@@ -303,10 +303,10 @@ function getDefaultedCellExporterMapper(
         }
 
         // next scan the color choices for a match
-        for (let i = 0; (i < colors.length) && (i < mapper.colorsBitPattern.length) ; ++i) {
+        for (let i = 0; (i < colors.length) && (i < mapper.colorsBitPattern!.length) ; ++i) {
             if (paletteIndex != colors[i])
                 continue;
-            return mapper.colorsBitPattern[i];
+            return mapper.colorsBitPattern![i];
         }
 
         console.log('global nor param color does not contain color from image', values, mapper, param, paletteIndex, info);
@@ -359,6 +359,9 @@ function getDefaultedCellExporterMapper(
 function getDefaultedCellExporterMapperOrFromDataMapper(
     values: CellExporterMapper_Iterate_Values,
     mapper?: CellExporterMapper | DataMapper): CellExporterMapper | undefined {
+
+    if (mapper === undefined)
+        return undefined;
 
     if ("prepare" in mapper) {
         return getDefaultedCellExporterMapper(values, mapper);
@@ -491,45 +494,46 @@ export function exportCombinedImageAndColorCellBuffer(options: ExportCombinedIma
     let extraParamMapper = getDefaultedParamMapperOrFromDataMapper(options.content.paramInfo.extra > 0, { params: options.content.extraParams }, options.extraParamMapper);
 
     let allMappers: (CommonMapper | undefined)[] = [cellMapper, colorParamMapper, colorBlockParamMapper, cellParamMapper, extraParamMapper];
-    let allMappersFiltered = allMappers.filter((x) => x !== undefined);
+    let allMappersFiltered = allMappers.filter((x): x is CommonMapper => x !== undefined);
 
     let setup: PrepareInfo[] = [];
-    let data: Uint8Array[] = [];
+    let data: (Uint8Array | undefined)[] = [];
 
     // prepare the mappers
     for (let i = 0; i < allMappers.length; ++i) {
-        if (allMappers[i] === undefined) {
+        let m = allMappers[i];
+        if (m === undefined) {
             data.push(undefined);
             continue;
         }
 
-        let info = allMappers[i].prepare();
+        let info = m.prepare();
         setup.push(info);
         data.push(info.data);
     }
 
     // prefill the mappers
     for (let i = 0; i < allMappersFiltered.length; ++i) {
-        if (allMappersFiltered[i].prefill === undefined)
+        let m = allMappersFiltered[i];
+        if (m.prefill === undefined)
             continue;
-
-        allMappersFiltered[i].prefill(setup[i].data);
+        m.prefill(setup[i].data);
     }
 
     // iterator the mappers
     for (let i = 0; i < allMappersFiltered.length; ++i) {
-        if (allMappersFiltered[i].iterate === undefined)
+        let m = allMappersFiltered[i];
+        if (m.iterate === undefined)
             continue;
-
-        allMappersFiltered[i].iterate(setup[i].data);
+        m.iterate(setup[i].data);
     }
 
     // commit the mappers
     for (let i = 0; i < allMappersFiltered.length; ++i) {
-        if (allMappersFiltered[i].commit === undefined)
+        let m = allMappersFiltered[i];
+        if (m.commit === undefined)
             continue;
-
-        allMappersFiltered[i].commit(setup[i].data);
+        m.commit(setup[i].data);
     }
 
     // finalize the mappers
@@ -539,10 +543,11 @@ export function exportCombinedImageAndColorCellBuffer(options: ExportCombinedIma
         continueFinalize = false;
 
         for (let i = 0; i < allMappersFiltered.length; ++i) {
-            if (allMappersFiltered[i].finalize === undefined)
+            let m = allMappersFiltered[i];
+            if (m.finalize === undefined)
                 continue;
 
-            continueFinalize = allMappersFiltered[i].finalize(i, data[0], data[1], data[2], data[3], data[4]) || continueFinalize;
+            continueFinalize = m.finalize(i, data[0]!, data[1]!, data[2]!, data[3]!, data[4]!) || continueFinalize;
         }
     }
 
@@ -1654,7 +1659,7 @@ export function getSnesTilemapMapper(
     message: PixelsAvailableMessage,
     content: BlockParamDitherCanvasContent,
     settings: DithertronSettings,
-    mapper: Partial<ParamExporterMapper>): ParamExporterMapper
+    mapper: Partial<ParamExporterMapper>): ParamExporterMapper | undefined
 {
     // how many cells are in the image
     let cellsInImage: number = 0;
