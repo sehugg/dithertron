@@ -673,6 +673,7 @@
   var CGA_RGB_3H = [0, 16776960, 5592575, 16777215];
   var SMS_RGB = generateRGBPalette(2, 2, 2);
   var WILLIAMS_RGB = generateRGBPalette(3, 3, 2);
+  var MCR2_RGB = generateRGBPalette(4, 4, 4);
   var ATARIST_RGB = generateRGBPalette(3, 3, 3);
   var TELETEXT_RGB = generateRGBPalette(1, 1, 1);
   var ZXSPECTRUM_RGB = [
@@ -1850,6 +1851,19 @@
       reduce: 16
     },
     {
+      id: "mcr2",
+      name: "Bally MCR-II (4bpp) (8x8) (32x30)",
+      width: 32 * 8,
+      height: 30 * 8,
+      scaleX: 1,
+      conv: "SNES_Canvas",
+      pal: MCR2_RGB,
+      block: { w: 16, h: 16, colors: 4 },
+      cell: { w: 16, h: 16, msbToLsb: true },
+      reduce: 64,
+      toNative: "exportSNES"
+    },
+    {
       id: "pico8",
       name: "PICO-8",
       width: 128,
@@ -2401,6 +2415,7 @@
       this.indexed.fill(bestPrefill());
     }
     prepareDefaults() {
+      var _a;
       this.block = {
         w: this.sys.block === void 0 ? this.sys.cell === void 0 ? this.sys.cb.w : this.sys.cell.w : this.sys.block.w,
         h: this.sys.block === void 0 ? this.sys.cell === void 0 ? this.sys.cb.h : this.sys.cell.h : this.sys.block.h,
@@ -2446,7 +2461,7 @@
         block: this.sys.param === void 0 ? this.sys.block !== void 0 : this.sys.param.block === void 0 ? this.sys.block !== void 0 : this.sys.param.block,
         cb: this.sys.param === void 0 ? this.sys.cb !== void 0 : this.sys.param.cb === void 0 ? this.sys.cb !== void 0 : this.sys.param.cb,
         cell: this.sys.param === void 0 ? false : this.sys.param.cell === void 0 ? false : this.sys.param.cell,
-        extra: this.sys.param === void 0 ? 0 : this.sys.param.extra
+        extra: this.sys.param === void 0 ? 0 : (_a = this.sys.param.extra) != null ? _a : 0
       };
       this.bitsPerColor = Math.ceil(Math.log2(this.block.colors));
       this.pixelsPerByte = Math.floor(8 / this.bitsPerColor);
@@ -2491,7 +2506,7 @@
         prefillReference: options.prefillReference === void 0 ? false : options.prefillReference,
         background: options.background === void 0 ? false : options.background,
         aux: options.aux === void 0 ? false : options.aux,
-        border: options.aux === void 0 ? false : options.border,
+        border: options.border === void 0 ? false : options.border,
         backgroundRange: options.backgroundRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.backgroundRange,
         auxRange: options.auxRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.auxRange,
         borderRange: options.borderRange === void 0 ? { min: 0, max: this.pal.length - 1 } : options.borderRange,
@@ -3260,7 +3275,7 @@
         let useColorStack = [...this.colorStack];
         this.histogram.fill(0);
         this.scores.fill(0);
-        let lastScored;
+        let lastScored = [];
         for (let offset = 0; offset < this.cb.size; ++offset) {
           lastScored = this.addToCbHistogramFromRef(offset, this.histogram, this.scores, useColors);
         }

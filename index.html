@@ -66,6 +66,82 @@
         }
         #examplesMenu {
             font-size: 0.8em;
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+        /* make the two top info panels equal height */
+        .top-row {
+            align-items: stretch;
+        }
+        .top-row > .col-md-6 {
+            display: flex;
+            flex-direction: column;
+        }
+        .top-row > .col-md-6 > .alert {
+            flex: 1;
+            margin-bottom: 1rem;
+        }
+        /* source image panel */
+        #sourcePanel {
+            padding: 0.5rem 0.75rem;
+        }
+        #sourcePanel .btn {
+            margin-bottom: 0.25rem;
+        }
+        #sourceName {
+            font-weight: bold;
+        }
+        /* drag & drop overlay */
+        #sourcePane {
+            position: relative;
+        }
+        #dropOverlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            border: 4px dashed rgba(255, 255, 255, 0.9);
+            border-radius: 0.5em;
+            background: rgba(0, 0, 0, 0.55);
+            color: #fff;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-shadow: 0 1px 3px #000;
+            z-index: 1050;
+            pointer-events: none;
+        }
+        #dropOverlay.dragover {
+            display: flex;
+        }
+        /* mobile tweaks */
+        @media (max-width: 767.98px) {
+            .container-xl {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            .navbar-brand {
+                font-size: 1.1em;
+            }
+            .alert {
+                padding: 0.6rem;
+                margin-bottom: 0.5rem;
+            }
+            #targetFormatSelect {
+                max-width: 100%;
+            }
+            img.crop,
+            .emuvideo {
+                width: 100%;
+            }
+            label.col-form-label {
+                font-size: 0.85rem;
+                padding-left: 0;
+            }
+            #imageUpload {
+                max-width: 100%;
+                font-size: 0.85em;
+            }
         }
     </style>
 </head>
@@ -123,17 +199,26 @@
             </div>
         </nav>
 
-        <div class="responsive-row">
+        <div class="responsive-row top-row">
             <div class="col-md-6">
-                <div class="dropdown show alert alert-info">
-                    <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
-                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        Select an example
-                    </a> or upload an image.
-                    <div class="dropdown-menu" aria-labelledby="dropdownMenuLink" id="examplesMenu">
+                <div class="alert alert-info d-flex flex-wrap align-items-center" id="sourcePanel">
+                    <span class="mr-2"><i class="fa fa-image"></i> Image:</span>
+                    <div class="dropdown mr-2">
+                        <button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
+                            id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true"
+                            aria-expanded="false">
+                            Examples
+                        </button>
+                        <div class="dropdown-menu" aria-labelledby="dropdownMenuLink" id="examplesMenu">
+                        </div>
                     </div>
-                    <p></p>
-                    <input type="file" id="imageUpload">
+                    <button id="openImageBtn" type="button" class="btn btn-secondary btn-sm mr-2"
+                        title="Open an image file">
+                        Open… <i class="fa fa-folder-open"></i>
+                    </button>
+                    <small class="text-muted">or drop / paste an image anywhere</small>
+                    <input type="file" id="imageUpload" accept="image/*" style="display:none">
+                    <div class="w-100"><small>Loaded: <span id="sourceName">(none)</span></small></div>
                 </div>
             </div>
             <div class="col-md-6">
@@ -156,8 +241,9 @@
             </div>
         </div>
         <div class="responsive-row">
-            <div class="col-md-6 responsive-col">
+            <div class="col-md-6 responsive-col" id="sourcePane">
                 <img class="crop" id="srcimage">
+                <div id="dropOverlay">Drop image here</div>
             </div>
             <div class="col-md-6 responsive-col">
                 <canvas id="destcanvas" class="emuvideo"></canvas>
