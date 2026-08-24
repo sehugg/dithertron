@@ -1,5 +1,5 @@
 
-import t from 'tap';
+import t, { Test } from 'tap';
 
 import fs from 'fs';
 import jpeg from 'jpeg-js';
@@ -9,7 +9,6 @@ import { Dithertron } from '../src/dither/dithertron';
 import { SYSTEM_LOOKUP } from '../src/settings/systems';
 import { DithertronSettings } from '../src/common/types';
 import { getRGBAErrorPerceptual } from '../src/common/color';
-import { Test } from 'tap/dist/commonjs/main';
 import * as kernels from "../src/dither/kernels";
 
 const THUMB_WIDTH = 20;

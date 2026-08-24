@@ -164,6 +164,7 @@ export const CGA_RGB_2H = [0x000000, 0xFFFF55, 0xFF55FF, 0xFFFFFF];
 export const CGA_RGB_3H = [0x000000, 0xFFFF00, 0x5555FF, 0xFFFFFF];
 export const SMS_RGB = generateRGBPalette(2, 2, 2);
 export const WILLIAMS_RGB = generateRGBPalette(3, 3, 2);
+export const MCR2_RGB = generateRGBPalette(4, 4, 4);
 export const ATARIST_RGB = generateRGBPalette(3, 3, 3);
 export const TELETEXT_RGB = generateRGBPalette(1, 1, 1);
 

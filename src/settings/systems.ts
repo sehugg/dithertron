@@ -908,6 +908,19 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         reduce: 16,
     },
     {
+        id: 'mcr2',
+        name: 'Bally MCR-II (4bpp) (8x8) (32x30)',
+        width: 32*8,
+        height: 30*8,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.MCR2_RGB,
+        block: { w: 16, h: 16, colors: 4 },
+        cell: { w: 16, h: 16, msbToLsb: true },
+        reduce: 64,
+        toNative: 'exportSNES'
+    },
+    {
         id: 'pico8',
         name: 'PICO-8',
         width: 128,
