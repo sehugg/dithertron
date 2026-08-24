@@ -66,6 +66,8 @@ Other formats:
 * Commander X16 - 640 x 400 (cropped to fit in VRAM), 16 colors out of 4096
 * Amiga Lores - 320 x 256, 32 colors out of 4096
 * Amiga Lores HAM6 - 320 x 256, 4096 colors via HAM
+* Amiga Lores (Workbench 1.3) - 320 x 256, 4 colors out of 4096
+* Amiga Lores (Workbench 2.0+) - 320 x 256, 4 colors out of 4096
 
 
 ## Development

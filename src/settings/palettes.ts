@@ -289,6 +289,20 @@ export const GAMEBOY_MONO_RGB = [
     0xffffff,
 ];
 
+export const AMIGA_WORKBENCH_13 = [
+    0x0055aa,
+    0x000022,
+    0xffffff,
+    0xff8800,
+];
+
+export const AMIGA_WORKBENCH_20 = [
+    0xaaaaaa,
+    0x000000,
+    0xffffff,
+    0x6688bb,
+];
+
 export const RGB_444 = generateRGBPalette(4, 4, 4);
 export const GAMEBOY_COLOR_RGB = RGB_444;
 export const AMIGA_OCS_COLOR_RGB = RGB_444;

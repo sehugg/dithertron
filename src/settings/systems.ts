@@ -981,6 +981,22 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         //exportFormat:{bpp:1,brev:true,np:6},
     },
     {
+        id: 'amiga.lores.workbench13',
+        name: 'Amiga (Workbench 1.3)',
+        width: 320,
+        height: 256,
+        conv: 'DitheringCanvas',
+        pal: palettes.AMIGA_WORKBENCH_13,
+    },
+    {
+        id: 'amiga.lores.workbench20',
+        name: 'Amiga (Workbench 2.0)',
+        width: 320,
+        height: 256,
+        conv: 'DitheringCanvas',
+        pal: palettes.AMIGA_WORKBENCH_20,
+    },
+    {
         id: 'cx16.lores',
         name: 'Commander X16 (Lores)',
         width: 320,
