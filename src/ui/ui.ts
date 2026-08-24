@@ -373,6 +373,62 @@ async function gotoIDE() {
 }
 
 
+function setSourceName(name: string) {
+    $("#sourceName").text(name || "(none)");
+}
+
+function loadFileAsSourceImage(file: File) {
+    if (!file.type.startsWith('image/')) return;
+    filenameLoaded = file.name || "pasted.png";
+    presetLoaded = "";
+    imageUpload.value = "";
+    setSourceName(filenameLoaded);
+    loadSourceImage(URL.createObjectURL(file));
+}
+
+function setupDragDropPaste() {
+    const dropOverlay = document.getElementById('dropOverlay')!;
+    let dragDepth = 0;
+    // prevent the browser from navigating away when files are dropped outside our handler
+    ['dragover', 'drop'].forEach((evname) => {
+        window.addEventListener(evname, (e) => { e.preventDefault(); });
+    });
+    window.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragDepth++;
+        dropOverlay.classList.add('dragover');
+    });
+    window.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        if (--dragDepth <= 0) {
+            dragDepth = 0;
+            dropOverlay.classList.remove('dragover');
+        }
+    });
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragDepth = 0;
+        dropOverlay.classList.remove('dragover');
+        const file = e.dataTransfer?.files?.[0];
+        if (file) loadFileAsSourceImage(file);
+    });
+    // paste images from clipboard
+    window.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of Array.from(items)) {
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (file) {
+                    loadFileAsSourceImage(file);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        }
+    });
+}
+
 function updateURL() {
     let qs = {
         sys: dithertron.settings.id,
@@ -436,12 +492,11 @@ export function startUI() {
             var inputElement = event.target as HTMLInputElement;
             var file = inputElement.files && inputElement.files[0];
             if (file) {
-                filenameLoaded = file.name;
-                presetLoaded = "";
-                var url = URL.createObjectURL(file);
-                loadSourceImage(url);
+                loadFileAsSourceImage(file);
             }
         });
+
+        setupDragDropPaste();
 
         EXAMPLE_IMAGES.forEach((filename) => {
             $('<a class="dropdown-item" href="#"></a>').text(filename).appendTo("#examplesMenu");
@@ -450,6 +505,7 @@ export function startUI() {
         $("#examplesMenu").click((e) => {
             var filename = $(e.target).text();
             filenameLoaded = presetLoaded = filename;
+            setSourceName(filename);
             loadSourceImage("images/" + filename);
             imageUpload.value = "";
         });
@@ -482,6 +538,7 @@ export function startUI() {
         setTargetSystem(currentSystem);
 
         filenameLoaded = presetLoaded = qs['image'] || "seurat.jpg";
+        setSourceName(filenameLoaded);
         loadSourceImage("images/" + filenameLoaded);
 
         $("#diffuseSlider").on('change', resetImage);
@@ -500,6 +557,7 @@ export function startUI() {
             }
         });
         $("#errorFuncSelect").on('change', resetImage);
+        $("#openImageBtn").click(() => imageUpload.click());
         $("#downloadImageBtn").click(downloadImageFormat);
         $("#downloadNativeBtn").click(downloadNativeFormat);
         $("#gotoIDE").click(gotoIDE);
