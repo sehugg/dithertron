@@ -2,10 +2,13 @@
     processor 6502    
     include "atari.inc"
 
-;GPIOMODE equ 1
+ANTICMODE equ $d
+DUALBUFFER equ 0
+GPIOMODE equ 0
+
     org     $a000           ;Start of left cartridge area
 Start:
- ifconst GPIOMODE
+ if GPIOMODE
     lda     #$80
     sta     GPRIOR
 ; set GTIA mode colors
@@ -51,14 +54,14 @@ ImgData2 equ ImgData1+40*96
 ;Display list data
 dlist
     .byte $70,$70,$70
-    .byte $4d,#<ImgData1,#>ImgData1
+    .byte (ANTICMODE | $40),#<ImgData1,#>ImgData1
     REPEAT 95
-    .byte $0d
+    .byte ANTICMODE
     REPEND
-    ifconst GPIOMODE
-    .byte $4f,#<ImgData2,#>ImgData2
+    if DUALBUFFER
+    .byte (ANTICMODE | $40),#<ImgData2,#>ImgData2
     REPEAT 95
-    .byte $0f
+    .byte ANTICMODE
     REPEND
     endif
     .byte $41,$00,$10

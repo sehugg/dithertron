@@ -8,6 +8,7 @@ import * as kernels from "../dither/kernels";
 import Cropper from 'cropperjs';
 import pica from 'pica';
 import { saveAs } from 'file-saver';
+import localforage from 'localforage';
 import { EXAMPLE_IMAGES } from "./sampleimages";
 
 var cropper : Cropper;
@@ -345,31 +346,132 @@ function getCodeConvertFunction(): () => string {
     return convertFunc;
 }
 
+// Max length of the GET URL we send to the IDE. Servers commonly reject request
+// URIs over ~8KB (nginx large_client_header_buffers is 4x8KB), so we switch to
+// staging the project files in the IDE's local storage for larger images.
+const MAX_IDE_URL_LENGTH = 8190;
+const IDE_ORIGIN = 'https://8bitworkshop.com';
+// dev: the IDE dev server (:8000) serves this project at /dithertron/
+const LOCAL_IDE_ORIGIN = 'http://localhost:8000';
+const LOCAL_IDE_URL = LOCAL_IDE_ORIGIN + '/dithertron/';
+
+// The IDE keeps workspace files in a localforage (IndexedDB) database named
+// "__<base platform>" on its own origin (see project.ts createNewPersistentStore).
+function getIDEStoreId(platform_id: string): string {
+    return platform_id.split('.')[0];
+}
+
+// Where the IDE lives. Storage is origin-scoped (scheme+host+port), so we can only
+// stage files directly when this page shares an origin with the IDE.
+function getIDEOrigin(): string {
+    if (window.location.hostname == 'localhost' && window.location.port == '8189') {
+        return LOCAL_IDE_ORIGIN; // dithertron dev server; IDE dev server is another port
+    }
+    var action = $((document.forms as any)['ideForm'] as HTMLFormElement).attr('action');
+    try {
+        return new URL(action || IDE_ORIGIN, window.location.href).origin;
+    } catch (e) {
+        return IDE_ORIGIN;
+    }
+}
+
+function byteArrayToUint8Array(data: number[] | Uint8Array | null): Uint8Array {
+    if (data == null) return new Uint8Array(0);
+    return data instanceof Uint8Array ? data : Uint8Array.from(data);
+}
+
+// Write files directly into the IDE's workspace store. Returns false if the
+// user declined to overwrite an existing file. Only visible to the IDE when this
+// page and the IDE share an origin.
+async function stageFilesInIDEStore(storeId: string, files: { name: string, data: string | Uint8Array }[]): Promise<boolean> {
+    const store = localforage.createInstance({ name: "__" + storeId, version: 2 });
+    var existing: string[] = [];
+    for (const file of files) {
+        if (await store.getItem(file.name) != null) existing.push(file.name);
+    }
+    if (existing.length > 0) {
+        if (!confirm("The following project files already exist in 8bitworkshop and will be replaced:\n\n" +
+            existing.join("\n") + "\n\nContinue?"))
+            return false;
+    }
+    for (const file of files) {
+        await store.setItem(file.name, file.data);
+    }
+    return true;
+}
+
+// Encode fields the same way a browser form submit would (application/x-www-form-urlencoded)
+function encodeIDEFormFields(fields: { name: string, value: string }[]): string {
+    const params = new URLSearchParams();
+    for (const field of fields) params.append(field.name, field.value);
+    return params.toString();
+}
+
 async function gotoIDE() {
     function addHiddenField(form: any, name: any, val: any) {
         $('<input type="hidden"/>').attr('name', name).val(val).appendTo(form);
     }
-    if (confirm("Open code sample with image in 8bitworkshop?")) {
-        //e.target.disabled = true;
-        var platform_id = dithertron.settings.id.split('.')[0];
-        var form = $((document.forms as any)['ideForm'] as HTMLFormElement);
-        form.empty();
-        if (platform_id == 'atari8') platform_id = 'atari8-800'; // TODO
-        if (platform_id == 'cpc') platform_id = 'cpc.6128'; // TODO
-        addHiddenField(form, "platform", platform_id);
-        // TODO
-        var codeFilename = "viewer-" + getFilenamePrefix() + ".asm";
-        var dataFilename = getFilenamePrefix() + ".bin";
-        addHiddenField(form, "file0_name", codeFilename);
-        var code = getCodeConvertFunction()();
-        code = code.replace("$DATAFILE", getFilenamePrefix() + ".bin");
-        addHiddenField(form, "file0_data", code);
-        addHiddenField(form, "file0_type", "utf8");
-        addHiddenField(form, "file1_name", dataFilename);
-        addHiddenField(form, "file1_data", btoa(byteArrayToString(getNativeFormatData())));
-        addHiddenField(form, "file1_type", "binary");
-        form.submit();
+    if (!confirm("Open code sample with image in 8bitworkshop?")) return;
+
+    //e.target.disabled = true;
+    var platform_id = dithertron.settings.id.split('.')[0];
+    var htmlform = (document.forms as any)['ideForm'] as HTMLFormElement;
+    var form = $(htmlform);
+    form.empty();
+    if (platform_id == 'atari8') platform_id = 'atari8-800'; // TODO
+    if (platform_id == 'cpc') platform_id = 'cpc.6128'; // TODO
+
+    var codeFilename = "viewer-" + getFilenamePrefix() + ".asm";
+    var dataFilename = getFilenamePrefix() + ".bin";
+    var code = getCodeConvertFunction()();
+    code = code.replace("$DATAFILE", dataFilename);
+    var data = getNativeFormatData();
+
+    var fields = [
+        { name: "platform", value: platform_id },
+        { name: "file0_name", value: codeFilename },
+        { name: "file0_data", value: code },
+        { name: "file0_type", value: "utf8" },
+        { name: "file1_name", value: dataFilename },
+        { name: "file1_data", value: btoa(byteArrayToString(data)) },
+        { name: "file1_type", value: "binary" },
+    ];
+
+    // If the GET URL would be too large, stage the files in the IDE's local
+    // storage and open a short URL instead of stuffing everything into the query.
+    var ideURL = (form.attr('action') || '') + '?' + encodeIDEFormFields(fields);
+    const isLocalHost = window.location.hostname == 'localhost';
+    if (isLocalHost) {
+        htmlform.action = 'http://localhost:8000/';
     }
+    if (ideURL.length > MAX_IDE_URL_LENGTH && !isLocalHost) {
+        var ideOrigin = getIDEOrigin();
+        if (window.location.origin != ideOrigin) {
+            if (!confirm("Warning: this image is too large to pass through the URL, so Dithertron would need to save the project files directly into 8bitworkshop's local storage. " +
+                "This only works when Dithertron is served from the same origin as the IDE (" + ideOrigin + "), but this page is on " + window.location.origin + ".\n\nTry the URL anyway?"))
+                return;
+            // no shared storage: fall through and submit the (oversized) URL
+        } else {
+            try {
+                if (!await stageFilesInIDEStore(getIDEStoreId(platform_id), [
+                    { name: codeFilename, data: code },
+                    { name: dataFilename, data: byteArrayToUint8Array(data) },
+                ]))
+                    return; // user declined to replace existing files
+                addHiddenField(form, "platform", platform_id);
+                addHiddenField(form, "file", codeFilename);
+                form.submit();
+                return;
+            } catch (e) {
+                console.log(e);
+                console.warn("Could not save project files to 8bitworkshop local storage, falling back to URL.", e);
+                form.empty();
+            }
+        }
+    }
+
+    for (const field of fields) addHiddenField(form, field.name, field.value);
+    form.submit();
 }
 
 

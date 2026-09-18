@@ -25,6 +25,7 @@
     "file-saver": "^2.0.2",
     "font-awesome": "^4.7.0",
     "jquery": "^3.5.0",
+    "localforage": "^1.9.0",
     "pica": "^10.0.3"
   },
   "devDependencies": {

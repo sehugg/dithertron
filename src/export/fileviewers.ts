@@ -82,6 +82,16 @@ export function getFileViewerCode_atari8_d() {
     return code;
 }
 
+export function getFileViewerCode_atari8_e() {
+    var code = asm_atari8_d;
+    var palinds = convertToSystemPalette(dithertron.lastPixels.pal, dithertron.settings.pal);
+    for (var i = 0; i < palinds.length; i++)
+        code = code.replace('$00;PF' + i, '$' + hex(palinds[i]));
+    code = code.replace('ANTICMODE equ $d', 'ANTICMODE equ $e');
+    code = code.replace('DUALBUFFER equ 0', 'DUALBUFFER equ 1');
+    return code;
+}
+
 export function getFileViewerCode_atari8_f_10() {
     let code = getFileViewerCode_atari8_d();
     code = code.replace('.byte $4d', '.byte $4f');
@@ -91,7 +101,9 @@ export function getFileViewerCode_atari8_f_10() {
     code = code.replace('COLOR0+0', 'PCOLR0+1');
     code = code.replace('COLOR0+1', 'PCOLR0+2');
     code = code.replace('COLOR0+2', 'PCOLR0+3');
-    code = code.replace(';GPIOMODE equ 1', 'GPIOMODE equ 1');
+    code = code.replace('ANTICMODE equ $d', 'ANTICMODE equ $f');
+    code = code.replace('DUALBUFFER equ 0', 'DUALBUFFER equ 1');
+    code = code.replace('GPIOMODE equ 0', 'GPIOMODE equ 1');
     return code;
 }
 
