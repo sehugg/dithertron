@@ -503,6 +503,7 @@ export function startUI() {
         });
 
         $("#examplesMenu").click((e) => {
+            e.preventDefault(); // don't let the href="#" clear our URL hash
             var filename = $(e.target).text();
             filenameLoaded = presetLoaded = filename;
             setSourceName(filename);

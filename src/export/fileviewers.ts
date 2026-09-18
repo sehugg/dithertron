@@ -101,19 +101,19 @@ export function getFileViewerCode_zx() {
 }
 
 export function getFileViewerCode_zx_dark() {
-    return getFileViewerCode_zx(); 
+    return getFileViewerCode_zx();
 }
 
 export function getFileViewerCode_zx_bright() {
-    return getFileViewerCode_zx(); 
+    return getFileViewerCode_zx();
 }
 
 export function getFileViewerCode_zx_dark_bright() {
-    return getFileViewerCode_zx(); 
+    return getFileViewerCode_zx();
 }
 
 export function getFileViewerCode_zx_bright_dark() {
-    return getFileViewerCode_zx(); 
+    return getFileViewerCode_zx();
 }
 
 

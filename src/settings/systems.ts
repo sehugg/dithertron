@@ -12,7 +12,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.VIC_PAL_RGB,
         block: { w:4, h:8, colors: 4, xb:1, yb:2 },
         cell: {w: 4, h: 8, msbToLsb: true },
-        paletteChoices:{background: true},        
+        paletteChoices:{background: true},
         cb: { w: 4, h: 8, xb: 1, yb: 2 },
         param: { extra: 1 },
         toNative: 'exportC64Multi',
@@ -182,6 +182,18 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         exportFormat: { bpp: 2, brev: true },
     },
     {
+        id: 'atari8.e',
+        name: 'Atari ANTIC (Mode E)',
+        width: 160,
+        height: 192,
+        scaleX: 0.8571 * 2,
+        conv: 'DitheringCanvas',
+        pal: palettes.VCS_RGB,
+        reduce: 4,
+        toNative: 'exportFrameBuffer',
+        exportFormat: { bpp: 2, brev: true },
+    },
+    {
         id: 'atari8.f.10',
         name: 'Atari ANTIC (Mode F/10)',
         width: 80,
@@ -341,7 +353,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'VICII_Canvas',
         pal: palettes.VIC20_PAL_RGB,
         block: { w: 4, h: 8, colors: 4 },               // can choose background, aux, border and one foreground color
-        cell: {w: 4, h: 8, msbToLsb: true },    
+        cell: {w: 4, h: 8, msbToLsb: true },
         paletteChoices: {
             background: true,                           // pixels can choose the background color
             backgroundRange: { min: 0, max: 15 },
@@ -676,7 +688,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 15 } },
         customize: { singleColor: true },
         toNative: 'exportSticColorStack'
-    },    
+    },
     {
         id: 'stic.stack.gromram.single',
         name: 'Intellivision STIC (GROM+GRAM) (Single BG Color Stack)',
