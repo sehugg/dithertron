@@ -1104,6 +1104,18 @@
       exportFormat: { bpp: 2, brev: true }
     },
     {
+      id: "atari8.e",
+      name: "Atari ANTIC (Mode E)",
+      width: 160,
+      height: 192,
+      scaleX: 0.8571 * 2,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 4,
+      toNative: "exportFrameBuffer",
+      exportFormat: { bpp: 2, brev: true }
+    },
+    {
       id: "atari8.f.10",
       name: "Atari ANTIC (Mode F/10)",
       width: 80,
@@ -1469,7 +1481,7 @@
     },
     {
       id: "gg.4pp",
-      name: "Game Gear (+Sega Master Systems/Wonder Color) (4bpp) (8x8) (32x32) Linear",
+      name: "Game Gear (+Sega Master System/Wonder Color) (4bpp) (8x8) (32x32) Linear",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
