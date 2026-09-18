@@ -547,7 +547,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'gg.4pp',
-        name: 'Game Gear (+Sega Master Systems/Wonder Color) (4bpp) (8x8) (32x32) Linear',
+        name: 'Game Gear (+Sega Master System/Wonder Color) (4bpp) (8x8) (32x32) Linear',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
