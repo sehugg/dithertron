@@ -7,16 +7,6 @@ Dithertron is an interactive, browser-based tool that converts full-color images
 full-screen 8-bit retro graphics formats. It performs cropping, resizing, palette
 reduction, and dithering entirely in your browser.
 
-Some formats (e.g. C64 multicolor, TMS9918A, ZX Spectrum, NES 5-color) split the screen
-into small sub-blocks that can each display only 2–4 colors from a larger palette.
-Neighboring sub-blocks affect each other when dithering is enabled, so Dithertron picks
-good colors for every block and iterates until they stabilize — a simulated-annealing
-approach with decreasing noise over time.
-
-For modes with constrained palette choices (e.g. C64 Hires, ZX Spectrum, MSX/Coleco)
-it usually helps to reduce the **Diffusion** parameter, otherwise dithering errors
-accumulate and create blocky splotches.
-
 **Try it online:** <https://8bitworkshop.com/dithertron/>
 
 **Latest dev version:** <https://sehugg.github.io/dithertron>
@@ -32,6 +22,12 @@ accumulate and create blocky splotches.
 5. **Export** — download a PNG, download the native binary, or open a viewer code
    sample directly in [8bitworkshop](https://8bitworkshop.com).
 
+Some formats (e.g. C64 multicolor, TMS9918A, ZX Spectrum, NES 5-color) split the screen
+into small sub-blocks that can each display only 2–4 colors from a larger palette.
+Neighboring sub-blocks affect each other when dithering is enabled, so Dithertron picks
+good colors for every block and iterates until they stabilize — a simulated-annealing
+approach with decreasing noise over time.
+
 ## Controls
 
 | Control | Description |
@@ -45,6 +41,10 @@ accumulate and create blocky splotches.
 | **Noise** | Amount of annealing noise applied while choosing block colors (block-based modes only). Default 5. |
 
 The reduced color palette is shown as swatches beneath the output canvas.
+
+For modes with constrained palette choices (e.g. C64 Hires, ZX Spectrum, MSX/Coleco)
+it usually helps to reduce the **Diffusion** parameter, otherwise dithering errors
+accumulate and create blocky splotches.
 
 ## Exporting
 
