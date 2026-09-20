@@ -97,3 +97,5 @@ Palette:
     org $10000
     ds 16	; blanks
     incbin "$DATAFILE"
+    incbin "$DATAFILE"
+    incbin "$DATAFILE"
