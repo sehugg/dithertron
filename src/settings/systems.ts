@@ -324,8 +324,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         exportFormat: { bpp: 2, yremap: [3, 80, 2048], bitremap: [7, 3, 6, 2, 5, 1, 4, 0] }
     },
 
-    // null == separator, systems with runnable source code are above
-    null,
 
     {
         id: 'vic20.hires',
@@ -367,7 +365,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'nes.1bpp',
-        name: 'NES (1bpp) (8x8) (32x32) Planar',
+        name: 'NES (1bpp tiles)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -387,7 +385,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'nes.2bpp',
-        name: 'NES (2bpp) (8x8) (32x32) Planar',
+        name: 'NES (2bpp tiles)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -407,7 +405,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'snes.2bpp',
-        name: 'SNES (+Gameboy/GBC) (2bpp) (8x8) (32x32) Planar',
+        name: 'SNES (2bpp)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -427,7 +425,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'snes.3bpp',
-        name: 'SNES (3bpp) (8x8) (32x32) Planar',
+        name: 'SNES (3bpp)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -447,7 +445,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'snes.4bpp',
-        name: 'SNES (4bpp) (8x8) (32x32) Planar',
+        name: 'SNES (4bpp)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -467,7 +465,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'snes.8bpp',
-        name: 'SNES (8bpp) (8x8) (32x32) Planar',
+        name: 'SNES (8bpp)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -487,7 +485,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'snes.mode7',
-        name: 'SNES (Mode 7) (8bpp) (8x8) (32x32)',
+        name: 'SNES (Mode 7)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -507,7 +505,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'neo.geopocket',
-        name: 'NEO Geo Pocket Color (2pp) (8x8) (32x32)',
+        name: 'Neo Geo Pocket Color',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -527,7 +525,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'virtualboy',
-        name: 'Virtual Boy (2pp) (8x8) (32x32)',
+        name: 'Virtual Boy',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -547,7 +545,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'gg.4pp',
-        name: 'Game Gear (+Sega Master System/Wonder Color) (4bpp) (8x8) (32x32) Linear',
+        name: 'Sega Game Gear (4bpp linear)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -567,7 +565,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'genesis',
-        name: 'Genesis/x68k (4pp) (8x8) (32x32)',
+        name: 'Genesis/x68k (4bpp)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -587,7 +585,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'snes.8bpp.direct',
-        name: 'SNES (8bpp) (8x8) (32x32) Direct Color',
+        name: 'SNES (Direct Color)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
@@ -606,7 +604,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'stic',
-        name: 'Intellivision STIC (GRAM/GROM) (FGBG)',
+        name: 'Intellivision (FGBG)',
         width: 8*8,    // actual is 20x12 but the gram only allows for 64 gram cards
         height: 8*8,
         conv: 'Stic_Fgbg_Canvas',
@@ -618,7 +616,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'stic.stack.grom',
-        name: 'Intellivision STIC (GROM only) (Color Stack Mode)',
+        name: 'Intellivision (Color Stack, GROM)',
         width: 20*8,
         height: 12*8,
         conv: 'Stic_ColorStack_Canvas',
@@ -632,7 +630,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'stic.stack.gram',
-        name: 'Intellivision STIC (GRAM only) (Color Stack Mode)',
+        name: 'Intellivision (Color Stack, GRAM)',
         width: 8*8,    // actual is 20x12 but the gram only allows for 64 gram cards
         height: 8*8,
         conv: 'Stic_ColorStack_Canvas',
@@ -646,7 +644,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'stic.stack.gromram',
-        name: 'Intellivision STIC (GROM+GRAM) (Color Stack Mode)',
+        name: 'Intellivision (Color Stack, GROM+GRAM)',
         width: 20*8,
         height: 12*8,
         conv: 'Stic_ColorStack_Canvas',
@@ -661,7 +659,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'stic.stack.grom.single',
-        name: 'Intellivision STIC (GROM only) (Single BG Color Stack)',
+        name: 'Intellivision (Single BG, GROM)',
         width: 20*8,
         height: 12*8,
         conv: 'Stic_ColorStack_Canvas',
@@ -676,7 +674,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'stic.stack.gram.single',
-        name: 'Intellivision STIC (GRAM only) (Single BG Color Stack)',
+        name: 'Intellivision (Single BG, GRAM)',
         width: 8*8,    // actual is 20x12 but the gram only allows for 64 gram cards
         height: 8*8,
         conv: 'Stic_ColorStack_Canvas',
@@ -691,7 +689,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'stic.stack.gromram.single',
-        name: 'Intellivision STIC (GROM+GRAM) (Single BG Color Stack)',
+        name: 'Intellivision (Single BG, GROM+GRAM)',
         width: 20*8,
         height: 12*8,
         conv: 'Stic_ColorStack_Canvas',
@@ -728,50 +726,10 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportNES',
     },
     {
-        id: 'atari7800.160a',
-        name: 'Atari 7800 (160A)',
-        width: 160,
-        height: 240,
-        scaleX: 2,
-        conv: 'DitheringCanvas',
-        pal: palettes.VCS_RGB,
-        reduce: 4,
-    },
-    {
-        id: 'atari7800.160b',
-        name: 'Atari 7800 (160B)',
-        width: 160,
-        height: 240,
-        scaleX: 2,
-        conv: 'DitheringCanvas',
-        pal: palettes.VCS_RGB,
-        reduce: 12,
-    },
-    {
-        id: 'sms',
-        name: 'Sega Master System',
-        width: 176, // only 488 unique tiles max, otherwise 256x240
-        height: 144,
-        scaleX: 8 / 7,
-        conv: 'DitheringCanvas',
-        pal: palettes.SMS_RGB,
-        reduce: 16,
-    },
-    {
-        id: 'sms-gg',
-        name: 'Sega GameGear',
-        width: 160,
-        height: 144,
-        scaleX: 1.2,
-        conv: 'DitheringCanvas',
-        pal: palettes.GAMEGEAR_COLOR_RGB,
-        reduce: 16,
-    },
-    {
         // 128x128 = 16x16 tiles = 256 unique tiles. Each tile selects one of
         // the two shared 16-color BG palettes (32 CRAM entries of 4096 colors).
         id: 'sms-gg.tiles',
-        name: 'Sega GameGear (4bpp) (8x8) (16x16) Tile Palettes',
+        name: 'Sega Game Gear (Tile Palettes)',
         width: 128,
         height: 128,
         scaleX: 1.2,
@@ -786,15 +744,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportGameGearTiles',
     },
     {
-        id: 'bbcmicro.mode2',
-        name: 'BBC Micro (mode 2)',
-        width: 160,
-        height: 256,
-        scaleX: 2,
-        conv: 'DitheringCanvas',
-        pal: palettes.TELETEXT_RGB,
-    },
-    {
         id: 'apple2.lores',
         name: 'Apple ][ (Lores)',
         width: 40,
@@ -804,41 +753,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.AP2LORES_RGB,
         toNative: 'exportFrameBuffer',
         exportFormat: { bpp: 4 },
-    },
-    {
-        id: 'apple2.dblhires',
-        name: 'Apple ][ (Double-Hires)',
-        width: 140,
-        height: 192,
-        scaleX: 2,
-        conv: 'DitheringCanvas',
-        pal: palettes.AP2LORES_RGB,
-    },
-    {
-        id: 'appleiigs.320.16',
-        name: 'Apple IIGS (16 colors)',
-        width: 320,
-        height: 200,
-        conv: 'DitheringCanvas',
-        pal: palettes.IIGS_COLOR_RGB,
-        reduce: 16,
-    },
-    {
-        id: 'channelf',
-        name: 'Fairchild Channel F',
-        width: 102,
-        height: 58,
-        conv: 'DitheringCanvas',
-        pal: palettes.CHANNELF_RGB,
-        reduce: 4, // TODO: https://geeks-world.github.io/articles/467811/index.html
-    },
-    {
-        id: 'mac',
-        name: 'Mac 128K',
-        width: 512,
-        height: 342,
-        conv: 'DitheringCanvas',
-        pal: palettes.MONO_RGB,
     },
     {
         id: 'x86.cga.04h.1',
@@ -929,17 +843,8 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         exportFormat: { bpp: 1, np: 4 },
     },
     {
-        id: 'williams',
-        name: 'Williams Arcade',
-        width: 304,
-        height: 256,
-        conv: 'DitheringCanvas',
-        pal: palettes.WILLIAMS_RGB,
-        reduce: 16,
-    },
-    {
         id: 'mcr2',
-        name: 'Bally MCR-II (4bpp) (8x8) (32x30)',
+        name: 'Bally MCR-II',
         width: 32*8,
         height: 30*8,
         scaleX: 1,
@@ -949,6 +854,201 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         cell: { w: 16, h: 16, msbToLsb: true },
         reduce: 64,
         toNative: 'exportSNES'
+    },
+    {
+        // 128x128 = 16x16 tiles = 256 unique tiles, one base DMG tile area.
+        // All tiles share the single global 4-shade BGP palette.
+        id: 'gb.tiles',
+        name: 'Game Boy Classic (Tiles)',
+        width: 128,
+        height: 128,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.GAMEBOY_GREEN_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        reduce: 4,
+        toNative: 'exportGBTiles',
+    },
+    {
+        // 128x128 = 16x16 tiles = 256 unique tiles, exactly one GBC VRAM tile bank.
+        // Each tile selects one of eight shared 4-color BG palettes.
+        id: 'gb.color.tiles',
+        name: 'Game Boy Color (Tile Palettes)',
+        width: 128,
+        height: 128,
+        scaleX: 1,
+        conv: 'GBC_Canvas',
+        pal: palettes.GAMEBOY_COLOR_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: { colorsRange: { min: 0, max: 31 } },
+        reduce: 32,
+        toNative: 'exportGBC',
+    },
+    {
+        id: 'MC6847.CG2.palette0',
+        name: 'MC6847 (CG2, palette 0)',
+        width: 128,
+        height: 64,
+        scaleX: 1 / 1.3,
+        conv: 'DitheringCanvas',
+        pal: palettes.MC6847_PALETTE0,
+        reduce: 4,
+        toNative: 'exportMC6847'
+    },
+    {
+        id: 'MC6847.CG2.palette1',
+        name: 'MC6847 (CG2, palette 1)',
+        width: 128,
+        height: 64,
+        scaleX: 1 / 1.3,
+        conv: 'DitheringCanvas',
+        pal: palettes.MC6847_PALETTE1,
+        reduce: 4,
+        toNative: 'exportMC6847'
+    },
+    {
+        id: 'MC6847.CG3.palette0',
+        name: 'MC6847 (CG3, palette 0)',
+        width: 128,
+        height: 96,
+        scaleX: 1 / 1.3 * 96 / 64,
+        conv: 'DitheringCanvas',
+        pal: palettes.MC6847_PALETTE0,
+        reduce: 4,
+        toNative: 'exportMC6847'
+    },
+    {
+        id: 'MC6847.CG3.palette1',
+        name: 'MC6847 (CG3, palette 1)',
+        width: 128,
+        height: 96,
+        scaleX: 1 / 1.3 * 96 / 64,
+        conv: 'DitheringCanvas',
+        pal: palettes.MC6847_PALETTE1,
+        reduce: 4,
+        toNative: 'exportMC6847'
+    },
+    {
+        id: 'MC6847.CG6.palette0',
+        name: 'MC6847 (CG6, palette 0)',
+        width: 128,
+        height: 192,
+        scaleX: 1 / 1.3 * 192 / 64,
+        conv: 'DitheringCanvas',
+        pal: palettes.MC6847_PALETTE0,
+        reduce: 4,
+        toNative: 'exportMC6847'
+    },
+    {
+        id: 'MC6847.CG6.palette1',
+        name: 'MC6847 (CG6, palette 1)',
+        width: 128,
+        height: 192,
+        scaleX: 1 / 1.3 * 192 / 64,
+        conv: 'DitheringCanvas',
+        pal: palettes.MC6847_PALETTE1,
+        reduce: 4,
+        toNative: 'exportMC6847'
+    },
+
+    // null == separator: systems above can be exported natively and/or run in
+    // the IDE, systems below can only be previewed and/or downloaded as images
+    null,
+
+    {
+        id: 'atari7800.160a',
+        name: 'Atari 7800 (160A)',
+        width: 160,
+        height: 240,
+        scaleX: 2,
+        conv: 'DitheringCanvas',
+        pal: palettes.VCS_RGB,
+        reduce: 4,
+    },
+    {
+        id: 'atari7800.160b',
+        name: 'Atari 7800 (160B)',
+        width: 160,
+        height: 240,
+        scaleX: 2,
+        conv: 'DitheringCanvas',
+        pal: palettes.VCS_RGB,
+        reduce: 12,
+    },
+    {
+        id: 'sms',
+        name: 'Sega Master System',
+        width: 176, // only 488 unique tiles max, otherwise 256x240
+        height: 144,
+        scaleX: 8 / 7,
+        conv: 'DitheringCanvas',
+        pal: palettes.SMS_RGB,
+        reduce: 16,
+    },
+    {
+        id: 'sms-gg',
+        name: 'Sega Game Gear (full screen)',
+        width: 160,
+        height: 144,
+        scaleX: 1.2,
+        conv: 'DitheringCanvas',
+        pal: palettes.GAMEGEAR_COLOR_RGB,
+        reduce: 16,
+    },
+    {
+        id: 'bbcmicro.mode2',
+        name: 'BBC Micro (mode 2)',
+        width: 160,
+        height: 256,
+        scaleX: 2,
+        conv: 'DitheringCanvas',
+        pal: palettes.TELETEXT_RGB,
+    },
+    {
+        id: 'apple2.dblhires',
+        name: 'Apple ][ (Double-Hires)',
+        width: 140,
+        height: 192,
+        scaleX: 2,
+        conv: 'DitheringCanvas',
+        pal: palettes.AP2LORES_RGB,
+    },
+    {
+        id: 'appleiigs.320.16',
+        name: 'Apple IIGS (16 colors)',
+        width: 320,
+        height: 200,
+        conv: 'DitheringCanvas',
+        pal: palettes.IIGS_COLOR_RGB,
+        reduce: 16,
+    },
+    {
+        id: 'channelf',
+        name: 'Fairchild Channel F',
+        width: 102,
+        height: 58,
+        conv: 'DitheringCanvas',
+        pal: palettes.CHANNELF_RGB,
+        reduce: 4, // TODO: https://geeks-world.github.io/articles/467811/index.html
+    },
+    {
+        id: 'mac',
+        name: 'Mac 128K',
+        width: 512,
+        height: 342,
+        conv: 'DitheringCanvas',
+        pal: palettes.MONO_RGB,
+    },
+    {
+        id: 'williams',
+        name: 'Williams Arcade',
+        width: 304,
+        height: 256,
+        conv: 'DitheringCanvas',
+        pal: palettes.WILLIAMS_RGB,
+        reduce: 16,
     },
     {
         id: 'pico8',
@@ -986,37 +1086,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'DitheringCanvas',
         pal: palettes.GAMEBOY_COLOR_RGB,
         reduce: 32,
-    },
-    {
-        // 128x128 = 16x16 tiles = 256 unique tiles, one base DMG tile area.
-        // All tiles share the single global 4-shade BGP palette.
-        id: 'gb.tiles',
-        name: 'Game Boy Classic (2bpp) (8x8) (16x16) Tiles',
-        width: 128,
-        height: 128,
-        scaleX: 1,
-        conv: 'SNES_Canvas',
-        pal: palettes.GAMEBOY_GREEN_RGB,
-        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
-        cell: { w: 8, h: 8, msbToLsb: true },
-        reduce: 4,
-        toNative: 'exportGBTiles',
-    },
-    {
-        // 128x128 = 16x16 tiles = 256 unique tiles, exactly one GBC VRAM tile bank.
-        // Each tile selects one of eight shared 4-color BG palettes.
-        id: 'gb.color.tiles',
-        name: 'Game Boy Color (2bpp) (8x8) (16x16) Tile Palettes',
-        width: 128,
-        height: 128,
-        scaleX: 1,
-        conv: 'GBC_Canvas',
-        pal: palettes.GAMEBOY_COLOR_RGB,
-        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
-        cell: { w: 8, h: 8, msbToLsb: true },
-        paletteChoices: { colorsRange: { min: 0, max: 31 } },
-        reduce: 32,
-        toNative: 'exportGBC',
     },
     {
         id: 'amiga.lores',
@@ -1091,72 +1160,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'DitheringCanvas',
         pal: palettes.ATARIST_RGB,
         reduce: 16
-    },
-    {
-        id: 'MC6847.CG2.palette0',
-        name: 'MC6847 (CG2, palette 0)',
-        width: 128,
-        height: 64,
-        scaleX: 1 / 1.3,
-        conv: 'DitheringCanvas',
-        pal: palettes.MC6847_PALETTE0,
-        reduce: 4,
-        toNative: 'exportMC6847'
-    },
-    {
-        id: 'MC6847.CG2.palette1',
-        name: 'MC6847 (CG2, palette 1)',
-        width: 128,
-        height: 64,
-        scaleX: 1 / 1.3,
-        conv: 'DitheringCanvas',
-        pal: palettes.MC6847_PALETTE1,
-        reduce: 4,
-        toNative: 'exportMC6847'
-    },
-    {
-        id: 'MC6847.CG3.palette0',
-        name: 'MC6847 (CG3, palette 0)',
-        width: 128,
-        height: 96,
-        scaleX: 1 / 1.3 * 96 / 64,
-        conv: 'DitheringCanvas',
-        pal: palettes.MC6847_PALETTE0,
-        reduce: 4,
-        toNative: 'exportMC6847'
-    },
-    {
-        id: 'MC6847.CG3.palette1',
-        name: 'MC6847 (CG3, palette 1)',
-        width: 128,
-        height: 96,
-        scaleX: 1 / 1.3 * 96 / 64,
-        conv: 'DitheringCanvas',
-        pal: palettes.MC6847_PALETTE1,
-        reduce: 4,
-        toNative: 'exportMC6847'
-    },
-    {
-        id: 'MC6847.CG6.palette0',
-        name: 'MC6847 (CG6, palette 0)',
-        width: 128,
-        height: 192,
-        scaleX: 1 / 1.3 * 192 / 64,
-        conv: 'DitheringCanvas',
-        pal: palettes.MC6847_PALETTE0,
-        reduce: 4,
-        toNative: 'exportMC6847'
-    },
-    {
-        id: 'MC6847.CG6.palette1',
-        name: 'MC6847 (CG6, palette 1)',
-        width: 128,
-        height: 192,
-        scaleX: 1 / 1.3 * 192 / 64,
-        conv: 'DitheringCanvas',
-        pal: palettes.MC6847_PALETTE1,
-        reduce: 4,
-        toNative: 'exportMC6847'
     },
     {
         id: 'vcs.48',
