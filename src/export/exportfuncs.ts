@@ -1892,6 +1892,21 @@ export function exportGBC(message: PixelsAvailableMessage, settings: DithertronS
     ]);
 }
 
+// 16-bit little-endian tilemap entries for a sub-palette system: identity tile
+// index (one unique tile per map cell, row-major) in the low bits and the
+// tile's palette number at bit `paletteShift`.
+function encodeSubPaletteNameTable(content: SubPaletteContent, paletteShift: number): Uint8Array {
+    let tiles = content.block.columns * content.block.rows;
+    let paletteNumbers = encodeSubPaletteAttributes(content);
+    let nameTable = new Uint8Array(tiles * 2);
+    for (let i = 0; i < tiles; ++i) {
+        let entry = i | (paletteNumbers[i] << paletteShift);
+        nameTable[i * 2] = entry & 0xff;
+        nameTable[i * 2 + 1] = (entry >> 8) & 0xff;
+    }
+    return nameTable;
+}
+
 // Sega Game Gear native export (shared sub-palette tiles):
 //   [tile data] [name table] [CRAM]
 // Tile data is 4bpp SMS format (32 bytes/tile, four plane bytes per pixel row).
@@ -1900,20 +1915,44 @@ export function exportGBC(message: PixelsAvailableMessage, settings: DithertronS
 // select in bit 11. CRAM is 2 palettes x 16 entries of 12-bit 0000BBBBGGGGRRRR.
 export function exportGameGearTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     let content = message.content as SubPaletteContent;
-    let tiles = content.block.columns * content.block.rows;
-    runtime_assert(tiles <= 512);
-
-    let paletteNumbers = encodeSubPaletteAttributes(content);
-    let nameTable = new Uint8Array(tiles * 2);
-    for (let i = 0; i < tiles; ++i) {
-        let entry = i | (paletteNumbers[i] << 11);
-        nameTable[i * 2] = entry & 0xff;
-        nameTable[i * 2 + 1] = (entry >> 8) & 0xff;
-    }
+    runtime_assert(content.block.columns * content.block.rows <= 512);
 
     return concatArrays([
         encodeRowPlanarTiles(message, content, 4),
-        nameTable,
+        encodeSubPaletteNameTable(content, 11),
+        encodeSubPaletteRAM(message, content, settings),
+    ]);
+}
+
+// Neo Geo Pocket Color native export (shared sub-palette tiles):
+//   [tile data] [tilemap] [palette RAM]
+// Tile data is 2bpp, 16 bytes/tile: each pixel row is one 16-bit little-endian
+// word with the leftmost pixel in the top two bits. The tilemap has one 16-bit
+// little-endian entry per tile of the image grid (width/8 entries per row, so
+// rows must be copied into the 32-wide scroll plane): tile index in bits 0-8,
+// palette number in bits 9-12. Palette RAM is 16 palettes x 4 entries of 12-bit
+// 0000BBBBGGGGRRRR.
+export function exportNeoGeoPocketTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    let content = message.content as SubPaletteContent;
+    let columns = content.block.columns;
+    let tiles = columns * content.block.rows;
+    runtime_assert(tiles <= 512);
+
+    let tileData = new Uint8Array(tiles * 16);
+    for (let y = 0; y < content.height; ++y) {
+        for (let x = 0; x < content.width; ++x) {
+            let tileIndex = Math.floor(y / content.block.h) * columns + Math.floor(x / content.block.w);
+            let pixelColumn = x % content.block.w;
+            let ofs = tileIndex * 16 + (y % content.block.h) * 2;
+            let word = (message.indexed[y * content.width + x] & 3) << ((content.block.w - 1 - pixelColumn) * 2);
+            tileData[ofs] |= word & 0xff;
+            tileData[ofs + 1] |= (word >> 8) & 0xff;
+        }
+    }
+
+    return concatArrays([
+        tileData,
+        encodeSubPaletteNameTable(content, 9),
         encodeSubPaletteRAM(message, content, settings),
     ]);
 }

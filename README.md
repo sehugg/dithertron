@@ -165,7 +165,7 @@ previewed and/or downloaded as an image.
 * SNES (4bpp) - 256 x 256, 16 out of 32768 colors, 16 colors per 8x8 block
 * SNES (8bpp) - 256 x 256, 256 out of 32768 colors, 256 colors per 8x8 block
 * SNES (Mode 7) - 256 x 256, 256 out of 32768 colors, 256 colors per 8x8 block
-* Neo Geo Pocket Color - 256 x 256, 256 out of 32768 colors, 256 colors per 8x8 block
+* Neo Geo Pocket Color - 160 x 152, 64 out of 4096 colors, 4 colors per 8x8 block, 16 shared palettes
 * Virtual Boy - 256 x 256, 4 out of 32768 colors, 4 colors per 8x8 block
 * Sega Game Gear (4bpp linear) - 256 x 256, 16 out of 32768 colors, 16 colors per 8x8 block
 * Genesis/x68k (4bpp) - 256 x 256, 16 out of 32768 colors, 16 colors per 8x8 block

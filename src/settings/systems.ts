@@ -504,24 +504,22 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative:'exportSNES'
     },
     {
+        // 160x152 = 20x19 tiles = 380 unique tiles, within the 512 tile limit.
+        // Each tile selects one of sixteen shared 4-color palettes (12-bit color).
         id: 'neo.geopocket',
         name: 'Neo Geo Pocket Color',
-        width: 32*8,
-        height: 32*8,
+        width: 160,
+        height: 152,
         scaleX: 1,
-        conv: 'SNES_Canvas',
-        pal: palettes.SNES_B5G5R5_RGB,
-        block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+        conv: 'SubPalette_Canvas',
+        pal: palettes.NEOGEO_POCKET_COLOR_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
         cell: { w: 8, h: 8, msbToLsb: true },
-        paletteChoices: {
-            backgroundRange: { min: 0, max: 255 },
-            auxRange: { min: 0, max: 255 },
-            borderRange: { min: 0, max: 255 },
-            colorsRange: { min: 0, max: 255 }
-        },
-        customize: { outputTileset: false, outputPalette: false, bitsInPlane: 2, planes: 1, planeLittleEndian: false },
-        reduce: 256,
-        toNative:'exportSNES'
+        subPalettes: { count: 16, colors: 4 },
+        paletteChoices: { colorsRange: { min: 0, max: 63 } },
+        reduce: 64,
+        customize: { subPalettePaletteFormat: 'rgb444' },
+        toNative: 'exportNeoGeoPocketTiles',
     },
     {
         id: 'virtualboy',

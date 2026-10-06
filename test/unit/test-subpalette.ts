@@ -218,3 +218,54 @@ t.test('sms-gg.tiles export', async t => {
 
     t.comment(`sms-gg.tiles converged in ${iters} iters`);
 });
+
+// Neo Geo Pocket Color: sixteen shared 4-color palettes, 2bpp tiles stored as
+// 16-bit little-endian rows, 16-bit tilemap entries (palette in bits 9-12) and
+// 12-bit palette RAM.
+t.test('neo.geopocket export', async t => {
+    const { dt, last, iters } = await converge('neo.geopocket', {
+        diffuse: 0.75, noise: 5, ordered: 0, ditherfn: kernels.SIERRALITE, paletteDiversity: 0.95,
+    });
+    const canv: any = dt.dithcanv!;
+    const content: any = last.content;
+    const columns = content.block.columns;
+    const tiles = columns * content.block.rows;
+
+    t.equal(tiles, 380, '160x152 is 20x19 tiles');
+    t.ok(tiles <= 512, 'fits in tile RAM');
+    t.ok(iters < 20, 'converged quickly with diffusion');
+    t.equal(canv.changes, 0, 'no pixels changing at the end');
+    t.equal(content.palettesCount, 16, 'sixteen palettes');
+    t.equal(content.paletteColors, 4, 'four colors per palette');
+
+    const out = exportfuncs.exportNeoGeoPocketTiles(last, dt.sysparams);
+    t.equal(out.length, tiles * 16 + tiles * 2 + 16 * 4 * 2, 'native export size');
+
+    let badPixel = 0;
+    let badMap = 0;
+    for (let y = 0; y < content.height; y++) {
+        for (let x = 0; x < content.width; x++) {
+            const tile = Math.floor(y / 8) * columns + Math.floor(x / 8);
+            const word = out[tile * 16 + (y % 8) * 2] | (out[tile * 16 + (y % 8) * 2 + 1] << 8);
+            const slot = (word >> ((7 - (x % 8)) * 2)) & 3;
+            const index = canv.indexed[y * content.width + x];
+            if (slot !== (index & 3)) badPixel++;
+
+            const entry = out[tiles * 16 + tile * 2] | (out[tiles * 16 + tile * 2 + 1] << 8);
+            if ((entry & 0x1ff) !== tile || ((entry >> 9) & 0xf) !== (index >> 2)) badMap++;
+        }
+    }
+    t.equal(badPixel, 0, 'tile rows are 16-bit words with the leftmost pixel in the top bits');
+    t.equal(badMap, 0, 'tilemap has identity tile index and the pixel\'s palette in bits 9-12');
+
+    let badCram = 0;
+    const cram = tiles * 16 + tiles * 2;
+    for (let i = 0; i < 64; i++) {
+        const rgb = last.pal[i];
+        const want = ((rgb & 0xff) >> 4) | (((rgb >> 8 & 0xff) >> 4) << 4) | (((rgb >> 16 & 0xff) >> 4) << 8);
+        if (out[cram + i * 2] !== (want & 0xff) || out[cram + i * 2 + 1] !== (want >> 8)) badCram++;
+    }
+    t.equal(badCram, 0, 'palette RAM matches the working palette as 12-bit colors');
+
+    t.comment(`neo.geopocket converged in ${iters} iters`);
+});

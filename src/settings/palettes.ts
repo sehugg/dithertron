@@ -295,6 +295,7 @@ export const GAMEBOY_COLOR_RGB = RGB_555;
 export const AMIGA_OCS_COLOR_RGB = RGB_444;
 export const IIGS_COLOR_RGB = RGB_444;
 export const GAMEGEAR_COLOR_RGB = RGB_444;
+export const NEOGEO_POCKET_COLOR_RGB = RGB_444;
 export const SNES_B5G5R5_RGB = generateSNESB5G5R5();
 export const SNES_BBPGGGPRRRP = generateSNESDirectColor();
 
