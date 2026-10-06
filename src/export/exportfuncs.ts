@@ -1764,6 +1764,109 @@ export function exportSNES(message: PixelsAvailableMessage, settings: Dithertron
     });
 }
 
+// Content emitted by GBC_Canvas (see src/dither/canvas.ts)
+interface GBCContent extends BlockParamDitherCanvasContent {
+    palettes: number[][];
+    palettesCount: number;
+    paletteColors: number;
+}
+
+// Encode the indexed image as Game Boy / NES style 2bpp interleaved planar
+// tiles (16 bytes per tile), emitting one unique tile per map cell in
+// row-major order (tile index = row * columns + column).
+function encodeGameBoyTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent): Uint8Array {
+    let columns = content.block.columns;
+    let tiles = columns * content.block.rows;
+    let tileData = new Uint8Array(tiles * 16);
+
+    for (let y = 0; y < content.height; ++y) {
+        for (let x = 0; x < content.width; ++x) {
+            let column = Math.floor(x / content.block.w);
+            let row = Math.floor(y / content.block.h);
+            let tileIndex = row * columns + column;
+            let pixelColumn = x % content.block.w;
+            let pixelRow = y % content.block.h;
+
+            let ofs = tileIndex * 16 + pixelRow;
+            let shift = content.cell.msbToLsb ? (content.block.w - pixelColumn - 1) : pixelColumn;
+            let idx = message.indexed[y * content.width + x] & 0xff;
+
+            tileData[ofs] |= (idx & 1) << shift;
+            tileData[ofs + 8] |= ((idx >> 1) & 1) << shift;
+        }
+    }
+
+    return tileData;
+}
+
+// Game Boy Classic (DMG) tile export:
+//   [tile data] [BG map tile-index bytes]
+// The DMG has no per-tile palette, so all 2bpp pixels index one global BGP
+// palette. Map tile-indices are 0..tiles-1 (row-major), so they only fit in a
+// single byte when there are at most 256 tiles (hence the 128x128 source).
+// A DMG ROM would load BGP with the preferred shade order (e.g. 0xE4); the
+// actual shades are not stored in VRAM, so no palette bytes are emitted.
+export function exportGBTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    let content: BlockParamDitherCanvasContent = message.content;
+    let columns = content.block.columns;
+    let tiles = columns * content.block.rows;
+
+    let tileData = encodeGameBoyTiles(message, content);
+
+    // BG map: one tile-index byte per map cell (identity mapping 0..tiles-1)
+    let mapData = new Uint8Array(tiles);
+    for (let i = 0; i < tiles; ++i)
+        mapData[i] = i & 0xff;
+
+    return concatArrays([tileData, mapData]);
+}
+
+// Game Boy Color native export:
+//   [tile data] [BG map attribute bytes] [BG palette RAM]
+// Tile data is the same 2bpp interleaved planar layout as NES/GBC (16 bytes/tile).
+// Tiles are emitted one-per-map-cell in row-major order, so the tile index for
+// map cell (row, column) is (row * columns + column); the BG map tile-index
+// bytes are therefore the implicit sequence 0..tiles-1 and are not re-emitted.
+// Each attribute byte here is the 3-bit BG palette number for that tile
+// (bits 0-2; the VRAM-bank / flip / priority bits are left clear).
+// Palette RAM is 8 palettes x 4 entries x RGB555, little-endian.
+export function exportGBC(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    let content = message.content as GBCContent;
+
+    let tiles = content.block.columns * content.block.rows;
+
+    let tileData = encodeGameBoyTiles(message, content);
+
+    // --- BG map attributes (one byte per tile) ---
+    let attrData = new Uint8Array(tiles);
+    for (let i = 0; i < tiles; ++i) {
+        let palette = extractColorsFromParam(content.blockParams[i], 1, 0x7, 3)[0] ?? 0;
+        attrData[i] = palette & 0x7;
+    }
+
+    // --- BG palette RAM (8 x 4 entries as RGB555) ---
+    let palettes = content.palettes ?? [];
+    let paletteCount = content.palettesCount ?? 8;
+    let paletteColors = content.paletteColors ?? 4;
+    let paletteData = new Uint8Array(paletteCount * paletteColors * 2);
+    for (let p = 0; p < paletteCount; ++p) {
+        let palette = palettes[p] ?? [];
+        for (let c = 0; c < paletteColors; ++c) {
+            let color = palette[c] ?? 0;
+            let rgb = message.pal[color] ?? 0;
+            let r = rgb & 0xff;
+            let g = (rgb >> 8) & 0xff;
+            let b = (rgb >> 16) & 0xff;
+            let rgb555 = ((r >> 3) & 0x1f) | (((g >> 3) & 0x1f) << 5) | (((b >> 3) & 0x1f) << 10);
+            let ofs = (p * paletteColors + c) * 2;
+            paletteData[ofs] = rgb555 & 0xff;
+            paletteData[ofs + 1] = (rgb555 >> 8) & 0xff;
+        }
+    }
+
+    return concatArrays([tileData, attrData, paletteData]);
+}
+
 export function exportNES(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     var i = 0;
     var cols = img.width / 8;

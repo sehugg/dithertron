@@ -949,26 +949,57 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.TIC80_RGB,
     },
     {
+        // full-screen 4-shade framebuffer dither (no tiles)
         id: 'gb',
-        name: 'Game Boy Classic',
+        name: 'Game Boy Classic (full screen)',
         width: 160,
         height: 144,
         scaleX: 10 / 9,
         conv: 'DitheringCanvas',
         pal: palettes.GAMEBOY_GREEN_RGB,
     },
-    /*
     {
-        id:'gbc',
-        name:'Game Boy Color',
-        width:160,
-        height:144,
-        aspect:1,
-        conv:'DitheringCanvas',
-        pal:GAMEBOY_COLOR_RGB,
-        reduce:32,
+        // full-screen framebuffer dither into 32 GBC colors
+        id: 'gb.color',
+        name: 'Game Boy Color (full screen)',
+        width: 160,
+        height: 144,
+        scaleX: 10 / 9,
+        conv: 'DitheringCanvas',
+        pal: palettes.GAMEBOY_COLOR_RGB,
+        reduce: 32,
     },
-    */
+    {
+        // 128x128 = 16x16 tiles = 256 unique tiles, one base DMG tile area.
+        // All tiles share the single global 4-shade BGP palette.
+        id: 'gb.tiles',
+        name: 'Game Boy Classic (2bpp) (8x8) (16x16) Tiles',
+        width: 128,
+        height: 128,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.GAMEBOY_GREEN_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        reduce: 4,
+        toNative: 'exportGBTiles',
+    },
+    {
+        // 128x128 = 16x16 tiles = 256 unique tiles, exactly one GBC VRAM tile bank.
+        // Each tile selects one of eight shared 4-color BG palettes.
+        id: 'gb.color.tiles',
+        name: 'Game Boy Color (2bpp) (8x8) (16x16) Tile Palettes',
+        width: 128,
+        height: 128,
+        scaleX: 1,
+        conv: 'GBC_Canvas',
+        pal: palettes.GAMEBOY_COLOR_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: { colorsRange: { min: 0, max: 31 } },
+        reduce: 32,
+        toNative: 'exportGBC',
+    },
     {
         id: 'amiga.lores',
         name: 'Amiga (Lores)',

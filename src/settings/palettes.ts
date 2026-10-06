@@ -290,7 +290,8 @@ export const GAMEBOY_MONO_RGB = [
 ];
 
 export const RGB_444 = generateRGBPalette(4, 4, 4);
-export const GAMEBOY_COLOR_RGB = RGB_444;
+export const RGB_555 = generateRGBPalette(5, 5, 5);
+export const GAMEBOY_COLOR_RGB = RGB_555;
 export const AMIGA_OCS_COLOR_RGB = RGB_444;
 export const IIGS_COLOR_RGB = RGB_444;
 export const GAMEGEAR_COLOR_RGB = RGB_444;

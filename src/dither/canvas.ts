@@ -1,4 +1,4 @@
-import { getChoices, reducePaletteChoices, ColorChoice } from "../common/color";
+import { getChoices, reducePaletteChoices, intensity, ColorChoice } from "../common/color";
 import { PaletteChoices, PaletteRange  } from "../common/types";
 import {
     BaseDitheringCanvas,
@@ -885,6 +885,248 @@ export class SNES_Canvas_Direct extends CommonBlockParamDitherCanvas {
         this.updateBlockColorParam(offset, [ lowestPpp ], 0x3, 2);
     }
 
+}
+
+// Game Boy Color BG mode.
+//
+// The GBC has eight 4-color BG palettes (32 palette RAM entries). Every 8x8
+// tile selects one of those eight palettes via a 3-bit field in its BG map
+// attribute byte. Unlike the SNES direct-color canvas, the palette is not
+// encoded in the pixel's RGB value, so this canvas picks a palette per tile
+// and then restricts the tile's valid colors to that palette's four entries.
+//
+export interface GBC_CanvasContent extends ReturnType<CommonBlockParamDitherCanvas['content']> {
+    palettes: number[][];
+    palettesCount: number;
+    paletteColors: number;
+}
+
+export class GBC_Canvas extends CommonBlockParamDitherCanvas {
+
+    readonly palettesCount = 8;     // eight BG palettes
+    readonly paletteColors = 4;     // four colors per palette
+
+    // the palette indices (into this.pal) that make up each of the eight palettes
+    palettes: number[][] = [];
+
+    // scratch: perceptual distance between every pair of reduced-palette colors
+    colorDist: Float64Array = new Float64Array(0);
+
+    // scratch (per commit): how many pixels of the tiles assigned to each palette
+    // are closest to each of the reduced-palette colors
+    paletteHist: Uint32Array = new Uint32Array(0);
+
+    override prepare(): void {
+        super.prepare();
+        this.buildPalettes();
+    }
+
+    getPaletteBits(): number {
+        return Math.ceil(Math.log2(this.palettesCount));
+    }
+    getPaletteFilter(): number {
+        return (1 << this.getPaletteBits()) - 1;
+    }
+
+    // hue of a packed RGB color in [0,1); -1 for neutrals (undefined hue)
+    hueOf(rgb: number): number {
+        const r = (rgb & 0xff) / 255;
+        const g = ((rgb >> 8) & 0xff) / 255;
+        const b = ((rgb >> 16) & 0xff) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const d = max - min;
+        if (d === 0)
+            return -1;
+        let h: number;
+        if (max === r) h = ((g - b) / d) % 6;
+        else if (max === g) h = ((b - r) / d) + 2;
+        else h = ((r - g) / d) + 4;
+        h /= 6;
+        if (h < 0) h += 1;
+        return h;
+    }
+
+    // Seed the eight palettes from a hue sort of the reduced palette: every
+    // palette ends up covering a narrow, contiguous band of the hue circle
+    // (neutrals sort first and are ordered by intensity). The per-commit
+    // refinement below then re-picks each palette's entries from image usage.
+    buildPalettes(): void {
+        const P = this.palettesCount;
+        const C = this.paletteColors;
+        const N = this.pal.length;
+
+        this.colorDist = new Float64Array(N * N);
+        for (let i = 0; i < N; ++i) {
+            for (let j = 0; j < N; ++j) {
+                this.colorDist[i * N + j] = this.errfn(this.pal[i], this.pal[j]);
+            }
+        }
+
+        const sorted = range(0, N).sort((a, b) => {
+            const ha = this.hueOf(this.pal[a]);
+            const hb = this.hueOf(this.pal[b]);
+            // neutrals (hue -1) first, then by hue, then by intensity
+            const ka = (ha < 0 ? -1 : ha);
+            const kb = (hb < 0 ? -1 : hb);
+            if (ka !== kb) return ka - kb;
+            return intensity(this.pal[a]) - intensity(this.pal[b]);
+        });
+
+        let groups: number[][] = [];
+        for (let p = 0; p < P; ++p) {
+            let group: number[] = [];
+            for (let c = 0; c < C; ++c) {
+                let pos = p * C + c;    // contiguous hue chunk
+                pos = (N > 0) ? (pos % N) : 0;
+                group.push(sorted[pos] ?? 0);
+            }
+            groups.push(group);
+        }
+        this.palettes = groups;
+        this.paletteHist = new Uint32Array(P * N);
+    }
+
+    // Re-pick each palette's `paletteColors` entries to best cover the tiles
+    // that selected it last commit. Greedy set-cover over the per-palette pixel
+    // histogram, minimizing summed distance to the nearest chosen color.
+    refinePalettes(): void {
+        const P = this.palettesCount;
+        const C = this.paletteColors;
+        const N = this.pal.length;
+
+        for (let p = 0; p < P; ++p) {
+            const hist = this.paletteHist.subarray(p * N, (p + 1) * N);
+            let total = 0;
+            for (let c = 0; c < N; ++c) total += hist[c];
+            if (total === 0)
+                continue;   // no tiles assigned to this palette; leave it alone
+
+            const chosen: number[] = [];
+            const minDist = new Float64Array(N).fill(Infinity);
+
+            for (let k = 0; k < C; ++k) {
+                let bestS = -1;
+                let bestVal = Infinity;     // k=0: minimize total distance
+                let bestGain = -1;          // k>0: maximize error reduction
+
+                for (let s = 0; s < N; ++s) {
+                    if (chosen.includes(s))
+                        continue;
+                    let val = 0;
+                    let gain = 0;
+                    for (let c = 0; c < N; ++c) {
+                        if (hist[c] === 0)
+                            continue;
+                        const d = this.colorDist[c * N + s];
+                        if (k === 0)
+                            val += hist[c] * d;
+                        else if (d < minDist[c])
+                            gain += hist[c] * (minDist[c] - d);
+                    }
+                    if (k === 0) {
+                        if (val < bestVal) { bestVal = val; bestS = s; }
+                    } else {
+                        if (gain > bestGain) { bestGain = gain; bestS = s; }
+                    }
+                }
+
+                if (bestS < 0)
+                    break;
+                chosen.push(bestS);
+                for (let c = 0; c < N; ++c) {
+                    const d = this.colorDist[c * N + bestS];
+                    if (d < minDist[c]) minDist[c] = d;
+                }
+            }
+
+            // pad any remaining slots with the most-used colors not already picked
+            while (chosen.length < C) {
+                let bestS = -1;
+                let bestH = -1;
+                for (let s = 0; s < N; ++s) {
+                    if (chosen.includes(s)) continue;
+                    if (hist[s] > bestH) { bestH = hist[s]; bestS = s; }
+                }
+                if (bestS < 0) break;
+                chosen.push(bestS);
+            }
+            while (chosen.length < C)
+                chosen.push(chosen[0] ?? 0);
+
+            this.palettes[p] = chosen;
+        }
+    }
+
+    override guessBlockParams(): void {
+        if (this.fullPaletteMode) {
+            super.guessBlockParams();
+            return;
+        }
+
+        this.paletteHist.fill(0);
+        super.guessBlockParams();
+
+        // freeze the palettes partway through so the dither can settle
+        if (this.iterateCount <= MAX_ITERATE_COUNT / 2)
+            this.refinePalettes();
+    }
+
+    paletteForImageIndex(imageIndex: number): number {
+        let offset = this.imageIndexToBlockOffset(imageIndex);
+        let extracted = this.extractColorsFromBlockParams(offset, 1, this.getPaletteFilter(), this.getPaletteBits());
+        return extracted[0] ?? 0;
+    }
+
+    override getValidColors(imageIndex: number): number[] {
+        if (this.fullPaletteMode)
+            return this.pixelPaletteChoices;
+        let p = this.paletteForImageIndex(imageIndex);
+        return this.palettes[p] ?? this.pixelPaletteChoices;
+    }
+
+    override guessBlockParam(offset: number): void {
+        if (this.fullPaletteMode)
+            return;
+
+        // reset histogram values
+        this.histogram.fill(0);
+        this.scores.fill(0);
+
+        // rank all colors within the block (and bordering values)
+        if (!this.firstCommit)
+            this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
+        this.addToBlockHistogramFrom(offset, this.histogram, this.scores, this.pixelPaletteChoices, this.firstCommit ? this.ref : this.alt);
+
+        // pick the palette whose four colors best cover this tile (lowest summed score)
+        let best = 0;
+        let bestScore = NaN;
+        for (let p = 0; p < this.palettes.length; ++p) {
+            let score = 0;
+            for (let c of this.palettes[p])
+                score += this.scores[c];
+            if (Number.isNaN(bestScore) || (score < bestScore)) {
+                bestScore = score;
+                best = p;
+            }
+        }
+
+        this.updateBlockColorParam(offset, [best], this.getPaletteFilter(), this.getPaletteBits());
+
+        // accumulate this tile's target histogram for the palette refinement
+        const N = this.pal.length;
+        for (let c = 0; c < N; ++c)
+            this.paletteHist[best * N + c] += this.histogram[c];
+    }
+
+    override content(): GBC_CanvasContent {
+        return {
+            ...super.content(),
+            palettes: this.palettes,
+            palettesCount: this.palettesCount,
+            paletteColors: this.paletteColors,
+        };
+    }
 }
 
 export class NES_Canvas extends BasicParamDitherCanvas {

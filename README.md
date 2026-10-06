@@ -201,6 +201,9 @@ button. The second group can only be previewed and/or downloaded.
 * PICO-8 - 128 x 128, 16 colors
 * TIC-80 - 240 x 136, 16 colors
 * Game Boy Classic - 160 x 144, 4 colors
+* Game Boy Color - 160 x 144, 32 out of 32768 colors
+* Game Boy Classic (2bpp) (8x8) (16x16) Tiles - 128 x 128, 4 colors, 256 unique tiles
+* Game Boy Color (2bpp) (8x8) (16x16) Tile Palettes - 128 x 128, 4 colors per 8x8 tile, 8 shared BG palettes (tile attributes)
 * Amiga (Lores) - 320 x 256, 32 out of 4096 colors
 * Amiga (Lores, HAM6) - 320 x 256, 16 out of 4096 colors
 * Commander X16 (Lores) - 320 x 240, 256 out of 4096 colors
