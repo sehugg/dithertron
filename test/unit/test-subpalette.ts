@@ -269,3 +269,67 @@ t.test('neo.geopocket export', async t => {
 
     t.comment(`neo.geopocket converged in ${iters} iters`);
 });
+
+// Genesis: four shared 16-color palette lines whose slot 0 is the shared
+// backdrop color, 4bpp linear tiles, big-endian 16-bit tilemap entries (palette
+// in bits 13-14) and big-endian 9-bit CRAM (0000BBB0GGG0RRR0).
+t.test('genesis.tiles export', async t => {
+    const { dt, last, iters } = await converge('genesis.tiles', {
+        diffuse: 0.75, noise: 5, ordered: 0, ditherfn: kernels.SIERRALITE, paletteDiversity: 0.95,
+    });
+    const canv: any = dt.dithcanv!;
+    const content: any = last.content;
+    const columns = content.block.columns;
+    const tiles = columns * content.block.rows;
+
+    t.equal(tiles, 1120, '320x224 is 40x28 tiles');
+    t.ok(iters < 20, 'converged quickly with diffusion');
+    t.equal(canv.changes, 0, 'no pixels changing at the end');
+    t.equal(content.palettesCount, 4, 'four palette lines');
+    t.equal(content.paletteColors, 16, 'sixteen colors per line');
+
+    // slot 0 is the same color in every line
+    for (let p = 1; p < 4; p++)
+        t.equal(last.pal[p * 16], last.pal[0], `line ${p} slot 0 is the shared backdrop`);
+
+    // every color has only 3 bits per channel (8 levels, each recoverable from the top 3 bits)
+    const levels = new Set<number>();
+    for (let i = 0; i < 64; i++) {
+        const rgb = last.pal[i];
+        for (const v of [rgb & 0xff, (rgb >> 8) & 0xff, (rgb >> 16) & 0xff])
+            levels.add(v);
+    }
+    t.ok(levels.size <= 8, 'working palette only has 9-bit colors');
+    t.equal(new Set(Array.from(levels).map(v => v >> 5)).size, levels.size, 'each level has its own 3-bit value');
+
+    const out = exportfuncs.exportGenesisTiles(last, dt.sysparams);
+    t.equal(out.length, tiles * 32 + tiles * 2 + 4 * 16 * 2, 'native export size');
+
+    let badPixel = 0;
+    let badMap = 0;
+    for (let y = 0; y < content.height; y++) {
+        for (let x = 0; x < content.width; x++) {
+            const tile = Math.floor(y / 8) * columns + Math.floor(x / 8);
+            const byte = out[tile * 32 + (y % 8) * 4 + ((x % 8) >> 1)];
+            const nibble = (x & 1) ? (byte & 15) : (byte >> 4);
+            const index = canv.indexed[y * content.width + x];
+            if (nibble !== (index & 15)) badPixel++;
+
+            const entry = (out[tiles * 32 + tile * 2] << 8) | out[tiles * 32 + tile * 2 + 1];
+            if ((entry & 0x7ff) !== tile || ((entry >> 13) & 3) !== (index >> 4)) badMap++;
+        }
+    }
+    t.equal(badPixel, 0, 'tile data is linear 4bpp, leftmost pixel in the high nibble');
+    t.equal(badMap, 0, 'tilemap is big-endian with the pixel\'s palette line in bits 13-14');
+
+    let badCram = 0;
+    const cram = tiles * 32 + tiles * 2;
+    for (let i = 0; i < 64; i++) {
+        const rgb = last.pal[i];
+        const want = (((rgb & 0xff) >> 5) << 1) | ((((rgb >> 8) & 0xff) >> 5) << 5) | ((((rgb >> 16) & 0xff) >> 5) << 9);
+        if ((out[cram + i * 2] << 8 | out[cram + i * 2 + 1]) !== want) badCram++;
+    }
+    t.equal(badCram, 0, 'CRAM matches the working palette as big-endian 9-bit colors');
+
+    t.comment(`genesis.tiles converged in ${iters} iters`);
+});

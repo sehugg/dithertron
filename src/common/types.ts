@@ -98,7 +98,9 @@ export interface DithertronSettings {
     // sub-palettes (e.g. GBC, Genesis, Game Gear). `count` sub-palettes are each
     // made of `colors` entries; `colors` defaults to block.colors. The reduced
     // palette length should be count * colors.
-    subPalettes?: { count: number; colors?: number };
+    // `sharedFirstColor`: slot 0 is the same color in every sub-palette (e.g. the
+    // Genesis, where index 0 of every palette shows the backdrop color).
+    subPalettes?: { count: number; colors?: number; sharedFirstColor?: boolean };
     fli?: Fli;
     customize?: any;
     toNative?: string;

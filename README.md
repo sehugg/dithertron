@@ -167,8 +167,9 @@ previewed and/or downloaded as an image.
 * SNES (Mode 7) - 256 x 256, 256 out of 32768 colors, 256 colors per 8x8 block
 * Neo Geo Pocket Color - 160 x 152, 64 out of 4096 colors, 4 colors per 8x8 block, 16 shared palettes
 * Virtual Boy - 256 x 256, 4 out of 32768 colors, 4 colors per 8x8 block
-* Sega Game Gear (4bpp linear) - 256 x 256, 16 out of 32768 colors, 16 colors per 8x8 block
-* Genesis/x68k (4bpp) - 256 x 256, 16 out of 32768 colors, 16 colors per 8x8 block
+* Sega Game Gear (4bpp linear) - 256 x 256, 16 out of 4096 colors, 16 colors per 8x8 block
+* Genesis (4bpp) - 256 x 256, 16 out of 512 colors, 16 colors per 8x8 block
+* Genesis (Tile Palettes) - 320 x 224, 64 out of 512 colors, 16 colors per 8x8 tile, 4 shared palettes with a shared backdrop color
 * SNES (Direct Color) - 256 x 256, 2048 colors, 2048 colors per 8x8 block
 * Intellivision (FGBG) - 64 x 64, 16 colors, 2 colors per 8x8 block
 * Intellivision (Color Stack, GROM) - 160 x 96, 16 colors, 2 colors per 8x8 block

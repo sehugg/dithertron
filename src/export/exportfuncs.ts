@@ -1846,11 +1846,13 @@ function encodeSubPaletteAttributes(content: SubPaletteContent): Uint8Array {
 // Encode the palette RAM for a sub-palette system. The working palette is in
 // (palette, slot) order, so entry (p, c) is message.pal[p * paletteColors + c].
 // The packing is chosen with settings.customize.subPalettePaletteFormat:
-//   'rgb555' (default), 'rgb444' (Game Gear / Master System), 'rgb333' (Genesis).
+//   'rgb555' (default) 0BBBBBGGGGGRRRRR little-endian (Game Boy Color)
+//   'rgb444' 0000BBBBGGGGRRRR little-endian (Game Gear, Neo Geo Pocket Color)
+//   'genesis' 0000BBB0GGG0RRR0 big-endian (Genesis CRAM)
 function encodeSubPaletteRAM(message: PixelsAvailableMessage, content: SubPaletteContent, settings: DithertronSettings): Uint8Array {
     const paletteCount = content.palettesCount ?? 0;
     const paletteColors = content.paletteColors ?? 0;
-    const format: string = (settings.customize === undefined ? 'rgb555' : (settings.customize.subPalettePaletteFormat ?? 'rgb555'));
+    const format: string = settings.customize?.subPalettePaletteFormat ?? 'rgb555';
 
     let data = new Uint8Array(paletteCount * paletteColors * 2);
     for (let p = 0; p < paletteCount; ++p) {
@@ -1862,13 +1864,14 @@ function encodeSubPaletteRAM(message: PixelsAvailableMessage, content: SubPalett
             let value: number;
             if (format === 'rgb444')
                 value = ((r >> 4) & 0xf) | (((g >> 4) & 0xf) << 4) | (((b >> 4) & 0xf) << 8);
-            else if (format === 'rgb333')
-                value = ((r >> 5) & 0x7) | (((g >> 5) & 0x7) << 3) | (((b >> 5) & 0x7) << 6);
+            else if (format === 'genesis')
+                value = (((r >> 5) & 0x7) << 1) | (((g >> 5) & 0x7) << 5) | (((b >> 5) & 0x7) << 9);
             else
                 value = ((r >> 3) & 0x1f) | (((g >> 3) & 0x1f) << 5) | (((b >> 3) & 0x1f) << 10);
             let ofs = (p * paletteColors + c) * 2;
-            data[ofs] = value & 0xff;
-            data[ofs + 1] = (value >> 8) & 0xff;
+            let bigEndian = (format === 'genesis');
+            data[ofs + (bigEndian ? 1 : 0)] = value & 0xff;
+            data[ofs + (bigEndian ? 0 : 1)] = (value >> 8) & 0xff;
         }
     }
     return data;
@@ -1892,17 +1895,17 @@ export function exportGBC(message: PixelsAvailableMessage, settings: DithertronS
     ]);
 }
 
-// 16-bit little-endian tilemap entries for a sub-palette system: identity tile
-// index (one unique tile per map cell, row-major) in the low bits and the
-// tile's palette number at bit `paletteShift`.
-function encodeSubPaletteNameTable(content: SubPaletteContent, paletteShift: number): Uint8Array {
+// 16-bit tilemap entries for a sub-palette system (little-endian unless
+// `bigEndian`): identity tile index (one unique tile per map cell, row-major)
+// in the low bits and the tile's palette number at bit `paletteShift`.
+function encodeSubPaletteNameTable(content: SubPaletteContent, paletteShift: number, bigEndian: boolean = false): Uint8Array {
     let tiles = content.block.columns * content.block.rows;
     let paletteNumbers = encodeSubPaletteAttributes(content);
     let nameTable = new Uint8Array(tiles * 2);
     for (let i = 0; i < tiles; ++i) {
         let entry = i | (paletteNumbers[i] << paletteShift);
-        nameTable[i * 2] = entry & 0xff;
-        nameTable[i * 2 + 1] = (entry >> 8) & 0xff;
+        nameTable[i * 2 + (bigEndian ? 1 : 0)] = entry & 0xff;
+        nameTable[i * 2 + (bigEndian ? 0 : 1)] = (entry >> 8) & 0xff;
     }
     return nameTable;
 }
@@ -1953,6 +1956,37 @@ export function exportNeoGeoPocketTiles(message: PixelsAvailableMessage, setting
     return concatArrays([
         tileData,
         encodeSubPaletteNameTable(content, 9),
+        encodeSubPaletteRAM(message, content, settings),
+    ]);
+}
+
+// Sega Genesis native export (shared sub-palette tiles):
+//   [tile data] [name table] [CRAM]
+// Tile data is 4bpp linear (32 bytes/tile, four bytes per pixel row, leftmost
+// pixel in the high nibble). The name table has one 16-bit big-endian entry per
+// tile: tile index in bits 0-10 (identity mapping, at most 2048 tiles) and the
+// palette line in bits 13-14. CRAM is 4 palettes x 16 entries of 0000BBB0GGG0RRR0
+// big-endian. Slot 0 of every palette is the shared backdrop color.
+export function exportGenesisTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    let content = message.content as SubPaletteContent;
+    let columns = content.block.columns;
+    let tiles = columns * content.block.rows;
+    runtime_assert(tiles <= 2048);
+
+    let tileData = new Uint8Array(tiles * 32);
+    for (let y = 0; y < content.height; ++y) {
+        for (let x = 0; x < content.width; ++x) {
+            let tileIndex = Math.floor(y / content.block.h) * columns + Math.floor(x / content.block.w);
+            let pixelColumn = x % content.block.w;
+            let ofs = tileIndex * 32 + (y % content.block.h) * 4 + (pixelColumn >> 1);
+            let nibble = message.indexed[y * content.width + x] & 0xf;
+            tileData[ofs] |= (pixelColumn & 1) ? nibble : (nibble << 4);
+        }
+    }
+
+    return concatArrays([
+        tileData,
+        encodeSubPaletteNameTable(content, 13, true),
         encodeSubPaletteRAM(message, content, settings),
     ]);
 }

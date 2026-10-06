@@ -919,6 +919,9 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
     palettesCount: number = 0;
     paletteColors: number = 0;
 
+    // slot 0 holds the same color in every sub-palette
+    sharedFirstColor: boolean = false;
+
     // the original reduced-palette indices that make up each sub-palette
     palettes: number[][] = [];
 
@@ -938,6 +941,7 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
         const sp = this.sys.subPalettes;
         this.palettesCount = sp?.count ?? (this.palettesCount || 8);
         this.paletteColors = sp?.colors ?? (this.paletteColors || this.block.colors);
+        this.sharedFirstColor = sp?.sharedFirstColor ?? this.sharedFirstColor;
 
         this.buildPalettes();
     }
@@ -1025,6 +1029,17 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
             }
             groups.push(group);
         }
+        if (this.sharedFirstColor) {
+            const shared = groups[0][0];
+            for (let p = 1; p < P; ++p) {
+                const rest = groups[p].filter((c) => c !== shared);
+                for (let pos = 0; rest.length < C - 1; ++pos) {
+                    const c = sorted[pos % N];
+                    if (c !== shared && !rest.includes(c)) rest.push(c);
+                }
+                groups[p] = [shared, ...rest.slice(0, C - 1)];
+            }
+        }
         this.palettes = groups;
         this.paletteHist = new Uint32Array(P * N);
 
@@ -1050,7 +1065,17 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
             const chosen: number[] = [];
             const minDist = new Float64Array(N).fill(Infinity);
 
-            for (let k = 0; k < C; ++k) {
+            // later palettes start from the shared color in slot 0
+            let first = 0;
+            if (this.sharedFirstColor && p > 0) {
+                const shared = this.palettes[0][0];
+                chosen.push(shared);
+                for (let c = 0; c < N; ++c)
+                    minDist[c] = this.colorDist[c * N + shared];
+                first = 1;
+            }
+
+            for (let k = first; k < C; ++k) {
                 let bestS = -1;
                 let bestVal = Infinity;     // k=0: minimize total distance
                 let bestGain = -1;          // k>0: maximize error reduction
@@ -1100,6 +1125,22 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
                 chosen.push(chosen[0] ?? 0);
 
             this.palettes[p] = this.keepSlots(this.palettes[p], chosen);
+        }
+
+        if (this.sharedFirstColor)
+            this.shareFirstColor();
+    }
+
+    // Make slot 0 of every palette the first color of palette 0, swapping it into
+    // place when the palette already holds that color in another slot.
+    shareFirstColor(): void {
+        const shared = this.palettes[0][0];
+        for (let p = 1; p < this.palettesCount; ++p) {
+            const palette = this.palettes[p];
+            const at = palette.indexOf(shared);
+            if (at > 0)
+                palette[at] = palette[0];
+            palette[0] = shared;
         }
     }
 

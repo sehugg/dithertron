@@ -548,7 +548,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         height: 32*8,
         scaleX: 1,
         conv: 'SNES_Canvas',
-        pal: palettes.SNES_B5G5R5_RGB,
+        pal: palettes.GAMEGEAR_COLOR_RGB,
         block: { w: 8, h: 8, colors: 16, msbToLsb: false },
         cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
@@ -563,12 +563,12 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'genesis',
-        name: 'Genesis/x68k (4bpp)',
+        name: 'Genesis (4bpp)',
         width: 32*8,
         height: 32*8,
         scaleX: 1,
         conv: 'SNES_Canvas',
-        pal: palettes.SNES_B5G5R5_RGB,
+        pal: palettes.GENESIS_RGB,
         block: { w: 8, h: 8, colors: 16, msbToLsb: false },
         cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
@@ -580,6 +580,25 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         customize: { outputTileset: false, outputPalette: false, bitsInPlane: 4, planes: 1, planeLittleEndian: true },
         reduce: 16,
         toNative:'exportSNES'
+    },
+    {
+        // 320x224 = 40x28 tiles = 1120 unique tiles. Each tile selects one of
+        // the four shared 16-color palette lines (64 CRAM entries of 512 colors);
+        // slot 0 of every line is the shared backdrop color.
+        id: 'genesis.tiles',
+        name: 'Genesis (Tile Palettes)',
+        width: 320,
+        height: 224,
+        scaleX: 1,
+        conv: 'SubPalette_Canvas',
+        pal: palettes.GENESIS_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 4, colors: 16, sharedFirstColor: true },
+        paletteChoices: { colorsRange: { min: 0, max: 63 } },
+        reduce: 64,
+        customize: { subPalettePaletteFormat: 'genesis' },
+        toNative: 'exportGenesisTiles',
     },
     {
         id: 'snes.8bpp.direct',
