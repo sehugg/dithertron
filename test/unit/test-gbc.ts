@@ -75,6 +75,50 @@ t.test('gb.color.tiles tile attributes', async t => {
     t.comment(`gb.color.tiles converged in ${iters} iters, ${out.length} exported bytes`);
 });
 
+// The export must encode exactly what the old (pre sub-palette refactor) logic
+// did: palette RAM from the chosen base colors as RGB555, and 2bpp tile data
+// holding each pixel's slot within its tile's palette.
+t.test('gb.color.tiles export bytes', async t => {
+    const { dt, last } = await converge('gb.color.tiles');
+    const canv: any = dt.dithcanv!;
+    const content: any = last.content;
+    const out = exportfuncs.exportGBC(last, dt.sysparams);
+    const tiles = 256;
+
+    // palette RAM: old logic looked colors up as basePal[palettes[p][c]]
+    let badPal = 0;
+    const ramOffset = tiles * 16 + tiles;
+    for (let p = 0; p < 8; p++) {
+        for (let c = 0; c < 4; c++) {
+            const rgb = canv.basePal[content.palettes[p][c]];
+            const rgb555 = ((rgb & 0xff) >> 3) | (((rgb >> 8 & 0xff) >> 3) << 5) | (((rgb >> 16 & 0xff) >> 3) << 10);
+            const ofs = ramOffset + (p * 4 + c) * 2;
+            if (out[ofs] !== (rgb555 & 0xff) || out[ofs + 1] !== (rgb555 >> 8)) badPal++;
+        }
+    }
+    t.equal(badPal, 0, 'palette RAM matches the chosen base colors');
+
+    // tile data: decode every pixel's 2-bit slot and compare with its index
+    let badPixel = 0;
+    for (let y = 0; y < content.height; y++) {
+        for (let x = 0; x < content.width; x++) {
+            const tile = Math.floor(y / 8) * content.block.columns + Math.floor(x / 8);
+            const shift = 7 - (x % 8);
+            const lo = (out[tile * 16 + (y % 8)] >> shift) & 1;
+            const hi = (out[tile * 16 + (y % 8) + 8] >> shift) & 1;
+            if ((hi << 1 | lo) !== (canv.indexed[y * content.width + x] & 3)) badPixel++;
+        }
+    }
+    t.equal(badPixel, 0, 'tile data holds each pixel\'s slot in its palette');
+
+    // the colors those slots resolve to are the pixels shown on screen
+    let badShown = 0;
+    for (let i = 0; i < canv.img.length; i++) {
+        if (canv.img[i] !== last.pal[canv.indexed[i]]) badShown++;
+    }
+    t.equal(badShown, 0, 'displayed pixels match palette RAM entries');
+});
+
 // Regression: with the UI's default error diffusion and noise, tiles used to
 // flip between palettes every pass (choosing from the error-diffused image),
 // so the picture flashed and never converged.
