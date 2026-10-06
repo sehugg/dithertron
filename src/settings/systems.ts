@@ -722,6 +722,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'nes4f',
+        caveat: "960 unique tiles; a plain NES holds 256 background tiles, so this needs CHR bank switching or a mapper like MMC5",
         name: 'NES (4 color, full screen)',
         width: 256,
         height: 240,
@@ -733,6 +734,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'nes5f',
+        caveat: "960 unique tiles (needs CHR bank switching or MMC5), and the export omits the attribute table that carries the 5th color",
         name: 'NES (5 color, full screen)',
         width: 256,
         height: 240,
@@ -991,6 +993,27 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
 
     // null == separator: systems above can be exported natively and/or run in
     // the IDE, systems below can only be previewed and/or downloaded as images
+    {
+        id: 'amiga.lores',
+        name: 'Amiga (Lores)',
+        width: 320,
+        height: 256,
+        conv: 'DitheringCanvas',
+        pal: palettes.AMIGA_OCS_COLOR_RGB,
+        reduce: 32,
+        toNative: 'exportAmiga',
+    },
+    {
+        id: 'amiga.lores.ham6',
+        name: 'Amiga (Lores, HAM6)',
+        width: 320,
+        height: 256,
+        conv: 'HAM6_Canvas',
+        pal: palettes.AMIGA_OCS_COLOR_RGB,
+        reduce: 16,
+        extraColors: 48,
+        toNative: 'exportAmigaHAM6',
+    },
     null,
 
     {
@@ -1115,6 +1138,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     {
         // full-screen framebuffer dither into 32 GBC colors
         id: 'gb.color',
+        caveat: "32 colors on screen, but each tile may use only one of the eight 4-color palettes. Use the Tile Palettes variant",
         name: 'Game Boy Color (full screen)',
         width: 160,
         height: 144,
@@ -1122,29 +1146,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'DitheringCanvas',
         pal: palettes.GAMEBOY_COLOR_RGB,
         reduce: 32,
-    },
-    {
-        id: 'amiga.lores',
-        name: 'Amiga (Lores)',
-        width: 320,
-        height: 256,
-        conv: 'DitheringCanvas',
-        pal: palettes.AMIGA_OCS_COLOR_RGB,
-        reduce: 32,
-        //toNative:'exportFrameBuffer',
-        //exportFormat:{bpp:1,brev:true,np:5},
-    },
-    {
-        id: 'amiga.lores.ham6',
-        name: 'Amiga (Lores, HAM6)',
-        width: 320,
-        height: 256,
-        conv: 'HAM6_Canvas',
-        pal: palettes.AMIGA_OCS_COLOR_RGB,
-        reduce: 16,
-        extraColors: 48,
-        //toNative:'exportFrameBuffer',
-        //exportFormat:{bpp:1,brev:true,np:6},
     },
     {
         id: 'cx16.lores',
@@ -1158,9 +1159,9 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'cx16.hires',
-        name: 'Commander X16 (Hires, cropped)',
+        name: 'Commander X16 (Hires)',
         width: 640,
-        height: 400,
+        height: 480,
         scaleX: 1,
         conv: 'DitheringCanvas',
         pal: palettes.AMIGA_OCS_COLOR_RGB,

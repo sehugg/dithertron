@@ -1999,6 +1999,46 @@ export function exportGenesisTiles(message: PixelsAvailableMessage, settings: Di
     ]);
 }
 
+// Amiga OCS native export:
+//   [color registers] [bitplane 0] [bitplane 1] ...
+// Color registers are 16-bit big-endian 0x0RGB words. Each bitplane is
+// width/8 bytes per row, rows top to bottom, leftmost pixel in the high bit.
+// `value` maps a pixel's palette index to the bits stored across the planes.
+function encodeAmiga(img: PixelsAvailableMessage, colors: number, planes: number, value: (index: number) => number): Uint8Array {
+    let rowBytes = img.width / 8;
+    let data = new Uint8Array(colors * 2 + planes * rowBytes * img.height);
+    for (let c = 0; c < colors; ++c) {
+        let rgb = img.pal[c] ?? 0;
+        let word = ((rgb & 0xff) >> 4 << 8) | (((rgb >> 8) & 0xff) >> 4 << 4) | (((rgb >> 16) & 0xff) >> 4);
+        data[c * 2] = word >> 8;
+        data[c * 2 + 1] = word & 0xff;
+    }
+    for (let y = 0; y < img.height; ++y) {
+        for (let x = 0; x < img.width; ++x) {
+            let v = value(img.indexed[y * img.width + x]);
+            for (let p = 0; p < planes; ++p) {
+                let ofs = colors * 2 + p * rowBytes * img.height + y * rowBytes + (x >> 3);
+                data[ofs] |= ((v >> p) & 1) << (7 - (x & 7));
+            }
+        }
+    }
+    return data;
+}
+
+// 32 colors, 5 bitplanes.
+export function exportAmiga(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    return encodeAmiga(img, 32, 5, (index) => index);
+}
+
+// HAM6: 16 base colors and 6 bitplanes. Plane bits 4-5 are the control code
+// (0 = base color, 1 = modify blue, 2 = modify red, 3 = modify green) and
+// bits 0-3 the base color number or the new channel value. HAM6_Canvas lays
+// out its indices as 0-15 base, 16-31 red, 32-47 green, 48-63 blue.
+export function exportAmigaHAM6(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    const control = [0, 2, 3, 1];
+    return encodeAmiga(img, 16, 6, (index) => (control[index >> 4] << 4) | (index & 15));
+}
+
 export function exportNES(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     var i = 0;
     var cols = img.width / 8;

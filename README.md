@@ -182,6 +182,8 @@ previewed and/or downloaded as an image.
 * NES (5 color, full screen) - 256 x 240, 5 out of 64 colors
 * Sega Game Gear (Tile Palettes) - 128 x 128, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
 * Sega Master System (Tile Palettes) - 176 x 144, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
+* Amiga (Lores) - 320 x 256, 32 out of 4096 colors
+* Amiga (Lores, HAM6) - 320 x 256, 16 out of 4096 colors
 * Apple ][ (Lores) - 40 x 48, 16 colors
 * PC CGA (Mode 04h, palette 1) - 320 x 200, 4 colors
 * PC CGA (Mode 04h, bright 1) - 320 x 200, 4 colors
@@ -217,8 +219,6 @@ previewed and/or downloaded as an image.
 * TIC-80 - 240 x 136, 16 colors
 * Game Boy Classic (full screen) - 160 x 144, 4 colors
 * Game Boy Color (full screen) - 160 x 144, 32 out of 32768 colors
-* Amiga (Lores) - 320 x 256, 32 out of 4096 colors
-* Amiga (Lores, HAM6) - 320 x 256, 16 out of 4096 colors
 * Commander X16 (Lores) - 320 x 240, 256 out of 4096 colors
 * Commander X16 (Hires, cropped) - 640 x 400, 16 out of 4096 colors
 * Compucolor - 160 x 192, 16 colors, 2 colors per 2x4 block

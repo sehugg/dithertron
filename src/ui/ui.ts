@@ -228,15 +228,10 @@ function getSystemInfo(sys: DithertronSettings) {
     return s;
 }
 
-// Systems with neither a native export nor an IDE viewer can only be previewed
-// or saved as an image, so they may not match the real hardware's constraints.
-function isPreviewOnly(sys: DithertronSettings) {
-    return !sys.toNative && !getCodeConvertFunction(sys);
-}
-
 function showSystemInfo(sys: DithertronSettings) {
-    $("#targetFormatInfo").text(getSystemInfo(sys) + (isPreviewOnly(sys) ? " *" : ""))
-        .attr('title', isPreviewOnly(sys) ? "* preview only: no hardware-accurate export" : "");
+    // a caveat means the output can't be shown as-is on the real hardware
+    $("#targetFormatInfo").text(getSystemInfo(sys) + (sys.caveat ? " *" : ""))
+        .attr('title', sys.caveat || "");
 }
 
 function updatePaletteSwatches(pal: Uint32Array) {
@@ -347,8 +342,8 @@ function byteArrayToString(data: number[] | Uint8Array): string {
     }
     return str;
 }
-function getCodeConvertFunction(sys: DithertronSettings = dithertron.settings): () => string {
-    var convertFuncName = 'getFileViewerCode_' + sys.id.replace(/[^a-z0-9]/g, '_');
+function getCodeConvertFunction(): () => string {
+    var convertFuncName = 'getFileViewerCode_' + dithertron.settings.id.replace(/[^a-z0-9]/g, '_');
     var convertFunc = fileviewers[convertFuncName];
     return convertFunc;
 }

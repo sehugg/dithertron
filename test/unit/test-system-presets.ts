@@ -95,6 +95,7 @@ t.test('exportable systems are above the separator', async t => {
     const separator = SYSTEMS.indexOf(null);
     t.ok(separator > 0, 'there is a separator');
     SYSTEMS.forEach((s, i) => {
+        if (s && s.caveat !== undefined) t.ok(s.caveat.trim().length > 10, `${s.id} caveat explains the limitation`);
         if (s && s.toNative) t.ok(i < separator, `${s.id} has toNative and is above the separator`);
     });
     t.equal(SYSTEMS[0]!.id, 'c64.multi', 'the default system is first');

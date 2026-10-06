@@ -1332,23 +1332,22 @@ export class NES_Canvas extends BasicParamDitherCanvas {
     }
 }
 
+// Amiga Hold-And-Modify: pixels 0-15 pick a base palette entry, and pixels
+// 16-63 hold the previous pixel and replace one channel with a 4-bit value
+// (red, green, blue in that order). The held color restarts from palette
+// entry 0 at the start of every scanline.
 export class HAM6_Canvas extends DitheringCanvas {
     getValidColors(offset: number): number[] {
-        let arr = super.getValidColors(offset);
-        if (offset == 0) {
-            arr = arr.slice(0, 16);
-        } else {
-            let palindex = 16;
-            let prevrgb = this.img[offset - 1];
-            for (let chan = 0; chan < 3; chan++) {
-                for (let i = 0; i < 16; i++) {
-                    let rgb = prevrgb;
-                    rgb &= ~(0xff << (chan * 8));
-                    rgb |= (i << 4) << (chan * 8);
-                    this.pal[palindex++] = rgb;
-                }
+        let prevrgb = (offset % this.width == 0) ? this.pal[0] : this.img[offset - 1];
+        let palindex = 16;
+        for (let chan = 0; chan < 3; chan++) {
+            for (let i = 0; i < 16; i++) {
+                let rgb = prevrgb;
+                rgb &= ~(0xff << (chan * 8));
+                rgb |= (i * 17) << (chan * 8);
+                this.pal[palindex++] = rgb;
             }
         }
-        return arr;
+        return super.getValidColors(offset);
     }
 }

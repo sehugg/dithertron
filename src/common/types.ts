@@ -104,6 +104,10 @@ export interface DithertronSettings {
     fli?: Fli;
     customize?: any;
     toNative?: string;
+    // Why the output can't be shown as-is on the real hardware (shown as a * and
+    // tooltip in the UI). Leave unset for systems that are faithful, including
+    // ones that simply don't have an exporter yet.
+    caveat?: string;
     exportFormat?: PixelEditorImageFormat;
 }
 
