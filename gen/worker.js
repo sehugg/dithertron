@@ -1,6 +1,24 @@
 "use strict";
 (() => {
   var __defProp = Object.defineProperty;
+  var __defProps = Object.defineProperties;
+  var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
+  var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __propIsEnum = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    if (__getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(b)) {
+        if (__propIsEnum.call(b, prop))
+          __defNormalProp(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
@@ -846,10 +864,15 @@
     1027212,
     1035436
   ];
+  var RGB_333 = generateRGBPalette(3, 3, 3);
   var RGB_444 = generateRGBPalette(4, 4, 4);
+  var RGB_555 = generateRGBPalette(5, 5, 5);
+  var GAMEBOY_COLOR_RGB = RGB_555;
   var AMIGA_OCS_COLOR_RGB = RGB_444;
   var IIGS_COLOR_RGB = RGB_444;
   var GAMEGEAR_COLOR_RGB = RGB_444;
+  var NEOGEO_POCKET_COLOR_RGB = RGB_444;
+  var GENESIS_RGB = RGB_333;
   var SNES_B5G5R5_RGB = generateSNESB5G5R5();
   var SNES_BBPGGGPRRRP = generateSNESDirectColor();
   var MC6847_PALETTE0 = [
@@ -1247,8 +1270,6 @@
       toNative: "exportFrameBuffer",
       exportFormat: { bpp: 2, yremap: [3, 80, 2048], bitremap: [7, 3, 6, 2, 5, 1, 4, 0] }
     },
-    // null == separator, systems with runnable source code are above
-    null,
     {
       id: "vic20.hires",
       name: "VIC-20 Hires",
@@ -1299,7 +1320,7 @@
     },
     {
       id: "nes.1bpp",
-      name: "NES (1bpp) (8x8) (32x32) Planar",
+      name: "NES (1bpp tiles)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1321,7 +1342,7 @@
     },
     {
       id: "nes.2bpp",
-      name: "NES (2bpp) (8x8) (32x32) Planar",
+      name: "NES (2bpp tiles)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1341,7 +1362,7 @@
     },
     {
       id: "snes.2bpp",
-      name: "SNES (+Gameboy/GBC) (2bpp) (8x8) (32x32) Planar",
+      name: "SNES (2bpp)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1361,7 +1382,7 @@
     },
     {
       id: "snes.3bpp",
-      name: "SNES (3bpp) (8x8) (32x32) Planar",
+      name: "SNES (3bpp)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1381,7 +1402,7 @@
     },
     {
       id: "snes.4bpp",
-      name: "SNES (4bpp) (8x8) (32x32) Planar",
+      name: "SNES (4bpp)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1401,7 +1422,7 @@
     },
     {
       id: "snes.8bpp",
-      name: "SNES (8bpp) (8x8) (32x32) Planar",
+      name: "SNES (8bpp)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1421,7 +1442,7 @@
     },
     {
       id: "snes.mode7",
-      name: "SNES (Mode 7) (8bpp) (8x8) (32x32)",
+      name: "SNES (Mode 7)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1440,28 +1461,26 @@
       toNative: "exportSNES"
     },
     {
+      // 160x152 = 20x19 tiles = 380 unique tiles, within the 512 tile limit.
+      // Each tile selects one of sixteen shared 4-color palettes (12-bit color).
       id: "neo.geopocket",
-      name: "NEO Geo Pocket Color (2pp) (8x8) (32x32)",
-      width: 32 * 8,
-      height: 32 * 8,
+      name: "Neo Geo Pocket Color",
+      width: 160,
+      height: 152,
       scaleX: 1,
-      conv: "SNES_Canvas",
-      pal: SNES_B5G5R5_RGB,
-      block: { w: 8, h: 8, colors: 256, msbToLsb: false },
+      conv: "SubPalette_Canvas",
+      pal: NEOGEO_POCKET_COLOR_RGB,
+      block: { w: 8, h: 8, colors: 4, msbToLsb: false },
       cell: { w: 8, h: 8, msbToLsb: true },
-      paletteChoices: {
-        backgroundRange: { min: 0, max: 255 },
-        auxRange: { min: 0, max: 255 },
-        borderRange: { min: 0, max: 255 },
-        colorsRange: { min: 0, max: 255 }
-      },
-      customize: { outputTileset: false, outputPalette: false, bitsInPlane: 2, planes: 1, planeLittleEndian: false },
-      reduce: 256,
-      toNative: "exportSNES"
+      subPalettes: { count: 16, colors: 4 },
+      paletteChoices: { colorsRange: { min: 0, max: 63 } },
+      reduce: 64,
+      customize: { subPalettePaletteFormat: "rgb444" },
+      toNative: "exportNeoGeoPocketTiles"
     },
     {
       id: "virtualboy",
-      name: "Virtual Boy (2pp) (8x8) (32x32)",
+      name: "Virtual Boy",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1481,12 +1500,12 @@
     },
     {
       id: "gg.4pp",
-      name: "Game Gear (+Sega Master System/Wonder Color) (4bpp) (8x8) (32x32) Linear",
+      name: "Sega Game Gear (4bpp linear)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
       conv: "SNES_Canvas",
-      pal: SNES_B5G5R5_RGB,
+      pal: GAMEGEAR_COLOR_RGB,
       block: { w: 8, h: 8, colors: 16, msbToLsb: false },
       cell: { w: 8, h: 8, msbToLsb: true },
       paletteChoices: {
@@ -1501,12 +1520,12 @@
     },
     {
       id: "genesis",
-      name: "Genesis/x68k (4pp) (8x8) (32x32)",
+      name: "Genesis (4bpp)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
       conv: "SNES_Canvas",
-      pal: SNES_B5G5R5_RGB,
+      pal: GENESIS_RGB,
       block: { w: 8, h: 8, colors: 16, msbToLsb: false },
       cell: { w: 8, h: 8, msbToLsb: true },
       paletteChoices: {
@@ -1520,8 +1539,27 @@
       toNative: "exportSNES"
     },
     {
+      // 320x224 = 40x28 tiles = 1120 unique tiles. Each tile selects one of
+      // the four shared 16-color palette lines (64 CRAM entries of 512 colors);
+      // slot 0 of every line is the shared backdrop color.
+      id: "genesis.tiles",
+      name: "Genesis (Tile Palettes)",
+      width: 320,
+      height: 224,
+      scaleX: 1,
+      conv: "SubPalette_Canvas",
+      pal: GENESIS_RGB,
+      block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      subPalettes: { count: 4, colors: 16, sharedFirstColor: true },
+      paletteChoices: { colorsRange: { min: 0, max: 63 } },
+      reduce: 64,
+      customize: { subPalettePaletteFormat: "genesis" },
+      toNative: "exportGenesisTiles"
+    },
+    {
       id: "snes.8bpp.direct",
-      name: "SNES (8bpp) (8x8) (32x32) Direct Color",
+      name: "SNES (Direct Color)",
       width: 32 * 8,
       height: 32 * 8,
       scaleX: 1,
@@ -1540,7 +1578,7 @@
     },
     {
       id: "stic",
-      name: "Intellivision STIC (GRAM/GROM) (FGBG)",
+      name: "Intellivision (FGBG)",
       width: 8 * 8,
       // actual is 20x12 but the gram only allows for 64 gram cards
       height: 8 * 8,
@@ -1553,7 +1591,7 @@
     },
     {
       id: "stic.stack.grom",
-      name: "Intellivision STIC (GROM only) (Color Stack Mode)",
+      name: "Intellivision (Color Stack, GROM)",
       width: 20 * 8,
       height: 12 * 8,
       conv: "Stic_ColorStack_Canvas",
@@ -1568,7 +1606,7 @@
     },
     {
       id: "stic.stack.gram",
-      name: "Intellivision STIC (GRAM only) (Color Stack Mode)",
+      name: "Intellivision (Color Stack, GRAM)",
       width: 8 * 8,
       // actual is 20x12 but the gram only allows for 64 gram cards
       height: 8 * 8,
@@ -1583,7 +1621,7 @@
     },
     {
       id: "stic.stack.gromram",
-      name: "Intellivision STIC (GROM+GRAM) (Color Stack Mode)",
+      name: "Intellivision (Color Stack, GROM+GRAM)",
       width: 20 * 8,
       height: 12 * 8,
       conv: "Stic_ColorStack_Canvas",
@@ -1599,7 +1637,7 @@
     },
     {
       id: "stic.stack.grom.single",
-      name: "Intellivision STIC (GROM only) (Single BG Color Stack)",
+      name: "Intellivision (Single BG, GROM)",
       width: 20 * 8,
       height: 12 * 8,
       conv: "Stic_ColorStack_Canvas",
@@ -1615,7 +1653,7 @@
     },
     {
       id: "stic.stack.gram.single",
-      name: "Intellivision STIC (GRAM only) (Single BG Color Stack)",
+      name: "Intellivision (Single BG, GRAM)",
       width: 8 * 8,
       // actual is 20x12 but the gram only allows for 64 gram cards
       height: 8 * 8,
@@ -1631,7 +1669,7 @@
     },
     {
       id: "stic.stack.gromram.single",
-      name: "Intellivision STIC (GROM+GRAM) (Single BG Color Stack)",
+      name: "Intellivision (Single BG, GROM+GRAM)",
       width: 20 * 8,
       height: 12 * 8,
       conv: "Stic_ColorStack_Canvas",
@@ -1648,6 +1686,7 @@
     },
     {
       id: "nes4f",
+      caveat: "960 unique tiles; a plain NES holds 256 background tiles, so this needs CHR bank switching or a mapper like MMC5",
       name: "NES (4 color, full screen)",
       width: 256,
       height: 240,
@@ -1659,6 +1698,7 @@
     },
     {
       id: "nes5f",
+      caveat: "960 unique tiles (needs CHR bank switching or MMC5), and the export omits the attribute table that carries the 5th color",
       name: "NES (5 color, full screen)",
       width: 256,
       height: 240,
@@ -1669,54 +1709,41 @@
       toNative: "exportNES"
     },
     {
-      id: "atari7800.160a",
-      name: "Atari 7800 (160A)",
-      width: 160,
-      height: 240,
-      scaleX: 2,
-      conv: "DitheringCanvas",
-      pal: VCS_RGB,
-      reduce: 4
+      // 128x128 = 16x16 tiles = 256 unique tiles. Each tile selects one of
+      // the two shared 16-color BG palettes (32 CRAM entries of 4096 colors).
+      id: "sms-gg.tiles",
+      name: "Sega Game Gear (Tile Palettes)",
+      width: 128,
+      height: 128,
+      scaleX: 1.2,
+      conv: "SubPalette_Canvas",
+      pal: GAMEGEAR_COLOR_RGB,
+      block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      subPalettes: { count: 2, colors: 16 },
+      paletteChoices: { colorsRange: { min: 0, max: 31 } },
+      reduce: 32,
+      customize: { subPalettePaletteFormat: "rgb444" },
+      toNative: "exportGameGearTiles"
     },
     {
-      id: "atari7800.160b",
-      name: "Atari 7800 (160B)",
-      width: 160,
-      height: 240,
-      scaleX: 2,
-      conv: "DitheringCanvas",
-      pal: VCS_RGB,
-      reduce: 12
-    },
-    {
-      id: "sms",
-      name: "Sega Master System",
+      // 176x144 = 22x18 = 396 tiles, within the 448 the VDP can address.
+      // Each tile selects one of the two shared 16-color BG palettes
+      // (32 CRAM entries of 64 colors).
+      id: "sms.tiles",
+      name: "Sega Master System (Tile Palettes)",
       width: 176,
-      // only 488 unique tiles max, otherwise 256x240
       height: 144,
       scaleX: 8 / 7,
-      conv: "DitheringCanvas",
+      conv: "SubPalette_Canvas",
       pal: SMS_RGB,
-      reduce: 16
-    },
-    {
-      id: "sms-gg",
-      name: "Sega GameGear",
-      width: 160,
-      height: 144,
-      scaleX: 1.2,
-      conv: "DitheringCanvas",
-      pal: GAMEGEAR_COLOR_RGB,
-      reduce: 16
-    },
-    {
-      id: "bbcmicro.mode2",
-      name: "BBC Micro (mode 2)",
-      width: 160,
-      height: 256,
-      scaleX: 2,
-      conv: "DitheringCanvas",
-      pal: TELETEXT_RGB
+      block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      subPalettes: { count: 2, colors: 16 },
+      paletteChoices: { colorsRange: { min: 0, max: 31 } },
+      reduce: 32,
+      customize: { subPalettePaletteFormat: "rgb222" },
+      toNative: "exportMasterSystemTiles"
     },
     {
       id: "apple2.lores",
@@ -1728,42 +1755,6 @@
       pal: AP2LORES_RGB,
       toNative: "exportFrameBuffer",
       exportFormat: { bpp: 4 }
-    },
-    {
-      id: "apple2.dblhires",
-      name: "Apple ][ (Double-Hires)",
-      width: 140,
-      height: 192,
-      scaleX: 2,
-      conv: "DitheringCanvas",
-      pal: AP2LORES_RGB
-    },
-    {
-      id: "appleiigs.320.16",
-      name: "Apple IIGS (16 colors)",
-      width: 320,
-      height: 200,
-      conv: "DitheringCanvas",
-      pal: IIGS_COLOR_RGB,
-      reduce: 16
-    },
-    {
-      id: "channelf",
-      name: "Fairchild Channel F",
-      width: 102,
-      height: 58,
-      conv: "DitheringCanvas",
-      pal: CHANNELF_RGB,
-      reduce: 4
-      // TODO: https://geeks-world.github.io/articles/467811/index.html
-    },
-    {
-      id: "mac",
-      name: "Mac 128K",
-      width: 512,
-      height: 342,
-      conv: "DitheringCanvas",
-      pal: MONO_RGB
     },
     {
       id: "x86.cga.04h.1",
@@ -1854,17 +1845,8 @@
       exportFormat: { bpp: 1, np: 4 }
     },
     {
-      id: "williams",
-      name: "Williams Arcade",
-      width: 304,
-      height: 256,
-      conv: "DitheringCanvas",
-      pal: WILLIAMS_RGB,
-      reduce: 16
-    },
-    {
       id: "mcr2",
-      name: "Bally MCR-II (4bpp) (8x8) (32x30)",
+      name: "Bally MCR-II",
       width: 32 * 8,
       height: 30 * 8,
       scaleX: 1,
@@ -1876,115 +1858,35 @@
       toNative: "exportSNES"
     },
     {
-      id: "pico8",
-      name: "PICO-8",
+      // 128x128 = 16x16 tiles = 256 unique tiles, one base DMG tile area.
+      // All tiles share the single global 4-shade BGP palette.
+      id: "gb.tiles",
+      name: "Game Boy Classic (Tiles)",
       width: 128,
       height: 128,
-      conv: "DitheringCanvas",
-      pal: PICO8_RGB
-    },
-    {
-      id: "tic80",
-      name: "TIC-80",
-      width: 240,
-      height: 136,
-      conv: "DitheringCanvas",
-      pal: TIC80_RGB
-    },
-    {
-      id: "gb",
-      name: "Game Boy Classic",
-      width: 160,
-      height: 144,
-      scaleX: 10 / 9,
-      conv: "DitheringCanvas",
-      pal: GAMEBOY_GREEN_RGB
-    },
-    /*
-    {
-        id:'gbc',
-        name:'Game Boy Color',
-        width:160,
-        height:144,
-        aspect:1,
-        conv:'DitheringCanvas',
-        pal:GAMEBOY_COLOR_RGB,
-        reduce:32,
-    },
-    */
-    {
-      id: "amiga.lores",
-      name: "Amiga (Lores)",
-      width: 320,
-      height: 256,
-      conv: "DitheringCanvas",
-      pal: AMIGA_OCS_COLOR_RGB,
-      reduce: 32
-      //toNative:'exportFrameBuffer',
-      //exportFormat:{bpp:1,brev:true,np:5},
-    },
-    {
-      id: "amiga.lores.ham6",
-      name: "Amiga (Lores, HAM6)",
-      width: 320,
-      height: 256,
-      conv: "HAM6_Canvas",
-      pal: AMIGA_OCS_COLOR_RGB,
-      reduce: 16,
-      extraColors: 48
-      //toNative:'exportFrameBuffer',
-      //exportFormat:{bpp:1,brev:true,np:6},
-    },
-    {
-      id: "cx16.lores",
-      name: "Commander X16 (Lores)",
-      width: 320,
-      height: 240,
       scaleX: 1,
-      conv: "DitheringCanvas",
-      pal: AMIGA_OCS_COLOR_RGB,
-      reduce: 256
+      conv: "SNES_Canvas",
+      pal: GAMEBOY_GREEN_RGB,
+      block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      reduce: 4,
+      toNative: "exportGBTiles"
     },
     {
-      id: "cx16.hires",
-      name: "Commander X16 (Hires, cropped)",
-      width: 640,
-      height: 400,
+      // 128x128 = 16x16 tiles = 256 unique tiles, exactly one GBC VRAM tile bank.
+      // Each tile selects one of eight shared 4-color BG palettes.
+      id: "gb.color.tiles",
+      name: "Game Boy Color (Tile Palettes)",
+      width: 128,
+      height: 128,
       scaleX: 1,
-      conv: "DitheringCanvas",
-      pal: AMIGA_OCS_COLOR_RGB,
-      reduce: 16
-    },
-    {
-      id: "compucolor",
-      name: "Compucolor",
-      width: 160,
-      height: 192,
-      scaleX: 1.6,
-      conv: "Compucolor_Canvas",
-      pal: ZXSPECTRUM_RGB,
-      block: { w: 2, h: 4, colors: 2 }
-    },
-    // https://www.bighole.nl//pub/mirror/homepage.ntlworld.com/kryten_droid/teletext/spec/teletext_spec_1974.htm
-    {
-      id: "teletext",
-      name: "Teletext",
-      width: 40 * 2,
-      height: 24 * 3,
-      scaleX: 4 / 3,
-      conv: "Teletext_Canvas",
-      pal: TELETEXT_RGB,
-      block: { w: 2, h: 3, colors: 2 }
-    },
-    {
-      id: "atarist",
-      name: "Atari ST",
-      width: 320,
-      height: 200,
-      scaleX: 1,
-      conv: "DitheringCanvas",
-      pal: ATARIST_RGB,
-      reduce: 16
+      conv: "GBC_Canvas",
+      pal: GAMEBOY_COLOR_RGB,
+      block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+      cell: { w: 8, h: 8, msbToLsb: true },
+      paletteChoices: { colorsRange: { min: 0, max: 31 } },
+      reduce: 32,
+      toNative: "exportGBC"
     },
     {
       id: "MC6847.CG2.palette0",
@@ -2052,6 +1954,214 @@
       reduce: 4,
       toNative: "exportMC6847"
     },
+    // null == separator: systems above can be exported natively and/or run in
+    // the IDE, systems below can only be previewed and/or downloaded as images
+    {
+      id: "amiga.lores",
+      name: "Amiga (Lores)",
+      width: 320,
+      height: 256,
+      conv: "DitheringCanvas",
+      pal: AMIGA_OCS_COLOR_RGB,
+      reduce: 32,
+      toNative: "exportAmiga"
+    },
+    {
+      id: "amiga.lores.ham6",
+      name: "Amiga (Lores, HAM6)",
+      width: 320,
+      height: 256,
+      conv: "HAM6_Canvas",
+      pal: AMIGA_OCS_COLOR_RGB,
+      reduce: 16,
+      extraColors: 48,
+      toNative: "exportAmigaHAM6"
+    },
+    null,
+    {
+      id: "atari7800.160a",
+      name: "Atari 7800 (160A)",
+      width: 160,
+      height: 240,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 4
+    },
+    {
+      id: "atari7800.160b",
+      name: "Atari 7800 (160B)",
+      width: 160,
+      height: 240,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: VCS_RGB,
+      reduce: 12
+    },
+    {
+      id: "sms",
+      name: "Sega Master System",
+      width: 176,
+      // only 488 unique tiles max, otherwise 256x240
+      height: 144,
+      scaleX: 8 / 7,
+      conv: "DitheringCanvas",
+      pal: SMS_RGB,
+      reduce: 16
+    },
+    {
+      id: "sms-gg",
+      name: "Sega Game Gear (full screen)",
+      width: 160,
+      height: 144,
+      scaleX: 1.2,
+      conv: "DitheringCanvas",
+      pal: GAMEGEAR_COLOR_RGB,
+      reduce: 16
+    },
+    {
+      id: "bbcmicro.mode2",
+      name: "BBC Micro (mode 2)",
+      width: 160,
+      height: 256,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: TELETEXT_RGB
+    },
+    {
+      id: "apple2.dblhires",
+      name: "Apple ][ (Double-Hires)",
+      width: 140,
+      height: 192,
+      scaleX: 2,
+      conv: "DitheringCanvas",
+      pal: AP2LORES_RGB
+    },
+    {
+      id: "appleiigs.320.16",
+      name: "Apple IIGS (16 colors)",
+      width: 320,
+      height: 200,
+      conv: "DitheringCanvas",
+      pal: IIGS_COLOR_RGB,
+      reduce: 16
+    },
+    {
+      id: "channelf",
+      name: "Fairchild Channel F",
+      width: 102,
+      height: 58,
+      conv: "DitheringCanvas",
+      pal: CHANNELF_RGB,
+      reduce: 4
+      // TODO: https://geeks-world.github.io/articles/467811/index.html
+    },
+    {
+      id: "mac",
+      name: "Mac 128K",
+      width: 512,
+      height: 342,
+      conv: "DitheringCanvas",
+      pal: MONO_RGB
+    },
+    {
+      id: "williams",
+      name: "Williams Arcade",
+      width: 304,
+      height: 256,
+      conv: "DitheringCanvas",
+      pal: WILLIAMS_RGB,
+      reduce: 16
+    },
+    {
+      id: "pico8",
+      name: "PICO-8",
+      width: 128,
+      height: 128,
+      conv: "DitheringCanvas",
+      pal: PICO8_RGB
+    },
+    {
+      id: "tic80",
+      name: "TIC-80",
+      width: 240,
+      height: 136,
+      conv: "DitheringCanvas",
+      pal: TIC80_RGB
+    },
+    {
+      // full-screen 4-shade framebuffer dither (no tiles)
+      id: "gb",
+      name: "Game Boy Classic (full screen)",
+      width: 160,
+      height: 144,
+      scaleX: 10 / 9,
+      conv: "DitheringCanvas",
+      pal: GAMEBOY_GREEN_RGB
+    },
+    {
+      // full-screen framebuffer dither into 32 GBC colors
+      id: "gb.color",
+      caveat: "32 colors on screen, but each tile may use only one of the eight 4-color palettes. Use the Tile Palettes variant",
+      name: "Game Boy Color (full screen)",
+      width: 160,
+      height: 144,
+      scaleX: 10 / 9,
+      conv: "DitheringCanvas",
+      pal: GAMEBOY_COLOR_RGB,
+      reduce: 32
+    },
+    {
+      id: "cx16.lores",
+      name: "Commander X16 (Lores)",
+      width: 320,
+      height: 240,
+      scaleX: 1,
+      conv: "DitheringCanvas",
+      pal: AMIGA_OCS_COLOR_RGB,
+      reduce: 256
+    },
+    {
+      id: "cx16.hires",
+      name: "Commander X16 (Hires)",
+      width: 640,
+      height: 480,
+      scaleX: 1,
+      conv: "DitheringCanvas",
+      pal: AMIGA_OCS_COLOR_RGB,
+      reduce: 16
+    },
+    {
+      id: "compucolor",
+      name: "Compucolor",
+      width: 160,
+      height: 192,
+      scaleX: 1.6,
+      conv: "Compucolor_Canvas",
+      pal: ZXSPECTRUM_RGB,
+      block: { w: 2, h: 4, colors: 2 }
+    },
+    // https://www.bighole.nl//pub/mirror/homepage.ntlworld.com/kryten_droid/teletext/spec/teletext_spec_1974.htm
+    {
+      id: "teletext",
+      name: "Teletext",
+      width: 40 * 2,
+      height: 24 * 3,
+      scaleX: 4 / 3,
+      conv: "Teletext_Canvas",
+      pal: TELETEXT_RGB,
+      block: { w: 2, h: 3, colors: 2 }
+    },
+    {
+      id: "atarist",
+      name: "Atari ST",
+      width: 320,
+      height: 200,
+      scaleX: 1,
+      conv: "DitheringCanvas",
+      pal: ATARIST_RGB,
+      reduce: 16
+    },
     {
       id: "vcs.48",
       name: "Atari VCS (48x48 bitmap)",
@@ -2099,6 +2209,7 @@
     Apple2_Canvas: () => Apple2_Canvas,
     Compucolor_Canvas: () => Compucolor_Canvas,
     DitheringCanvas: () => DitheringCanvas,
+    GBC_Canvas: () => GBC_Canvas,
     HAM6_Canvas: () => HAM6_Canvas,
     Msx_Canvas: () => Msx_Canvas,
     NES_Canvas: () => NES_Canvas,
@@ -2106,6 +2217,7 @@
     SNES_Canvas_Direct: () => SNES_Canvas_Direct,
     Stic_ColorStack_Canvas: () => Stic_ColorStack_Canvas,
     Stic_Fgbg_Canvas: () => Stic_Fgbg_Canvas,
+    SubPalette_Canvas: () => SubPalette_Canvas,
     Teletext_Canvas: () => Teletext_Canvas,
     VCSColorPlayfield_Canvas: () => VCSColorPlayfield_Canvas,
     VICII_Canvas: () => VICII_Canvas,
@@ -3560,6 +3672,334 @@
       this.updateBlockColorParam(offset, [lowestPpp], 3, 2);
     }
   };
+  var SUBPALETTE_SWITCH_RATIO = 0.97;
+  var SUBPALETTE_REFINE_ITERATIONS = 4;
+  var SubPalette_Canvas = class extends CommonBlockParamDitherCanvas {
+    constructor() {
+      super(...arguments);
+      this.palettesCount = 0;
+      this.paletteColors = 0;
+      // slot 0 holds the same color in every sub-palette
+      this.sharedFirstColor = false;
+      // the original reduced-palette indices that make up each sub-palette
+      this.palettes = [];
+      // the reduced palette captured before `this.pal` is rearranged
+      this.basePal = new Uint32Array(0);
+      // scratch: perceptual distance between every pair of reduced-palette colors
+      this.colorDist = new Float64Array(0);
+      // scratch (per commit): how many pixels of the tiles assigned to each palette
+      // are closest to each of the reduced-palette colors
+      this.paletteHist = new Uint32Array(0);
+    }
+    prepare() {
+      var _a, _b, _c;
+      super.prepare();
+      const sp = this.sys.subPalettes;
+      this.palettesCount = (_a = sp == null ? void 0 : sp.count) != null ? _a : this.palettesCount || 8;
+      this.paletteColors = (_b = sp == null ? void 0 : sp.colors) != null ? _b : this.paletteColors || this.block.colors;
+      this.sharedFirstColor = (_c = sp == null ? void 0 : sp.sharedFirstColor) != null ? _c : this.sharedFirstColor;
+      this.buildPalettes();
+    }
+    getPaletteBits() {
+      return Math.max(1, Math.ceil(Math.log2(this.palettesCount)));
+    }
+    getPaletteFilter() {
+      return (1 << this.getPaletteBits()) - 1;
+    }
+    // Rewrite the working palette so entry (p, s) is the RGB of the base color
+    // chosen for sub-palette p, slot s.
+    applyPalettes() {
+      var _a;
+      const P = this.palettesCount;
+      const C = this.paletteColors;
+      const N = this.basePal.length;
+      for (let p = 0; p < P; ++p) {
+        const palette = this.palettes[p];
+        for (let s = 0; s < C; ++s) {
+          const base = (_a = palette[s]) != null ? _a : 0;
+          this.pal[p * C + s] = this.basePal[base % N];
+        }
+      }
+    }
+    // hue of a packed RGB color in [0,1); -1 for neutrals (undefined hue)
+    hueOf(rgb) {
+      const r = (rgb & 255) / 255;
+      const g = (rgb >> 8 & 255) / 255;
+      const b = (rgb >> 16 & 255) / 255;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const d = max - min;
+      if (d === 0)
+        return -1;
+      let h;
+      if (max === r) h = (g - b) / d % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h /= 6;
+      if (h < 0) h += 1;
+      return h;
+    }
+    // Seed the sub-palettes from a hue sort of the reduced palette: every
+    // sub-palette ends up covering a narrow, contiguous band of the hue circle
+    // (neutrals sort first and are ordered by intensity). The per-commit
+    // refinement below then re-picks each palette's entries from image usage.
+    buildPalettes() {
+      var _a;
+      const P = this.palettesCount;
+      const C = this.paletteColors;
+      const N = this.pal.length;
+      runtime_assert(P > 0 && C > 0);
+      runtime_assert(P * C <= N);
+      this.basePal = new Uint32Array(this.pal);
+      this.colorDist = new Float64Array(N * N);
+      for (let i = 0; i < N; ++i) {
+        for (let j = 0; j < N; ++j) {
+          this.colorDist[i * N + j] = this.errfn(this.basePal[i], this.basePal[j]);
+        }
+      }
+      const sorted = range(0, N).sort((a, b) => {
+        const ha = this.hueOf(this.basePal[a]);
+        const hb = this.hueOf(this.basePal[b]);
+        const ka = ha < 0 ? -1 : ha;
+        const kb = hb < 0 ? -1 : hb;
+        if (ka !== kb) return ka - kb;
+        return intensity(this.basePal[a]) - intensity(this.basePal[b]);
+      });
+      let groups = [];
+      for (let p = 0; p < P; ++p) {
+        let group = [];
+        for (let c = 0; c < C; ++c) {
+          let pos = p * C + c;
+          pos = N > 0 ? pos % N : 0;
+          group.push((_a = sorted[pos]) != null ? _a : 0);
+        }
+        groups.push(group);
+      }
+      if (this.sharedFirstColor) {
+        const shared = groups[0][0];
+        for (let p = 1; p < P; ++p) {
+          const rest = groups[p].filter((c) => c !== shared);
+          for (let pos = 0; rest.length < C - 1; ++pos) {
+            const c = sorted[pos % N];
+            if (c !== shared && !rest.includes(c)) rest.push(c);
+          }
+          groups[p] = [shared, ...rest.slice(0, C - 1)];
+        }
+      }
+      this.palettes = groups;
+      this.paletteHist = new Uint32Array(P * N);
+      this.applyPalettes();
+    }
+    // Re-pick each palette's `paletteColors` entries to best cover the tiles
+    // that selected it last commit. Greedy set-cover over the per-palette pixel
+    // histogram, minimizing summed distance to the nearest chosen color.
+    refinePalettes() {
+      var _a;
+      const P = this.palettesCount;
+      const C = this.paletteColors;
+      const N = this.pal.length;
+      for (let p = 0; p < P; ++p) {
+        const hist = this.paletteHist.subarray(p * N, (p + 1) * N);
+        let total = 0;
+        for (let c = 0; c < N; ++c) total += hist[c];
+        if (total === 0)
+          continue;
+        const chosen = [];
+        const minDist = new Float64Array(N).fill(Infinity);
+        let first = 0;
+        if (this.sharedFirstColor && p > 0) {
+          const shared = this.palettes[0][0];
+          chosen.push(shared);
+          for (let c = 0; c < N; ++c)
+            minDist[c] = this.colorDist[c * N + shared];
+          first = 1;
+        }
+        for (let k = first; k < C; ++k) {
+          let bestS = -1;
+          let bestVal = Infinity;
+          let bestGain = -1;
+          for (let s = 0; s < N; ++s) {
+            if (chosen.includes(s))
+              continue;
+            let val = 0;
+            let gain = 0;
+            for (let c = 0; c < N; ++c) {
+              if (hist[c] === 0)
+                continue;
+              const d = this.colorDist[c * N + s];
+              if (k === 0)
+                val += hist[c] * d;
+              else if (d < minDist[c])
+                gain += hist[c] * (minDist[c] - d);
+            }
+            if (k === 0) {
+              if (val < bestVal) {
+                bestVal = val;
+                bestS = s;
+              }
+            } else {
+              if (gain > bestGain) {
+                bestGain = gain;
+                bestS = s;
+              }
+            }
+          }
+          if (bestS < 0)
+            break;
+          chosen.push(bestS);
+          for (let c = 0; c < N; ++c) {
+            const d = this.colorDist[c * N + bestS];
+            if (d < minDist[c]) minDist[c] = d;
+          }
+        }
+        while (chosen.length < C) {
+          let bestS = -1;
+          let bestH = -1;
+          for (let s = 0; s < N; ++s) {
+            if (chosen.includes(s)) continue;
+            if (hist[s] > bestH) {
+              bestH = hist[s];
+              bestS = s;
+            }
+          }
+          if (bestS < 0) break;
+          chosen.push(bestS);
+        }
+        while (chosen.length < C)
+          chosen.push((_a = chosen[0]) != null ? _a : 0);
+        this.palettes[p] = this.keepSlots(this.palettes[p], chosen);
+      }
+      if (this.sharedFirstColor)
+        this.shareFirstColor();
+    }
+    // Make slot 0 of every palette the first color of palette 0, swapping it into
+    // place when the palette already holds that color in another slot.
+    shareFirstColor() {
+      const shared = this.palettes[0][0];
+      for (let p = 1; p < this.palettesCount; ++p) {
+        const palette = this.palettes[p];
+        const at = palette.indexOf(shared);
+        if (at > 0)
+          palette[at] = palette[0];
+        palette[0] = shared;
+      }
+    }
+    // Arrange `chosen` so colors already in `previous` keep their slot. Slot
+    // numbers are pixel indices, so moving a color between slots would change
+    // the meaning of every pixel already assigned to it and make the image flash.
+    keepSlots(previous, chosen) {
+      var _a;
+      const result = new Array(chosen.length).fill(-1);
+      const placed = /* @__PURE__ */ new Set();
+      (previous != null ? previous : []).forEach((c, slot) => {
+        if (slot < result.length && chosen.includes(c) && !placed.has(c)) {
+          result[slot] = c;
+          placed.add(c);
+        }
+      });
+      const rest = chosen.filter((c) => !placed.has(c));
+      for (let slot = 0; slot < result.length; ++slot) {
+        if (result[slot] < 0)
+          result[slot] = (_a = rest.shift()) != null ? _a : chosen[0];
+      }
+      return result;
+    }
+    guessBlockParams() {
+      if (this.fullPaletteMode) {
+        super.guessBlockParams();
+        return;
+      }
+      this.paletteHist.fill(0);
+      super.guessBlockParams();
+      if (this.iterateCount < SUBPALETTE_REFINE_ITERATIONS) {
+        this.refinePalettes();
+        this.applyPalettes();
+      }
+    }
+    paletteForImageIndex(imageIndex) {
+      var _a;
+      let offset = this.imageIndexToBlockOffset(imageIndex);
+      let extracted = this.extractColorsFromBlockParams(offset, 1, this.getPaletteFilter(), this.getPaletteBits());
+      return (_a = extracted[0]) != null ? _a : 0;
+    }
+    getValidColors(imageIndex) {
+      if (this.fullPaletteMode)
+        return this.pixelPaletteChoices;
+      const p = this.paletteForImageIndex(imageIndex);
+      const C = this.paletteColors;
+      let valid = [];
+      for (let s = 0; s < C; ++s)
+        valid.push(p * C + s);
+      return valid;
+    }
+    guessBlockParam(offset) {
+      var _a;
+      if (this.fullPaletteMode)
+        return;
+      const P = this.palettesCount;
+      const C = this.paletteColors;
+      const N = this.basePal.length;
+      const from = this.ref;
+      const cost = new Float64Array(P);
+      const imageIndex = this.offsetToImageIndex(offset, this.block);
+      const start = this.imageIndexToXY(imageIndex);
+      const pixels = [];
+      for (let y = start.y; y < start.y + this.block.h; ++y) {
+        for (let x = start.x; x < start.x + this.block.w; ++x) {
+          const i = this.xyToImageIndex(x, y);
+          if (i === void 0)
+            continue;
+          const rgb = from[i];
+          pixels.push(rgb);
+          for (let p = 0; p < P; ++p) {
+            let nearest = Infinity;
+            for (let s = 0; s < C; ++s)
+              nearest = Math.min(nearest, this.errfn(rgb, this.pal[p * C + s]));
+            cost[p] += nearest;
+          }
+        }
+      }
+      let best = 0;
+      for (let p = 1; p < P; ++p) {
+        if (cost[p] < cost[best])
+          best = p;
+      }
+      if (!this.firstCommit) {
+        const current = (_a = this.extractColorsFromBlockParams(offset, 1, this.getPaletteFilter(), this.getPaletteBits())[0]) != null ? _a : 0;
+        if (current < P && cost[best] > cost[current] * SUBPALETTE_SWITCH_RATIO)
+          best = current;
+      }
+      this.updateBlockColorParam(offset, [best], this.getPaletteFilter(), this.getPaletteBits());
+      for (const rgb of pixels) {
+        let nearest = 0;
+        let nearestDist = Infinity;
+        for (let c = 0; c < N; ++c) {
+          const d = this.errfn(rgb, this.basePal[c]);
+          if (d < nearestDist) {
+            nearestDist = d;
+            nearest = c;
+          }
+        }
+        this.paletteHist[best * N + nearest] += 1;
+      }
+    }
+    content() {
+      return __spreadProps(__spreadValues({}, super.content()), {
+        palettes: this.palettes,
+        palettesCount: this.palettesCount,
+        paletteColors: this.paletteColors,
+        paletteIndexBits: this.getPaletteBits(),
+        paletteIndexFilter: this.getPaletteFilter()
+      });
+    }
+  };
+  var GBC_Canvas = class extends SubPalette_Canvas {
+    constructor() {
+      super(...arguments);
+      this.palettesCount = 8;
+      this.paletteColors = 4;
+    }
+  };
   var NES_Canvas = class extends BasicParamDitherCanvas {
     constructor() {
       super(...arguments);
@@ -3617,22 +4057,17 @@
   };
   var HAM6_Canvas = class extends DitheringCanvas {
     getValidColors(offset) {
-      let arr = super.getValidColors(offset);
-      if (offset == 0) {
-        arr = arr.slice(0, 16);
-      } else {
-        let palindex = 16;
-        let prevrgb = this.img[offset - 1];
-        for (let chan = 0; chan < 3; chan++) {
-          for (let i = 0; i < 16; i++) {
-            let rgb = prevrgb;
-            rgb &= ~(255 << chan * 8);
-            rgb |= i << 4 << chan * 8;
-            this.pal[palindex++] = rgb;
-          }
+      let prevrgb = offset % this.width == 0 ? this.pal[0] : this.img[offset - 1];
+      let palindex = 16;
+      for (let chan = 0; chan < 3; chan++) {
+        for (let i = 0; i < 16; i++) {
+          let rgb = prevrgb;
+          rgb &= ~(255 << chan * 8);
+          rgb |= i * 17 << chan * 8;
+          this.pal[palindex++] = rgb;
         }
       }
-      return arr;
+      return super.getValidColors(offset);
     }
   };
 
