@@ -1849,12 +1849,14 @@ function encodeSubPaletteAttributes(content: SubPaletteContent): Uint8Array {
 //   'rgb555' (default) 0BBBBBGGGGGRRRRR little-endian (Game Boy Color)
 //   'rgb444' 0000BBBBGGGGRRRR little-endian (Game Gear, Neo Geo Pocket Color)
 //   'genesis' 0000BBB0GGG0RRR0 big-endian (Genesis CRAM)
+//   'rgb222' 00BBGGRR, one byte per entry (Master System CRAM)
 function encodeSubPaletteRAM(message: PixelsAvailableMessage, content: SubPaletteContent, settings: DithertronSettings): Uint8Array {
     const paletteCount = content.palettesCount ?? 0;
     const paletteColors = content.paletteColors ?? 0;
     const format: string = settings.customize?.subPalettePaletteFormat ?? 'rgb555';
 
-    let data = new Uint8Array(paletteCount * paletteColors * 2);
+    let entryBytes = format === 'rgb222' ? 1 : 2;
+    let data = new Uint8Array(paletteCount * paletteColors * entryBytes);
     for (let p = 0; p < paletteCount; ++p) {
         for (let c = 0; c < paletteColors; ++c) {
             let rgb = message.pal[p * paletteColors + c] ?? 0;
@@ -1864,14 +1866,16 @@ function encodeSubPaletteRAM(message: PixelsAvailableMessage, content: SubPalett
             let value: number;
             if (format === 'rgb444')
                 value = ((r >> 4) & 0xf) | (((g >> 4) & 0xf) << 4) | (((b >> 4) & 0xf) << 8);
+            else if (format === 'rgb222')
+                value = ((r >> 6) & 0x3) | (((g >> 6) & 0x3) << 2) | (((b >> 6) & 0x3) << 4);
             else if (format === 'genesis')
                 value = (((r >> 5) & 0x7) << 1) | (((g >> 5) & 0x7) << 5) | (((b >> 5) & 0x7) << 9);
             else
                 value = ((r >> 3) & 0x1f) | (((g >> 3) & 0x1f) << 5) | (((b >> 3) & 0x1f) << 10);
-            let ofs = (p * paletteColors + c) * 2;
+            let ofs = (p * paletteColors + c) * entryBytes;
             let bigEndian = (format === 'genesis');
-            data[ofs + (bigEndian ? 1 : 0)] = value & 0xff;
-            data[ofs + (bigEndian ? 0 : 1)] = (value >> 8) & 0xff;
+            data[ofs + (bigEndian ? entryBytes - 1 : 0)] = value & 0xff;
+            if (entryBytes > 1) data[ofs + (bigEndian ? 0 : 1)] = (value >> 8) & 0xff;
         }
     }
     return data;
@@ -1926,6 +1930,10 @@ export function exportGameGearTiles(message: PixelsAvailableMessage, settings: D
         encodeSubPaletteRAM(message, content, settings),
     ]);
 }
+
+// The Master System VDP uses the same tiles and name table; only the CRAM
+// packing differs (one 00BBGGRR byte per entry, via subPalettePaletteFormat).
+export const exportMasterSystemTiles = exportGameGearTiles;
 
 // Neo Geo Pocket Color native export (shared sub-palette tiles):
 //   [tile data] [tilemap] [palette RAM]

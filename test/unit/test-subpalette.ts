@@ -219,6 +219,51 @@ t.test('sms-gg.tiles export', async t => {
     t.comment(`sms-gg.tiles converged in ${iters} iters`);
 });
 
+// Master System: same tiles and name table as the Game Gear, 6-bit CRAM.
+t.test('sms.tiles export', async t => {
+    const { dt, last, iters } = await converge('sms.tiles', {
+        diffuse: 0.75, noise: 5, ordered: 0, ditherfn: kernels.SIERRALITE, paletteDiversity: 0.95,
+    });
+    const canv: any = dt.dithcanv!;
+    const content: any = last.content;
+    const columns = content.block.columns;
+    const tiles = columns * content.block.rows;
+
+    t.equal(tiles, 396, '176x144 is 22x18 tiles');
+    t.ok(iters < 20, 'converged quickly with diffusion');
+    t.equal(canv.changes, 0, 'no pixels changing at the end');
+
+    const out = exportfuncs.exportMasterSystemTiles(last, dt.sysparams);
+    t.equal(out.length, tiles * 32 + tiles * 2 + 32, 'native export size (CRAM is one byte per entry)');
+
+    let badPixel = 0;
+    let badMap = 0;
+    for (let y = 0; y < content.height; y++) {
+        for (let x = 0; x < content.width; x++) {
+            const tile = Math.floor(y / 8) * columns + Math.floor(x / 8);
+            let slot = 0;
+            for (let plane = 0; plane < 4; plane++)
+                slot |= ((out[tile * 32 + (y % 8) * 4 + plane] >> (7 - (x % 8))) & 1) << plane;
+            const index = canv.indexed[y * content.width + x];
+            if (slot !== (index & 15)) badPixel++;
+            const entry = out[tiles * 32 + tile * 2] | (out[tiles * 32 + tile * 2 + 1] << 8);
+            if ((entry & 0x1ff) !== tile || ((entry >> 11) & 1) !== (index >> 4)) badMap++;
+        }
+    }
+    t.equal(badPixel, 0, 'tile data holds each pixel\'s slot in its palette');
+    t.equal(badMap, 0, 'name table has identity tile index and the pixel\'s palette select');
+
+    let badCram = 0;
+    const cram = tiles * 32 + tiles * 2;
+    for (let i = 0; i < 32; i++) {
+        const rgb = last.pal[i];
+        const want = ((rgb & 0xff) >> 6) | (((rgb >> 8 & 0xff) >> 6) << 2) | (((rgb >> 16 & 0xff) >> 6) << 4);
+        if (out[cram + i] !== want) badCram++;
+    }
+    t.equal(badCram, 0, 'CRAM matches the working palette as 00BBGGRR bytes');
+    t.comment(`sms.tiles converged in ${iters} iters`);
+});
+
 // Neo Geo Pocket Color: sixteen shared 4-color palettes, 2bpp tiles stored as
 // 16-bit little-endian rows, 16-bit tilemap entries (palette in bits 9-12) and
 // 12-bit palette RAM.

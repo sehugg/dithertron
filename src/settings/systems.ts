@@ -761,6 +761,25 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportGameGearTiles',
     },
     {
+        // 176x144 = 22x18 = 396 tiles, within the 448 the VDP can address.
+        // Each tile selects one of the two shared 16-color BG palettes
+        // (32 CRAM entries of 64 colors).
+        id: 'sms.tiles',
+        name: 'Sega Master System (Tile Palettes)',
+        width: 176,
+        height: 144,
+        scaleX: 8 / 7,
+        conv: 'SubPalette_Canvas',
+        pal: palettes.SMS_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 2, colors: 16 },
+        paletteChoices: { colorsRange: { min: 0, max: 31 } },
+        reduce: 32,
+        customize: { subPalettePaletteFormat: 'rgb222' },
+        toNative: 'exportMasterSystemTiles',
+    },
+    {
         id: 'apple2.lores',
         name: 'Apple ][ (Lores)',
         width: 40,

@@ -181,6 +181,7 @@ previewed and/or downloaded as an image.
 * NES (4 color, full screen) - 256 x 240, 4 out of 64 colors
 * NES (5 color, full screen) - 256 x 240, 5 out of 64 colors
 * Sega Game Gear (Tile Palettes) - 128 x 128, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
+* Sega Master System (Tile Palettes) - 176 x 144, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
 * Apple ][ (Lores) - 40 x 48, 16 colors
 * PC CGA (Mode 04h, palette 1) - 320 x 200, 4 colors
 * PC CGA (Mode 04h, bright 1) - 320 x 200, 4 colors
