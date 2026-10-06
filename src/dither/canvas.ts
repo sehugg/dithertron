@@ -887,27 +887,43 @@ export class SNES_Canvas_Direct extends CommonBlockParamDitherCanvas {
 
 }
 
-// Game Boy Color BG mode.
+// Shared sub-palette dithering.
 //
-// The GBC has eight 4-color BG palettes (32 palette RAM entries). Every 8x8
-// tile selects one of those eight palettes via a 3-bit field in its BG map
-// attribute byte. Unlike the SNES direct-color canvas, the palette is not
-// encoded in the pixel's RGB value, so this canvas picks a palette per tile
-// and then restricts the tile's valid colors to that palette's four entries.
+// Some systems have a small number of shared sub-palettes (e.g. the GBC has
+// eight 4-color BG palettes, the Genesis four 16-color palettes, the Game Gear
+// two 16-color palettes). Every block/tile selects one sub-palette, and pixels
+// in that tile may only use the colors of the selected sub-palette.
 //
-export interface GBC_CanvasContent extends ReturnType<CommonBlockParamDitherCanvas['content']> {
-    palettes: number[][];
+// The reduced palette is expected to be exactly `palettesCount * paletteColors`
+// entries. This canvas rearranges the working palette (`this.pal`) so that the
+// entry for palette `p`, slot `s` lives at index `p * paletteColors + s`. The
+// low bits of a pixel's index are therefore its slot within the palette and the
+// high bits identify the palette, which lets native exports write slots
+// directly into tile data and palette numbers into attribute bytes.
+export interface SubPalette_CanvasContent extends ReturnType<CommonBlockParamDitherCanvas['content']> {
+    palettes: number[][];           // base-palette indices chosen for each sub-palette
     palettesCount: number;
     paletteColors: number;
+    paletteIndexBits: number;
+    paletteIndexFilter: number;
 }
 
-export class GBC_Canvas extends CommonBlockParamDitherCanvas {
+// a tile only changes sub-palette if its cost drops below this fraction of the current one
+const SUBPALETTE_SWITCH_RATIO = 0.97;
 
-    readonly palettesCount = 8;     // eight BG palettes
-    readonly paletteColors = 4;     // four colors per palette
+// sub-palette entries are only re-picked during this many initial iterations
+const SUBPALETTE_REFINE_ITERATIONS = 4;
 
-    // the palette indices (into this.pal) that make up each of the eight palettes
+export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
+
+    palettesCount: number = 0;
+    paletteColors: number = 0;
+
+    // the original reduced-palette indices that make up each sub-palette
     palettes: number[][] = [];
+
+    // the reduced palette captured before `this.pal` is rearranged
+    basePal: Uint32Array = new Uint32Array(0);
 
     // scratch: perceptual distance between every pair of reduced-palette colors
     colorDist: Float64Array = new Float64Array(0);
@@ -918,14 +934,34 @@ export class GBC_Canvas extends CommonBlockParamDitherCanvas {
 
     override prepare(): void {
         super.prepare();
+
+        const sp = this.sys.subPalettes;
+        this.palettesCount = sp?.count ?? (this.palettesCount || 8);
+        this.paletteColors = sp?.colors ?? (this.paletteColors || this.block.colors);
+
         this.buildPalettes();
     }
 
     getPaletteBits(): number {
-        return Math.ceil(Math.log2(this.palettesCount));
+        return Math.max(1, Math.ceil(Math.log2(this.palettesCount)));
     }
     getPaletteFilter(): number {
         return (1 << this.getPaletteBits()) - 1;
+    }
+
+    // Rewrite the working palette so entry (p, s) is the RGB of the base color
+    // chosen for sub-palette p, slot s.
+    applyPalettes(): void {
+        const P = this.palettesCount;
+        const C = this.paletteColors;
+        const N = this.basePal.length;
+        for (let p = 0; p < P; ++p) {
+            const palette = this.palettes[p];
+            for (let s = 0; s < C; ++s) {
+                const base = palette[s] ?? 0;
+                this.pal[p * C + s] = this.basePal[base % N];
+            }
+        }
     }
 
     // hue of a packed RGB color in [0,1); -1 for neutrals (undefined hue)
@@ -947,8 +983,8 @@ export class GBC_Canvas extends CommonBlockParamDitherCanvas {
         return h;
     }
 
-    // Seed the eight palettes from a hue sort of the reduced palette: every
-    // palette ends up covering a narrow, contiguous band of the hue circle
+    // Seed the sub-palettes from a hue sort of the reduced palette: every
+    // sub-palette ends up covering a narrow, contiguous band of the hue circle
     // (neutrals sort first and are ordered by intensity). The per-commit
     // refinement below then re-picks each palette's entries from image usage.
     buildPalettes(): void {
@@ -956,21 +992,27 @@ export class GBC_Canvas extends CommonBlockParamDitherCanvas {
         const C = this.paletteColors;
         const N = this.pal.length;
 
+        runtime_assert(P > 0 && C > 0);
+        runtime_assert(P * C <= N);
+
+        // capture the reduced palette before rearranging this.pal
+        this.basePal = new Uint32Array(this.pal);
+
         this.colorDist = new Float64Array(N * N);
         for (let i = 0; i < N; ++i) {
             for (let j = 0; j < N; ++j) {
-                this.colorDist[i * N + j] = this.errfn(this.pal[i], this.pal[j]);
+                this.colorDist[i * N + j] = this.errfn(this.basePal[i], this.basePal[j]);
             }
         }
 
         const sorted = range(0, N).sort((a, b) => {
-            const ha = this.hueOf(this.pal[a]);
-            const hb = this.hueOf(this.pal[b]);
+            const ha = this.hueOf(this.basePal[a]);
+            const hb = this.hueOf(this.basePal[b]);
             // neutrals (hue -1) first, then by hue, then by intensity
             const ka = (ha < 0 ? -1 : ha);
             const kb = (hb < 0 ? -1 : hb);
             if (ka !== kb) return ka - kb;
-            return intensity(this.pal[a]) - intensity(this.pal[b]);
+            return intensity(this.basePal[a]) - intensity(this.basePal[b]);
         });
 
         let groups: number[][] = [];
@@ -985,6 +1027,9 @@ export class GBC_Canvas extends CommonBlockParamDitherCanvas {
         }
         this.palettes = groups;
         this.paletteHist = new Uint32Array(P * N);
+
+        // put the working palette into (palette, slot) order
+        this.applyPalettes();
     }
 
     // Re-pick each palette's `paletteColors` entries to best cover the tiles
@@ -1054,8 +1099,28 @@ export class GBC_Canvas extends CommonBlockParamDitherCanvas {
             while (chosen.length < C)
                 chosen.push(chosen[0] ?? 0);
 
-            this.palettes[p] = chosen;
+            this.palettes[p] = this.keepSlots(this.palettes[p], chosen);
         }
+    }
+
+    // Arrange `chosen` so colors already in `previous` keep their slot. Slot
+    // numbers are pixel indices, so moving a color between slots would change
+    // the meaning of every pixel already assigned to it and make the image flash.
+    keepSlots(previous: number[] | undefined, chosen: number[]): number[] {
+        const result: number[] = new Array(chosen.length).fill(-1);
+        const placed = new Set<number>();
+        (previous ?? []).forEach((c, slot) => {
+            if (slot < result.length && chosen.includes(c) && !placed.has(c)) {
+                result[slot] = c;
+                placed.add(c);
+            }
+        });
+        const rest = chosen.filter((c) => !placed.has(c));
+        for (let slot = 0; slot < result.length; ++slot) {
+            if (result[slot] < 0)
+                result[slot] = rest.shift() ?? chosen[0];
+        }
+        return result;
     }
 
     override guessBlockParams(): void {
@@ -1067,9 +1132,12 @@ export class GBC_Canvas extends CommonBlockParamDitherCanvas {
         this.paletteHist.fill(0);
         super.guessBlockParams();
 
-        // freeze the palettes partway through so the dither can settle
-        if (this.iterateCount <= MAX_ITERATE_COUNT / 2)
+        // freeze the palettes early so the dither can settle; every refinement
+        // changes the color behind already-assigned pixel indices
+        if (this.iterateCount < SUBPALETTE_REFINE_ITERATIONS) {
             this.refinePalettes();
+            this.applyPalettes();
+        }
     }
 
     paletteForImageIndex(imageIndex: number): number {
@@ -1081,52 +1149,92 @@ export class GBC_Canvas extends CommonBlockParamDitherCanvas {
     override getValidColors(imageIndex: number): number[] {
         if (this.fullPaletteMode)
             return this.pixelPaletteChoices;
-        let p = this.paletteForImageIndex(imageIndex);
-        return this.palettes[p] ?? this.pixelPaletteChoices;
+        const p = this.paletteForImageIndex(imageIndex);
+        const C = this.paletteColors;
+        let valid: number[] = [];
+        for (let s = 0; s < C; ++s)
+            valid.push(p * C + s);
+        return valid;
     }
 
     override guessBlockParam(offset: number): void {
         if (this.fullPaletteMode)
             return;
 
-        // reset histogram values
-        this.histogram.fill(0);
-        this.scores.fill(0);
+        const P = this.palettesCount;
+        const C = this.paletteColors;
+        const N = this.basePal.length;
+        // choose from the source image, not the error-diffused one: diffusion
+        // depends on neighboring tiles' choices and makes palettes flip-flop
+        const from = this.ref;
 
-        // rank all colors within the block (and bordering values)
-        if (!this.firstCommit)
-            this.addToBlockHistogramFromCurrentColor(offset, this.histogram, this.pixelPaletteChoices);
-        this.addToBlockHistogramFrom(offset, this.histogram, this.scores, this.pixelPaletteChoices, this.firstCommit ? this.ref : this.alt);
-
-        // pick the palette whose four colors best cover this tile (lowest summed score)
-        let best = 0;
-        let bestScore = NaN;
-        for (let p = 0; p < this.palettes.length; ++p) {
-            let score = 0;
-            for (let c of this.palettes[p])
-                score += this.scores[c];
-            if (Number.isNaN(bestScore) || (score < bestScore)) {
-                bestScore = score;
-                best = p;
+        // cost of each sub-palette = sum over the tile's pixels of the distance
+        // to that pixel's nearest color within the sub-palette
+        const cost = new Float64Array(P);
+        const imageIndex = this.offsetToImageIndex(offset, this.block);
+        const start = this.imageIndexToXY(imageIndex);
+        const pixels: number[] = [];
+        for (let y = start.y; y < start.y + this.block.h; ++y) {
+            for (let x = start.x; x < start.x + this.block.w; ++x) {
+                const i = this.xyToImageIndex(x, y);
+                if (i === undefined)
+                    continue;
+                const rgb = from[i];
+                pixels.push(rgb);
+                for (let p = 0; p < P; ++p) {
+                    let nearest = Infinity;
+                    for (let s = 0; s < C; ++s)
+                        nearest = Math.min(nearest, this.errfn(rgb, this.pal[p * C + s]));
+                    cost[p] += nearest;
+                }
             }
+        }
+
+        let best = 0;
+        for (let p = 1; p < P; ++p) {
+            if (cost[p] < cost[best])
+                best = p;
+        }
+
+        // hysteresis: keep the tile's current palette unless the new one is
+        // clearly better, otherwise near-ties flip back and forth every pass
+        if (!this.firstCommit) {
+            const current = this.extractColorsFromBlockParams(offset, 1, this.getPaletteFilter(), this.getPaletteBits())[0] ?? 0;
+            if (current < P && cost[best] > cost[current] * SUBPALETTE_SWITCH_RATIO)
+                best = current;
         }
 
         this.updateBlockColorParam(offset, [best], this.getPaletteFilter(), this.getPaletteBits());
 
-        // accumulate this tile's target histogram for the palette refinement
-        const N = this.pal.length;
-        for (let c = 0; c < N; ++c)
-            this.paletteHist[best * N + c] += this.histogram[c];
+        // accumulate the tile's target colors (nearest base-palette color per
+        // pixel) for the palette refinement; independent of slot order
+        for (const rgb of pixels) {
+            let nearest = 0;
+            let nearestDist = Infinity;
+            for (let c = 0; c < N; ++c) {
+                const d = this.errfn(rgb, this.basePal[c]);
+                if (d < nearestDist) { nearestDist = d; nearest = c; }
+            }
+            this.paletteHist[best * N + nearest] += 1;
+        }
     }
 
-    override content(): GBC_CanvasContent {
+    override content(): SubPalette_CanvasContent {
         return {
             ...super.content(),
             palettes: this.palettes,
             palettesCount: this.palettesCount,
             paletteColors: this.paletteColors,
+            paletteIndexBits: this.getPaletteBits(),
+            paletteIndexFilter: this.getPaletteFilter(),
         };
     }
+}
+
+// Game Boy Color BG mode: eight 4-color BG palettes, selected per 8x8 tile.
+export class GBC_Canvas extends SubPalette_Canvas {
+    palettesCount = 8;
+    paletteColors = 4;
 }
 
 export class NES_Canvas extends BasicParamDitherCanvas {

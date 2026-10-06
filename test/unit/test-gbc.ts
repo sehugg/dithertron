@@ -3,9 +3,14 @@ import { loadDither } from '../test-utils';
 import { Dithertron } from '../../src/dither/dithertron';
 import * as exportfuncs from '../../src/export/exportfuncs';
 import { PixelsAvailableMessage } from '../../src/common/types';
+import * as kernels from '../../src/dither/kernels';
 
-async function converge(sysid: string): Promise<{ dt: Dithertron, last: PixelsAvailableMessage, iters: number }> {
+async function converge(sysid: string, options: object = {}): Promise<{ dt: Dithertron, last: PixelsAvailableMessage, iters: number }> {
     const dt = await loadDither(sysid, 'parrot.jpg');
+    if (Object.keys(options).length) {
+        Object.assign(dt.sysparams, options);
+        dt.setSettings(dt.sysparams);
+    }
     dt.clear();
     let iters = 0;
     while (dt.iterate() && iters < 100) iters++;
@@ -32,17 +37,25 @@ t.test('gb.color.tiles tile attributes', async t => {
     }
 
     // every pixel must belong to the palette its tile selected
-    const canv = dt.dithcanv!;
+    const canv: any = dt.dithcanv!;
     const block = content.block;
     let outside = 0;
     for (let i = 0; i < canv.indexed.length; i++) {
         const col = Math.floor(i % canv.width / block.w);
         const row = Math.floor(Math.floor(i / canv.width) / block.h);
         const paletteIndex = content.blockParams[row * block.columns + col];
-        const selected = palettes[paletteIndex] ?? [];
-        if (!selected.includes(canv.indexed[i])) outside++;
+        // working palette is in (palette, slot) order: index = palette * 4 + slot
+        if (Math.floor(canv.indexed[i] / content.paletteColors) !== paletteIndex) outside++;
     }
     t.equal(outside, 0, 'all pixels are inside their tile palette');
+
+    // the working palette must match the palette RAM the export will emit
+    for (let p = 0; p < palettes.length; p++) {
+        for (let c = 0; c < 4; c++) {
+            if (last.pal[p * 4 + c] !== canv.basePal[palettes[p][c]]) outside++;
+        }
+    }
+    t.equal(outside, 0, 'working palette matches chosen sub-palettes');
 
     // native export layout: tile data + attribute bytes + palette RAM
     const out = exportfuncs.exportGBC(last, sys);
@@ -58,7 +71,20 @@ t.test('gb.color.tiles tile attributes', async t => {
     }
     t.equal(badAttr, 0, 'all tilemap attribute palette numbers are in range');
 
+    t.ok(iters < 100, 'converged (did not hit the iteration limit)');
     t.comment(`gb.color.tiles converged in ${iters} iters, ${out.length} exported bytes`);
+});
+
+// Regression: with the UI's default error diffusion and noise, tiles used to
+// flip between palettes every pass (choosing from the error-diffused image),
+// so the picture flashed and never converged.
+t.test('gb.color.tiles converges with diffusion', async t => {
+    const { dt, iters } = await converge('gb.color.tiles', {
+        diffuse: 0.75, noise: 5, ordered: 0, ditherfn: kernels.SIERRALITE, paletteDiversity: 0.95,
+    });
+    t.ok(iters < 20, 'converged quickly');
+    t.equal(dt.dithcanv!.changes, 0, 'no pixels changing at the end');
+    t.comment(`gb.color.tiles with diffusion converged in ${iters} iters`);
 });
 
 // Game Boy Classic tile export: one global 4-shade palette, 2bpp tile data,

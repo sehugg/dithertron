@@ -94,6 +94,11 @@ export interface DithertronSettings {
     paletteChoices?: Partial<PaletteChoices>;
     cb?: BlockBasics & Partial<BlockColorBleed> & Partial<BlockBitOrder>;
     param?: Partial<Param>;
+    // For systems where each block/tile selects one of a fixed number of shared
+    // sub-palettes (e.g. GBC, Genesis, Game Gear). `count` sub-palettes are each
+    // made of `colors` entries; `colors` defaults to block.colors. The reduced
+    // palette length should be count * colors.
+    subPalettes?: { count: number; colors?: number };
     fli?: Fli;
     customize?: any;
     toNative?: string;

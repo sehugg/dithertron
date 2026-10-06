@@ -1764,11 +1764,13 @@ export function exportSNES(message: PixelsAvailableMessage, settings: Dithertron
     });
 }
 
-// Content emitted by GBC_Canvas (see src/dither/canvas.ts)
-interface GBCContent extends BlockParamDitherCanvasContent {
+// Content emitted by SubPalette_Canvas / GBC_Canvas (see src/dither/canvas.ts)
+interface SubPaletteContent extends BlockParamDitherCanvasContent {
     palettes: number[][];
     palettesCount: number;
     paletteColors: number;
+    paletteIndexBits: number;
+    paletteIndexFilter: number;
 }
 
 // Encode the indexed image as Game Boy / NES style 2bpp interleaved planar
@@ -1821,50 +1823,66 @@ export function exportGBTiles(message: PixelsAvailableMessage, settings: Dithert
     return concatArrays([tileData, mapData]);
 }
 
+// One palette-number byte per tile for a shared sub-palette system.
+function encodeSubPaletteAttributes(content: SubPaletteContent): Uint8Array {
+    let tiles = content.block.columns * content.block.rows;
+    let bits = content.paletteIndexBits ?? Math.max(1, Math.ceil(Math.log2(content.palettesCount || 1)));
+    let filter = content.paletteIndexFilter ?? ((1 << bits) - 1);
+    let attrData = new Uint8Array(tiles);
+    for (let i = 0; i < tiles; ++i) {
+        let palette = extractColorsFromParam(content.blockParams[i], 1, filter, bits)[0] ?? 0;
+        attrData[i] = palette & 0xff;
+    }
+    return attrData;
+}
+
+// Encode the palette RAM for a sub-palette system. The working palette is in
+// (palette, slot) order, so entry (p, c) is message.pal[p * paletteColors + c].
+// The packing is chosen with settings.customize.subPalettePaletteFormat:
+//   'rgb555' (default), 'rgb444' (Game Gear / Master System), 'rgb333' (Genesis).
+function encodeSubPaletteRAM(message: PixelsAvailableMessage, content: SubPaletteContent, settings: DithertronSettings): Uint8Array {
+    const paletteCount = content.palettesCount ?? 0;
+    const paletteColors = content.paletteColors ?? 0;
+    const format: string = (settings.customize === undefined ? 'rgb555' : (settings.customize.subPalettePaletteFormat ?? 'rgb555'));
+
+    let data = new Uint8Array(paletteCount * paletteColors * 2);
+    for (let p = 0; p < paletteCount; ++p) {
+        for (let c = 0; c < paletteColors; ++c) {
+            let rgb = message.pal[p * paletteColors + c] ?? 0;
+            let r = rgb & 0xff;
+            let g = (rgb >> 8) & 0xff;
+            let b = (rgb >> 16) & 0xff;
+            let value: number;
+            if (format === 'rgb444')
+                value = ((r >> 4) & 0xf) | (((g >> 4) & 0xf) << 4) | (((b >> 4) & 0xf) << 8);
+            else if (format === 'rgb333')
+                value = ((r >> 5) & 0x7) | (((g >> 5) & 0x7) << 3) | (((b >> 5) & 0x7) << 6);
+            else
+                value = ((r >> 3) & 0x1f) | (((g >> 3) & 0x1f) << 5) | (((b >> 3) & 0x1f) << 10);
+            let ofs = (p * paletteColors + c) * 2;
+            data[ofs] = value & 0xff;
+            data[ofs + 1] = (value >> 8) & 0xff;
+        }
+    }
+    return data;
+}
+
 // Game Boy Color native export:
 //   [tile data] [BG map attribute bytes] [BG palette RAM]
 // Tile data is the same 2bpp interleaved planar layout as NES/GBC (16 bytes/tile).
 // Tiles are emitted one-per-map-cell in row-major order, so the tile index for
 // map cell (row, column) is (row * columns + column); the BG map tile-index
 // bytes are therefore the implicit sequence 0..tiles-1 and are not re-emitted.
-// Each attribute byte here is the 3-bit BG palette number for that tile
-// (bits 0-2; the VRAM-bank / flip / priority bits are left clear).
+// Each attribute byte is the 3-bit BG palette number for that tile (bits 0-2;
+// the VRAM-bank / flip / priority bits are left clear).
 // Palette RAM is 8 palettes x 4 entries x RGB555, little-endian.
 export function exportGBC(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
-    let content = message.content as GBCContent;
-
-    let tiles = content.block.columns * content.block.rows;
-
-    let tileData = encodeGameBoyTiles(message, content);
-
-    // --- BG map attributes (one byte per tile) ---
-    let attrData = new Uint8Array(tiles);
-    for (let i = 0; i < tiles; ++i) {
-        let palette = extractColorsFromParam(content.blockParams[i], 1, 0x7, 3)[0] ?? 0;
-        attrData[i] = palette & 0x7;
-    }
-
-    // --- BG palette RAM (8 x 4 entries as RGB555) ---
-    let palettes = content.palettes ?? [];
-    let paletteCount = content.palettesCount ?? 8;
-    let paletteColors = content.paletteColors ?? 4;
-    let paletteData = new Uint8Array(paletteCount * paletteColors * 2);
-    for (let p = 0; p < paletteCount; ++p) {
-        let palette = palettes[p] ?? [];
-        for (let c = 0; c < paletteColors; ++c) {
-            let color = palette[c] ?? 0;
-            let rgb = message.pal[color] ?? 0;
-            let r = rgb & 0xff;
-            let g = (rgb >> 8) & 0xff;
-            let b = (rgb >> 16) & 0xff;
-            let rgb555 = ((r >> 3) & 0x1f) | (((g >> 3) & 0x1f) << 5) | (((b >> 3) & 0x1f) << 10);
-            let ofs = (p * paletteColors + c) * 2;
-            paletteData[ofs] = rgb555 & 0xff;
-            paletteData[ofs + 1] = (rgb555 >> 8) & 0xff;
-        }
-    }
-
-    return concatArrays([tileData, attrData, paletteData]);
+    let content = message.content as SubPaletteContent;
+    return concatArrays([
+        encodeGameBoyTiles(message, content),
+        encodeSubPaletteAttributes(content),
+        encodeSubPaletteRAM(message, content, settings),
+    ]);
 }
 
 export function exportNES(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
