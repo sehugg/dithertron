@@ -1773,8 +1773,8 @@ interface SubPaletteContent extends BlockParamDitherCanvasContent {
     paletteIndexFilter: number;
 }
 
-// Encode the indexed image as Game Boy / NES style 2bpp interleaved planar
-// tiles (16 bytes per tile), emitting one unique tile per map cell in
+// Encode the indexed image as Game Boy 2bpp tiles (16 bytes per tile, two
+// bytes per pixel row: low bit plane then high bit plane), emitting one unique tile per map cell in
 // row-major order (tile index = row * columns + column).
 function encodeGameBoyTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent): Uint8Array {
     let columns = content.block.columns;
@@ -1789,12 +1789,12 @@ function encodeGameBoyTiles(message: PixelsAvailableMessage, content: BlockParam
             let pixelColumn = x % content.block.w;
             let pixelRow = y % content.block.h;
 
-            let ofs = tileIndex * 16 + pixelRow;
+            let ofs = tileIndex * 16 + pixelRow * 2;
             let shift = content.cell.msbToLsb ? (content.block.w - pixelColumn - 1) : pixelColumn;
             let idx = message.indexed[y * content.width + x] & 0xff;
 
             tileData[ofs] |= (idx & 1) << shift;
-            tileData[ofs + 8] |= ((idx >> 1) & 1) << shift;
+            tileData[ofs + 1] |= ((idx >> 1) & 1) << shift;
         }
     }
 
@@ -1869,7 +1869,7 @@ function encodeSubPaletteRAM(message: PixelsAvailableMessage, content: SubPalett
 
 // Game Boy Color native export:
 //   [tile data] [BG map attribute bytes] [BG palette RAM]
-// Tile data is the same 2bpp interleaved planar layout as NES/GBC (16 bytes/tile).
+// Tile data is Game Boy 2bpp (16 bytes/tile, two bytes per pixel row).
 // Tiles are emitted one-per-map-cell in row-major order, so the tile index for
 // map cell (row, column) is (row * columns + column); the BG map tile-index
 // bytes are therefore the implicit sequence 0..tiles-1 and are not re-emitted.

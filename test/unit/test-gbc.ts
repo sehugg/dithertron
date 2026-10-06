@@ -104,8 +104,9 @@ t.test('gb.color.tiles export bytes', async t => {
         for (let x = 0; x < content.width; x++) {
             const tile = Math.floor(y / 8) * content.block.columns + Math.floor(x / 8);
             const shift = 7 - (x % 8);
-            const lo = (out[tile * 16 + (y % 8)] >> shift) & 1;
-            const hi = (out[tile * 16 + (y % 8) + 8] >> shift) & 1;
+            // Game Boy rows are two bytes: low plane, then high plane
+            const lo = (out[tile * 16 + (y % 8) * 2] >> shift) & 1;
+            const hi = (out[tile * 16 + (y % 8) * 2 + 1] >> shift) & 1;
             if ((hi << 1 | lo) !== (canv.indexed[y * content.width + x] & 3)) badPixel++;
         }
     }
@@ -148,6 +149,20 @@ t.test('gb.tiles export', async t => {
         if (out[tiles * 16 + i] !== i) badMap++;
     }
     t.equal(badMap, 0, 'BG map tile indices are the identity mapping');
+
+    // tile data uses Game Boy rows: low plane byte then high plane byte
+    const canv: any = dt.dithcanv!;
+    let badPixel = 0;
+    for (let y = 0; y < settings.height; y++) {
+        for (let x = 0; x < settings.width; x++) {
+            const tile = Math.floor(y / 8) * 16 + Math.floor(x / 8);
+            const shift = 7 - (x % 8);
+            const lo = (out[tile * 16 + (y % 8) * 2] >> shift) & 1;
+            const hi = (out[tile * 16 + (y % 8) * 2 + 1] >> shift) & 1;
+            if ((hi << 1 | lo) !== canv.indexed[y * settings.width + x]) badPixel++;
+        }
+    }
+    t.equal(badPixel, 0, 'tile data decodes back to the dithered pixels');
 
     t.comment(`gb.tiles converged in ${iters} iters, ${out.length} exported bytes`);
 });
