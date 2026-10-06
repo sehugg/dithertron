@@ -1147,7 +1147,7 @@ vblank:
     xor a
     ldh (rLCDC),a               ; LCD off so VRAM is writable
 
-    ld a,#0b11100100
+    ld a,#0b00011011
     ldh (rBGP),a                ; DMG shade order
 
     ; tile patterns at $8000 (unsigned indices 0..255)
