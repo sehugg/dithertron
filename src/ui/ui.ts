@@ -422,8 +422,11 @@ async function gotoIDE() {
     form.empty();
     if (platform_id == 'atari8') platform_id = 'atari8-800'; // TODO
     if (platform_id == 'cpc') platform_id = 'cpc.6128'; // TODO
+    if (platform_id == 'sms') platform_id = 'sms-sms-libcv';
+    if (platform_id == 'sms-gg') platform_id = 'sms-gg-libcv';
 
-    var codeFilename = "viewer-" + getFilenamePrefix() + ".asm";
+    var codeExt = platform_id == 'gb' ? ".sgb" : ".asm"; // sdasgb source
+    var codeFilename = "viewer-" + getFilenamePrefix() + codeExt;
     var dataFilename = getFilenamePrefix() + ".bin";
     var code = getCodeConvertFunction()();
     code = code.replace("$DATAFILE", dataFilename);

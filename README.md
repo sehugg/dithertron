@@ -152,6 +152,10 @@ previewed and/or downloaded as an image.
 * ZX Spectrum (bright made dark only) - 256 x 192, 16 colors, 2 colors per 8x8 block
 * Amstrad CPC (mode 0) - 160 x 200, 16 out of 27 colors
 * Amstrad CPC (mode 1) - 320 x 200, 4 out of 27 colors
+* Game Boy Color (Tile Palettes) - 128 x 128, 4 colors per 8x8 tile, 8 shared BG palettes (tile attributes)
+* Game Boy Classic (Tiles) - 128 x 128, 4 colors, 256 unique tiles
+* Sega Master System (Tile Palettes) - 176 x 144, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
+* Sega Game Gear (Tile Palettes) - 128 x 128, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
 
 ### Other native export formats
 
@@ -180,8 +184,6 @@ previewed and/or downloaded as an image.
 * Intellivision (Single BG, GROM+GRAM) - 160 x 96, 16 colors, 2 colors per 8x8 block
 * NES (4 color, full screen) - 256 x 240, 4 out of 64 colors
 * NES (5 color, full screen) - 256 x 240, 5 out of 64 colors
-* Sega Game Gear (Tile Palettes) - 128 x 128, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
-* Sega Master System (Tile Palettes) - 176 x 144, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
 * Amiga (Lores) - 320 x 256, 32 out of 4096 colors
 * Amiga (Lores, HAM6) - 320 x 256, 16 out of 4096 colors
 * Apple ][ (Lores) - 40 x 48, 16 colors
@@ -194,8 +196,6 @@ previewed and/or downloaded as an image.
 * PC EGA (Mode 0Dh) - 320 x 200, 16 colors
 * PC EGA (Mode 10h) - 640 x 350, 16 colors
 * Bally MCR-II - 256 x 240, 64 out of 4096 colors, 4 colors per 16x16 block
-* Game Boy Classic (Tiles) - 128 x 128, 4 colors, 256 unique tiles
-* Game Boy Color (Tile Palettes) - 128 x 128, 4 colors per 8x8 tile, 8 shared BG palettes (tile attributes)
 * MC6847 (CG2, palette 0) - 128 x 64, 4 out of 4 colors
 * MC6847 (CG2, palette 1) - 128 x 64, 4 out of 4 colors
 * MC6847 (CG3, palette 0) - 128 x 96, 4 out of 4 colors

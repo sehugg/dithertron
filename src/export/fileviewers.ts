@@ -21,6 +21,10 @@ import asm_zx from "./asm/zx.asm";
 import asm_cpc from "./asm/cpc.asm";
 // @ts-ignore
 import asm_c64_fli from "./asm/c64_fli.asm";
+// @ts-ignore
+import asm_sms from "./asm/sms.asm";
+// @ts-ignore
+import asm_gb from "./asm/gb.asm";
 
 import { dithertron } from "../ui/ui";
 import { hex } from "../common/util";
@@ -196,4 +200,55 @@ export function getFileViewerCode_c64_multi_fli_blank_left(): string {
     let code = getFileViewerCode_c64_fli();
     code = code.replace("$USE_MULTI_MODE", "1");
     return code;
+}
+
+// Replace $NAME tokens in an .asm template with the given values.
+function fillTemplate(code: string, values: { [name: string]: number | string }): string {
+    for (const name in values)
+        code = code.split('$' + name).join(String(values[name]));
+    return code;
+}
+
+// Tile-grid placement shared by the SMS/GG and GB/GBC viewers: the image is
+// centered in the visible area of `screenCols` x `screenRows` tiles that starts
+// at map tile (mapCol, mapRow).
+function getTileViewerParams(screenCols: number, screenRows: number, mapCol: number, mapRow: number) {
+    const cols = dithertron.settings.width >> 3;
+    const rows = dithertron.settings.height >> 3;
+    return {
+        IMG_COLS: cols,
+        IMG_ROWS: rows,
+        IMG_COL0: mapCol + ((screenCols - cols) >> 1),
+        IMG_ROW0: mapRow + ((screenRows - rows) >> 1),
+    };
+}
+
+export function getFileViewerCode_sms_tiles(): string {
+    return fillTemplate(asm_sms, {
+        ...getTileViewerParams(32, 24, 0, 0),
+        CRAM_BYTES: 32,
+        REGION: '0x4c', // SMS export, 32KB
+    });
+}
+
+export function getFileViewerCode_sms_gg_tiles(): string {
+    return fillTemplate(asm_sms, {
+        ...getTileViewerParams(20, 18, 6, 3), // GG window is 20x18 tiles at (6,3)
+        CRAM_BYTES: 64,
+        REGION: '0x6c', // GG export, 32KB
+    });
+}
+
+export function getFileViewerCode_gb_tiles(): string {
+    return fillTemplate(asm_gb, {
+        ...getTileViewerParams(20, 18, 0, 0),
+        CGB: 0,
+    });
+}
+
+export function getFileViewerCode_gb_color_tiles(): string {
+    return fillTemplate(asm_gb, {
+        ...getTileViewerParams(20, 18, 0, 0),
+        CGB: 1,
+    });
 }
