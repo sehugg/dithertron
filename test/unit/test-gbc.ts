@@ -166,3 +166,55 @@ t.test('gb.tiles export', async t => {
 
     t.comment(`gb.tiles converged in ${iters} iters, ${out.length} exported bytes`);
 });
+
+// Game Gear: two shared 16-color palettes, 4bpp SMS tiles, 16-bit name table
+// entries (palette select in bit 11) and 12-bit CRAM.
+t.test('sms-gg.tiles export', async t => {
+    const { dt, last, iters } = await converge('sms-gg.tiles', {
+        diffuse: 0.75, noise: 5, ordered: 0, ditherfn: kernels.SIERRALITE, paletteDiversity: 0.95,
+    });
+    const canv: any = dt.dithcanv!;
+    const content: any = last.content;
+    const tiles = 256;
+
+    t.ok(iters < 20, 'converged quickly with diffusion');
+    t.equal(canv.changes, 0, 'no pixels changing at the end');
+    t.equal(content.palettesCount, 2, 'two palettes');
+    t.equal(content.paletteColors, 16, 'sixteen colors per palette');
+
+    const out = exportfuncs.exportGameGearTiles(last, dt.sysparams);
+    t.equal(out.length, tiles * 32 + tiles * 2 + 2 * 16 * 2, 'native export size');
+
+    // tile data: four plane bytes per row, leftmost pixel in the high bit
+    let badPixel = 0;
+    let badShown = 0;
+    for (let y = 0; y < content.height; y++) {
+        for (let x = 0; x < content.width; x++) {
+            const tile = Math.floor(y / 8) * 16 + Math.floor(x / 8);
+            const shift = 7 - (x % 8);
+            let slot = 0;
+            for (let plane = 0; plane < 4; plane++)
+                slot |= ((out[tile * 32 + (y % 8) * 4 + plane] >> shift) & 1) << plane;
+            const index = canv.indexed[y * content.width + x];
+            if (slot !== (index & 15)) badPixel++;
+
+            // name table palette select (bit 11) must be the palette the pixel is in
+            const entry = out[tiles * 32 + tile * 2] | (out[tiles * 32 + tile * 2 + 1] << 8);
+            if ((entry & 0x1ff) !== tile || ((entry >> 11) & 1) !== (index >> 4)) badShown++;
+        }
+    }
+    t.equal(badPixel, 0, 'tile data holds each pixel\'s slot in its palette');
+    t.equal(badShown, 0, 'name table has identity tile index and the pixel\'s palette select');
+
+    // CRAM is 12-bit BGR little-endian and matches the working palette
+    let badCram = 0;
+    const cram = tiles * 32 + tiles * 2;
+    for (let i = 0; i < 32; i++) {
+        const rgb = last.pal[i];
+        const want = ((rgb & 0xff) >> 4) | (((rgb >> 8 & 0xff) >> 4) << 4) | (((rgb >> 16 & 0xff) >> 4) << 8);
+        if (out[cram + i * 2] !== (want & 0xff) || out[cram + i * 2 + 1] !== (want >> 8)) badCram++;
+    }
+    t.equal(badCram, 0, 'CRAM matches the working palette as 12-bit colors');
+
+    t.comment(`sms-gg.tiles converged in ${iters} iters`);
+});

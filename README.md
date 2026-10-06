@@ -182,6 +182,7 @@ button. The second group can only be previewed and/or downloaded.
 * Atari 7800 (160B) - 160 x 240, 12 out of 256 colors
 * Sega Master System - 176 x 144, 16 out of 64 colors
 * Sega GameGear - 160 x 144, 16 out of 4096 colors
+* Sega GameGear (4bpp) (8x8) (16x16) Tile Palettes - 128 x 128, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)
 * BBC Micro (mode 2) - 160 x 256, 8 colors
 * Apple II (Lores) - 40 x 48, 16 colors
 * Apple II (Double-Hires) - 140 x 192, 16 colors

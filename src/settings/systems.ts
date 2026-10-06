@@ -768,6 +768,24 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         reduce: 16,
     },
     {
+        // 128x128 = 16x16 tiles = 256 unique tiles. Each tile selects one of
+        // the two shared 16-color BG palettes (32 CRAM entries of 4096 colors).
+        id: 'sms-gg.tiles',
+        name: 'Sega GameGear (4bpp) (8x8) (16x16) Tile Palettes',
+        width: 128,
+        height: 128,
+        scaleX: 1.2,
+        conv: 'SubPalette_Canvas',
+        pal: palettes.GAMEGEAR_COLOR_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 2, colors: 16 },
+        paletteChoices: { colorsRange: { min: 0, max: 31 } },
+        reduce: 32,
+        customize: { subPalettePaletteFormat: 'rgb444' },
+        toNative: 'exportGameGearTiles',
+    },
+    {
         id: 'bbcmicro.mode2',
         name: 'BBC Micro (mode 2)',
         width: 160,

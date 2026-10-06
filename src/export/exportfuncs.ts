@@ -1773,13 +1773,16 @@ interface SubPaletteContent extends BlockParamDitherCanvasContent {
     paletteIndexFilter: number;
 }
 
-// Encode the indexed image as Game Boy 2bpp tiles (16 bytes per tile, two
-// bytes per pixel row: low bit plane then high bit plane), emitting one unique tile per map cell in
-// row-major order (tile index = row * columns + column).
-function encodeGameBoyTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent): Uint8Array {
+// Encode the indexed image as 8x8 tiles stored row by row, one byte per bit
+// plane within each row (low plane first), emitting one unique tile per map
+// cell in row-major order (tile index = row * columns + column). The Game Boy
+// uses 2 planes (16 bytes per tile) and the Master System / Game Gear uses 4
+// (32 bytes per tile). Only the low `planes` bits of each pixel are written.
+function encodeRowPlanarTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent, planes: number): Uint8Array {
     let columns = content.block.columns;
     let tiles = columns * content.block.rows;
-    let tileData = new Uint8Array(tiles * 16);
+    let bytesPerTile = content.block.h * planes;
+    let tileData = new Uint8Array(tiles * bytesPerTile);
 
     for (let y = 0; y < content.height; ++y) {
         for (let x = 0; x < content.width; ++x) {
@@ -1789,16 +1792,20 @@ function encodeGameBoyTiles(message: PixelsAvailableMessage, content: BlockParam
             let pixelColumn = x % content.block.w;
             let pixelRow = y % content.block.h;
 
-            let ofs = tileIndex * 16 + pixelRow * 2;
+            let ofs = tileIndex * bytesPerTile + pixelRow * planes;
             let shift = content.cell.msbToLsb ? (content.block.w - pixelColumn - 1) : pixelColumn;
-            let idx = message.indexed[y * content.width + x] & 0xff;
+            let idx = message.indexed[y * content.width + x];
 
-            tileData[ofs] |= (idx & 1) << shift;
-            tileData[ofs + 1] |= ((idx >> 1) & 1) << shift;
+            for (let plane = 0; plane < planes; ++plane)
+                tileData[ofs + plane] |= ((idx >> plane) & 1) << shift;
         }
     }
 
     return tileData;
+}
+
+function encodeGameBoyTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent): Uint8Array {
+    return encodeRowPlanarTiles(message, content, 2);
 }
 
 // Game Boy Classic (DMG) tile export:
@@ -1881,6 +1888,32 @@ export function exportGBC(message: PixelsAvailableMessage, settings: DithertronS
     return concatArrays([
         encodeGameBoyTiles(message, content),
         encodeSubPaletteAttributes(content),
+        encodeSubPaletteRAM(message, content, settings),
+    ]);
+}
+
+// Sega Game Gear native export (shared sub-palette tiles):
+//   [tile data] [name table] [CRAM]
+// Tile data is 4bpp SMS format (32 bytes/tile, four plane bytes per pixel row).
+// The name table has one 16-bit little-endian entry per tile: tile index in
+// bits 0-8 (identity mapping, so at most 512 tiles) and the sprite/BG palette
+// select in bit 11. CRAM is 2 palettes x 16 entries of 12-bit 0000BBBBGGGGRRRR.
+export function exportGameGearTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    let content = message.content as SubPaletteContent;
+    let tiles = content.block.columns * content.block.rows;
+    runtime_assert(tiles <= 512);
+
+    let paletteNumbers = encodeSubPaletteAttributes(content);
+    let nameTable = new Uint8Array(tiles * 2);
+    for (let i = 0; i < tiles; ++i) {
+        let entry = i | (paletteNumbers[i] << 11);
+        nameTable[i * 2] = entry & 0xff;
+        nameTable[i * 2 + 1] = (entry >> 8) & 0xff;
+    }
+
+    return concatArrays([
+        encodeRowPlanarTiles(message, content, 4),
+        nameTable,
         encodeSubPaletteRAM(message, content, settings),
     ]);
 }
