@@ -365,13 +365,13 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'nes.tiles',
-        name: 'NES (full screen, 4 colors)',
+        name: 'NES (full screen, 4 colors, shared tiles)',
         width: 32*8,
         height: 30*8,
         scaleX: 8 / 7,
         conv: 'SNES_Canvas',
         pal: palettes.NES_RGB,
-        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        block: { w: 8, h: 8, colors: 4 },
         cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
             backgroundRange: { min: 0, max: 3 },
@@ -389,7 +389,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         // shared backdrop color, so the screen shows up to 13 colors. Palettes
         // lean away from colors another palette already holds (reuseWeight).
         id: 'nes.tiles.attr',
-        name: 'NES (full screen, attributes)',
+        name: 'NES (full screen, 13 colors, shared tiles)',
         width: 32*8,
         height: 30*8,
         scaleX: 8 / 7,
@@ -743,7 +743,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         // Each tile selects one of the two shared 16-color BG palettes
         // (32 CRAM entries of 4096 colors).
         id: 'sms-gg.tiles',
-        name: 'Sega Game Gear (Tile Palettes)',
+        name: 'Sega Game Gear (32 colors, shared tiles)',
         width: 160,
         height: 144,
         scaleX: 1.2,
@@ -762,7 +762,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         // Like sms-gg.tiles, but the whole screen uses a single 16-color palette,
         // so the tile map needs no per-tile palette choice.
         id: 'sms-gg.tiles.1pal',
-        name: 'Sega Game Gear (1 palette)',
+        name: 'Sega Game Gear (16 colors, shared tiles)',
         width: 160,
         height: 144,
         scaleX: 1.2,
@@ -783,7 +783,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         // Each tile selects one of the two shared 16-color BG palettes
         // (32 CRAM entries of 64 colors).
         id: 'sms.tiles',
-        name: 'Sega Master System (shared tiles)',
+        name: 'Sega Master System (32 colors, shared tiles)',
         width: 256,
         height: 192,
         scaleX: 8 / 7,
@@ -802,7 +802,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         // 176x144 = 22x18 = 396 tiles, within the 448 the VDP can address.
         // For drawing a tile map: nothing is shared, so every tile can be edited.
         id: 'sms.tiles.unique',
-        name: 'Sega Master System (396 unique tiles)',
+        name: 'Sega Master System (32 colors, 396 unique tiles)',
         width: 176,
         height: 144,
         scaleX: 8 / 7,
@@ -820,7 +820,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         // Like sms.tiles, but the whole screen uses a single 16-color palette,
         // so the tile map needs no per-tile palette choice.
         id: 'sms.tiles.1pal',
-        name: 'Sega Master System (1 palette)',
+        name: 'Sega Master System (16 colors, shared tiles)',
         width: 256,
         height: 192,
         scaleX: 8 / 7,
@@ -992,6 +992,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.GAMEBOY_COLOR_RGB,
         block: { w: 8, h: 8, colors: 4, msbToLsb: false },
         cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 8, colors: 4 },
         paletteChoices: { colorsRange: { min: 0, max: 31 } },
         reduce: 32,
         tiles: { max: 256, flipX: true, flipY: true },
@@ -1009,6 +1010,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         pal: palettes.GAMEBOY_COLOR_RGB,
         block: { w: 8, h: 8, colors: 4, msbToLsb: false },
         cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 8, colors: 4 },
         paletteChoices: { colorsRange: { min: 0, max: 31 } },
         reduce: 32,
         toNative: 'exportGBC',
@@ -1016,7 +1018,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     {
         // Like gb.color.tiles, but the whole screen uses a single 4-color palette.
         id: 'gb.color.tiles.1pal',
-        name: 'Game Boy Color (1 palette)',
+        name: 'Game Boy Color (4 colors)',
         width: 160,
         height: 144,
         scaleX: 1,
@@ -1240,18 +1242,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         scaleX: 10 / 9,
         conv: 'DitheringCanvas',
         pal: palettes.GAMEBOY_GREEN_RGB,
-    },
-    {
-        // full-screen framebuffer dither into 32 GBC colors
-        id: 'gb.color',
-        caveat: "32 colors on screen, but each tile may use only one of the eight 4-color palettes. Use the Tile Palettes variant",
-        name: 'Game Boy Color (full screen)',
-        width: 160,
-        height: 144,
-        scaleX: 10 / 9,
-        conv: 'DitheringCanvas',
-        pal: palettes.GAMEBOY_COLOR_RGB,
-        reduce: 32,
     },
     {
         id: 'cx16.lores',

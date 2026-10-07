@@ -1,5 +1,5 @@
 import { SYSTEMS, SYSTEM_LOOKUP } from "../settings/systems";
-import { DitherSetting, DithertronSettings, PixelsAvailableMessage } from "../common/types";
+import { getSystemInfo } from "../settings/systeminfo";import { DitherSetting, DithertronSettings, PixelsAvailableMessage } from "../common/types";
 
 import * as exportfuncs from "../export/exportfuncs";
 import * as fileviewers from "../export/fileviewers";
@@ -216,18 +216,6 @@ function convertImage() {
     });
 }
 
-function getSystemInfo(sys: DithertronSettings) {
-    var s = sys.width + " x " + sys.height;
-    if (sys.reduce) s += ", " + sys.reduce + " out of " + sys.pal.length + " colors";
-    else if (sys.pal) s += ", " + sys.pal.length + " colors";
-    if (sys.block) {
-        s += ", ";
-        s += sys.block.colors + " colors per ";
-        s += sys.block.w + "x" + sys.block.h + " block";
-    }
-    return s;
-}
-
 function showSystemInfo(sys: DithertronSettings) {
     // a caveat means the output can't be shown as-is on the real hardware
     $("#targetFormatInfo").text(getSystemInfo(sys) + (sys.caveat ? " *" : ""))
@@ -295,7 +283,8 @@ function loadSourceImage(url: string) {
 }
 
 // Tile systems share tiles best with ordered dithering (error diffusion makes
-// nearly every tile unique), so switch to it while such a system is selected
+// nearly every tile unique), so switch to half-strength ordered dithering while
+// such a system is selected
 // and put the user's own settings back afterwards.
 var savedDitherSliders: { diffuse: string, ordered: string } | null = null;
 
