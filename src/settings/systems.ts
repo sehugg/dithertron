@@ -542,26 +542,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative:'exportSNES'
     },
     {
-        id: 'gg.4pp',
-        name: 'Sega Game Gear (4bpp linear)',
-        width: 32*8,
-        height: 32*8,
-        scaleX: 1,
-        conv: 'SNES_Canvas',
-        pal: palettes.GAMEGEAR_COLOR_RGB,
-        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
-        cell: { w: 8, h: 8, msbToLsb: true },
-        paletteChoices: {
-            backgroundRange: { min: 0, max: 15 },
-            auxRange: { min: 0, max: 15 },
-            borderRange: { min: 0, max: 15 },
-            colorsRange: { min: 0, max: 15 }
-        },
-        customize: { outputTileset: false, outputPalette: false, planeToMemory: 'linear' },
-        reduce: 16,
-        toNative:'exportSNES'
-    },
-    {
         id: 'genesis',
         name: 'Genesis (4bpp)',
         width: 32*8,
@@ -1143,26 +1123,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         conv: 'DitheringCanvas',
         pal: palettes.VCS_RGB,
         reduce: 12,
-    },
-    {
-        id: 'sms',
-        name: 'Sega Master System',
-        width: 176, // only 488 unique tiles max, otherwise 256x240
-        height: 144,
-        scaleX: 8 / 7,
-        conv: 'DitheringCanvas',
-        pal: palettes.SMS_RGB,
-        reduce: 16,
-    },
-    {
-        id: 'sms-gg',
-        name: 'Sega Game Gear (full screen)',
-        width: 160,
-        height: 144,
-        scaleX: 1.2,
-        conv: 'DitheringCanvas',
-        pal: palettes.GAMEGEAR_COLOR_RGB,
-        reduce: 16,
     },
     {
         id: 'bbcmicro.mode2',
