@@ -8,6 +8,8 @@ import asm_apple2_hires from "./asm/apple2_hires.asm";
 // @ts-ignore
 import asm_nes from "./asm/nes.asm";
 // @ts-ignore
+import asm_nes_tiles from "./asm/nes_tiles.asm";
+// @ts-ignore
 import asm_msx from "./asm/msx.asm";
 // @ts-ignore
 import asm_vcs from "./asm/vcs.asm";
@@ -54,6 +56,15 @@ export function getFileViewerCode_nes(): string {
     code = code.replace('hex 1f;screen color', 'hex ' + hex(palinds[0]));
     code = code.replace('hex 01112100;background 0', 'hex ' + hex(palinds[1]) + hex(palinds[2]) + hex(palinds[3]) + hex(0));
     return code;
+}
+
+export function getFileViewerCode_nes_tiles(): string {
+    const palettes = dithertron.settings.subPalettes?.count ?? 1;
+    return fillTemplate(asm_nes_tiles, { PAL_BYTES: palettes * 4 });
+}
+
+export function getFileViewerCode_nes_tiles_attr(): string {
+    return getFileViewerCode_nes_tiles();
 }
 
 export function getFileViewerCode_msx(): string {

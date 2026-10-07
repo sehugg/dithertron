@@ -152,6 +152,8 @@ previewed and/or downloaded as an image.
 * ZX Spectrum (bright made dark only) - 256 x 192, 16 colors, 2 colors per 8x8 block
 * Amstrad CPC (mode 0) - 160 x 200, 16 out of 27 colors
 * Amstrad CPC (mode 1) - 320 x 200, 4 out of 27 colors
+* NES (full screen, 4 colors, shared tiles) - 256 x 240, 4 out of 64 colors, 240 unique tiles
+* NES (full screen, 13 colors, shared tiles) - 256 x 240, 13 out of 64 colors, 4 BG palettes per 16x16 area (attribute table)
 * Game Boy Color (Tile Palettes) - 128 x 128, 4 colors per 8x8 tile, 8 shared BG palettes (tile attributes)
 * Game Boy Classic (Tiles) - 128 x 128, 4 colors, 256 unique tiles
 * Sega Master System (Tile Palettes) - 176 x 144, 16 colors per 8x8 tile, 2 shared BG palettes (name table + CRAM)

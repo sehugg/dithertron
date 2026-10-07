@@ -453,7 +453,7 @@ async function gotoIDE() {
     var codeFilename = "viewer-" + getFilenamePrefix() + codeExt;
     var dataFilename = getFilenamePrefix() + ".bin";
     var code = getCodeConvertFunction()();
-    code = code.replace("$DATAFILE", dataFilename);
+    code = code.split("$DATAFILE").join(dataFilename); // template may include the data twice
     var data = getNativeFormatData();
 
     var fields = [
