@@ -21,6 +21,17 @@ async function converge(sysid: string, options: object = {}): Promise<{ dt: Dith
     return { dt, last: last!, iters };
 }
 
+// Redraw one pixel from planar tile data (rows of `planes` bytes, leftmost
+// pixel in the high bit), mirroring the tile like the hardware flip flags do.
+function tilePixel(out: Uint8Array, planes: number, tile: number, flipX: boolean, flipY: boolean, x: number, y: number): number {
+    const px = flipX ? 7 - (x % 8) : x % 8;
+    const py = flipY ? 7 - (y % 8) : y % 8;
+    let slot = 0;
+    for (let plane = 0; plane < planes; plane++)
+        slot |= ((out[tile * planes * 8 + py * planes + plane] >> (7 - px)) & 1) << plane;
+    return slot;
+}
+
 // Game Boy Color tile-attribute invariants: the ditherer must confine every
 // tile to one of the eight 4-color BG palettes, and the native export must
 // emit the matching tilemap attribute bytes and palette RAM.
@@ -57,19 +68,24 @@ t.test('gb.color.tiles tile attributes', async t => {
     }
     t.equal(outside, 0, 'working palette matches chosen sub-palettes');
 
-    // native export layout: tile data + attribute bytes + palette RAM
+    // native export layout: tile data + tile map + attribute bytes + palette RAM
     const out = exportfuncs.exportGBC(last, sys);
-    const tiles = (sys.width / block.w) * (sys.height / block.h);
-    t.equal(tiles, 256, '128x128 is exactly 256 tiles');
-    t.equal(out.length, tiles * 16 + tiles + 8 * 4 * 2, 'native export size');
+    const cells = (sys.width / block.w) * (sys.height / block.h);
+    const tiles = content.tileset.tiles.length;
+    t.equal(cells, 360, '160x144 is 20x18 cells');
+    t.ok(tiles <= 256, `${tiles} shared tiles fit one tile area`);
+    t.equal(out.length, tiles * 16 + cells + cells + 8 * 4 * 2, 'native export size');
 
-    const attrOffset = tiles * 16;
+    const mapOffset = tiles * 16;
+    const attrOffset = mapOffset + cells;
     let badAttr = 0;
-    for (let i = 0; i < tiles; i++) {
+    for (let i = 0; i < cells; i++) {
         const attr = out[attrOffset + i];
-        if (attr > 7) badAttr++;
+        const orient = content.tileset.orient[i];
+        if ((attr & 7) !== content.blockParams[i] || (attr >> 5) !== orient || (attr & 0x98) !== 0) badAttr++;
+        if (out[mapOffset + i] !== content.tileset.assign[i]) badAttr++;
     }
-    t.equal(badAttr, 0, 'all tilemap attribute palette numbers are in range');
+    t.equal(badAttr, 0, 'attributes carry the palette number and flips, the map the tile numbers');
 
     t.ok(iters < 100, 'converged (did not hit the iteration limit)');
     t.comment(`gb.color.tiles converged in ${iters} iters, ${out.length} exported bytes`);
@@ -83,11 +99,12 @@ t.test('gb.color.tiles export bytes', async t => {
     const canv: any = dt.dithcanv!;
     const content: any = last.content;
     const out = exportfuncs.exportGBC(last, dt.sysparams);
-    const tiles = 256;
+    const cells = content.block.columns * content.block.rows;
+    const tiles = content.tileset.tiles.length;
 
     // palette RAM: old logic looked colors up as basePal[palettes[p][c]]
     let badPal = 0;
-    const ramOffset = tiles * 16 + tiles;
+    const ramOffset = tiles * 16 + cells * 2;
     for (let p = 0; p < 8; p++) {
         for (let c = 0; c < 4; c++) {
             const rgb = canv.basePal[content.palettes[p][c]];
@@ -98,16 +115,14 @@ t.test('gb.color.tiles export bytes', async t => {
     }
     t.equal(badPal, 0, 'palette RAM matches the chosen base colors');
 
-    // tile data: decode every pixel's 2-bit slot and compare with its index
+    // tile data: redraw every pixel through the map and flips, compare with its index
     let badPixel = 0;
     for (let y = 0; y < content.height; y++) {
         for (let x = 0; x < content.width; x++) {
-            const tile = Math.floor(y / 8) * content.block.columns + Math.floor(x / 8);
-            const shift = 7 - (x % 8);
-            // Game Boy rows are two bytes: low plane, then high plane
-            const lo = (out[tile * 16 + (y % 8) * 2] >> shift) & 1;
-            const hi = (out[tile * 16 + (y % 8) * 2 + 1] >> shift) & 1;
-            if ((hi << 1 | lo) !== (canv.indexed[y * content.width + x] & 3)) badPixel++;
+            const cell = Math.floor(y / 8) * content.block.columns + Math.floor(x / 8);
+            const attr = out[tiles * 16 + cells + cell];
+            const slot = tilePixel(out, 2, out[tiles * 16 + cell], (attr & 0x20) != 0, (attr & 0x40) != 0, x, y);
+            if (slot !== (canv.indexed[y * content.width + x] & 3)) badPixel++;
         }
     }
     t.equal(badPixel, 0, 'tile data holds each pixel\'s slot in its palette');
@@ -132,39 +147,34 @@ t.test('gb.color.tiles converges with diffusion', async t => {
     t.comment(`gb.color.tiles with diffusion converged in ${iters} iters`);
 });
 
-// Game Boy Classic tile export: one global 4-shade palette, 2bpp tile data,
-// and an identity tile-index map that fits in a single byte per cell.
+// Game Boy Classic tile export: one global 4-shade palette, 2bpp tile data
+// for the distinct tiles, and a tile-index map with a byte per cell.
 t.test('gb.tiles export', async t => {
     const { dt, last, iters } = await converge('gb.tiles');
     const settings = dt.sysparams;
+    const content: any = last.content;
 
     const out = exportfuncs.exportGBTiles(last, settings);
-    const tiles = (settings.width / 8) * (settings.height / 8);
-    t.equal(tiles, 256, '128x128 is exactly 256 tiles');
-    t.equal(out.length, tiles * 16 + tiles, 'native export size (tiles + map)');
-
-    // BG map is the identity 0..255
-    let badMap = 0;
-    for (let i = 0; i < tiles; i++) {
-        if (out[tiles * 16 + i] !== i) badMap++;
-    }
-    t.equal(badMap, 0, 'BG map tile indices are the identity mapping');
+    const cells = (settings.width / 8) * (settings.height / 8);
+    const tiles = content.tileset.tiles.length;
+    t.equal(cells, 360, '160x144 is 20x18 cells');
+    t.ok(tiles <= 256, `${tiles} shared tiles fit one tile area`);
+    t.equal(out.length, tiles * 16 + cells, 'native export size (tiles + map)');
+    t.ok(content.tileset.orient.every((o: number) => o === 0), 'the DMG has no tile flips');
 
     // tile data uses Game Boy rows: low plane byte then high plane byte
     const canv: any = dt.dithcanv!;
     let badPixel = 0;
     for (let y = 0; y < settings.height; y++) {
         for (let x = 0; x < settings.width; x++) {
-            const tile = Math.floor(y / 8) * 16 + Math.floor(x / 8);
-            const shift = 7 - (x % 8);
-            const lo = (out[tile * 16 + (y % 8) * 2] >> shift) & 1;
-            const hi = (out[tile * 16 + (y % 8) * 2 + 1] >> shift) & 1;
-            if ((hi << 1 | lo) !== canv.indexed[y * settings.width + x]) badPixel++;
+            const cell = Math.floor(y / 8) * 20 + Math.floor(x / 8);
+            const slot = tilePixel(out, 2, out[tiles * 16 + cell], false, false, x, y);
+            if (slot !== canv.indexed[y * settings.width + x]) badPixel++;
         }
     }
-    t.equal(badPixel, 0, 'tile data decodes back to the dithered pixels');
+    t.equal(badPixel, 0, 'tile data decodes back to the dithered pixels through the map');
 
-    t.comment(`gb.tiles converged in ${iters} iters, ${out.length} exported bytes`);
+    t.comment(`gb.tiles converged in ${iters} iters, ${tiles} tiles, ${out.length} exported bytes`);
 });
 
 // Game Gear: two shared 16-color palettes, 4bpp SMS tiles, 16-bit name table
@@ -175,40 +185,39 @@ t.test('sms-gg.tiles export', async t => {
     });
     const canv: any = dt.dithcanv!;
     const content: any = last.content;
-    const tiles = 256;
+    const cells = content.block.columns * content.block.rows;
+    const tiles = content.tileset.tiles.length;
 
+    t.equal(cells, 360, '160x144 is 20x18 cells');
+    t.ok(tiles <= 448, `${tiles} shared tiles fit the VDP`);
     t.ok(iters < 20, 'converged quickly with diffusion');
     t.equal(canv.changes, 0, 'no pixels changing at the end');
     t.equal(content.palettesCount, 2, 'two palettes');
     t.equal(content.paletteColors, 16, 'sixteen colors per palette');
 
     const out = exportfuncs.exportGameGearTiles(last, dt.sysparams);
-    t.equal(out.length, tiles * 32 + tiles * 2 + 2 * 16 * 2, 'native export size');
+    t.equal(out.length, tiles * 32 + cells * 2 + 2 * 16 * 2, 'native export size');
 
-    // tile data: four plane bytes per row, leftmost pixel in the high bit
+    // tile data: four plane bytes per row, leftmost pixel in the high bit, redrawn
+    // through the name table (tile index, flips in bits 9-10, palette in bit 11)
     let badPixel = 0;
     let badShown = 0;
     for (let y = 0; y < content.height; y++) {
         for (let x = 0; x < content.width; x++) {
-            const tile = Math.floor(y / 8) * 16 + Math.floor(x / 8);
-            const shift = 7 - (x % 8);
-            let slot = 0;
-            for (let plane = 0; plane < 4; plane++)
-                slot |= ((out[tile * 32 + (y % 8) * 4 + plane] >> shift) & 1) << plane;
+            const cell = Math.floor(y / 8) * content.block.columns + Math.floor(x / 8);
+            const entry = out[tiles * 32 + cell * 2] | (out[tiles * 32 + cell * 2 + 1] << 8);
+            const slot = tilePixel(out, 4, entry & 0x1ff, (entry & 0x200) != 0, (entry & 0x400) != 0, x, y);
             const index = canv.indexed[y * content.width + x];
             if (slot !== (index & 15)) badPixel++;
-
-            // name table palette select (bit 11) must be the palette the pixel is in
-            const entry = out[tiles * 32 + tile * 2] | (out[tiles * 32 + tile * 2 + 1] << 8);
-            if ((entry & 0x1ff) !== tile || ((entry >> 11) & 1) !== (index >> 4)) badShown++;
+            if (((entry >> 11) & 1) !== (index >> 4)) badShown++;
         }
     }
     t.equal(badPixel, 0, 'tile data holds each pixel\'s slot in its palette');
-    t.equal(badShown, 0, 'name table has identity tile index and the pixel\'s palette select');
+    t.equal(badShown, 0, 'name table has the pixel\'s palette select');
 
     // CRAM is 12-bit BGR little-endian and matches the working palette
     let badCram = 0;
-    const cram = tiles * 32 + tiles * 2;
+    const cram = tiles * 32 + cells * 2;
     for (let i = 0; i < 32; i++) {
         const rgb = last.pal[i];
         const want = ((rgb & 0xff) >> 4) | (((rgb >> 8 & 0xff) >> 4) << 4) | (((rgb >> 16 & 0xff) >> 4) << 8);
@@ -227,34 +236,35 @@ t.test('sms.tiles export', async t => {
     const canv: any = dt.dithcanv!;
     const content: any = last.content;
     const columns = content.block.columns;
-    const tiles = columns * content.block.rows;
+    const cells = columns * content.block.rows;
+    const tiles = content.tileset.tiles.length;
 
-    t.equal(tiles, 396, '176x144 is 22x18 tiles');
+    t.equal(cells, 768, '256x192 is 32x24 cells');
+    t.ok(tiles <= 448, `${tiles} shared tiles fit the VDP`);
+    t.ok(content.tileset.orient.some((o: number) => o !== 0), 'some blocks use flipped tiles');
     t.ok(iters < 20, 'converged quickly with diffusion');
     t.equal(canv.changes, 0, 'no pixels changing at the end');
 
     const out = exportfuncs.exportMasterSystemTiles(last, dt.sysparams);
-    t.equal(out.length, tiles * 32 + tiles * 2 + 32, 'native export size (CRAM is one byte per entry)');
+    t.equal(out.length, tiles * 32 + cells * 2 + 32, 'native export size (CRAM is one byte per entry)');
 
     let badPixel = 0;
     let badMap = 0;
     for (let y = 0; y < content.height; y++) {
         for (let x = 0; x < content.width; x++) {
-            const tile = Math.floor(y / 8) * columns + Math.floor(x / 8);
-            let slot = 0;
-            for (let plane = 0; plane < 4; plane++)
-                slot |= ((out[tile * 32 + (y % 8) * 4 + plane] >> (7 - (x % 8))) & 1) << plane;
+            const cell = Math.floor(y / 8) * columns + Math.floor(x / 8);
+            const entry = out[tiles * 32 + cell * 2] | (out[tiles * 32 + cell * 2 + 1] << 8);
+            const slot = tilePixel(out, 4, entry & 0x1ff, (entry & 0x200) != 0, (entry & 0x400) != 0, x, y);
             const index = canv.indexed[y * content.width + x];
             if (slot !== (index & 15)) badPixel++;
-            const entry = out[tiles * 32 + tile * 2] | (out[tiles * 32 + tile * 2 + 1] << 8);
-            if ((entry & 0x1ff) !== tile || ((entry >> 11) & 1) !== (index >> 4)) badMap++;
+            if (((entry >> 11) & 1) !== (index >> 4)) badMap++;
         }
     }
     t.equal(badPixel, 0, 'tile data holds each pixel\'s slot in its palette');
-    t.equal(badMap, 0, 'name table has identity tile index and the pixel\'s palette select');
+    t.equal(badMap, 0, 'name table has the pixel\'s palette select');
 
     let badCram = 0;
-    const cram = tiles * 32 + tiles * 2;
+    const cram = tiles * 32 + cells * 2;
     for (let i = 0; i < 32; i++) {
         const rgb = last.pal[i];
         const want = ((rgb & 0xff) >> 6) | (((rgb >> 8 & 0xff) >> 6) << 2) | (((rgb >> 16 & 0xff) >> 6) << 4);

@@ -2,6 +2,7 @@ import { DithertronSettings, PixelEditorImageFormat, PixelsAvailableMessage } fr
 import { ParamsContent, BlockParamDitherCanvasContent, extractColorsFromParams, extractColorsFromParamContent, extractColorsFromParamsContent, extractColorsFromParam } from "../dither/basecanvas";
 
 import { runtime_assert } from "../common/util";
+import { TILE_FLIP_X, TILE_FLIP_Y } from "../dither/tilecodebook";
 import { convertToSystemPalette } from "../common/color";
 
 import { hex } from "../common/util";
@@ -1806,13 +1807,14 @@ function encodeRowPlanarTiles(message: PixelsAvailableMessage, content: BlockPar
 }
 
 // Only the distinct tiles of an image that shares tiles between blocks. Each
-// tile is read from the first block that uses it, so this assumes all blocks
-// see the same palette.
+// tile is read from the first block that uses it, undoing that block's flip,
+// so this assumes all blocks see the same palette.
 function encodeRowPlanarTileset(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent, planes: number, planeMajor: boolean = false): Uint8Array {
     let tileset = content.tileset;
     if (!tileset)
         throw new Error('image was not fitted to a tile set');
     let columns = content.block.columns;
+    let { w, h } = content.block;
     let firstBlock = new Map<number, number>();
     tileset.assign.forEach((tile, block) => {
         if (!firstBlock.has(tile))
@@ -1820,49 +1822,84 @@ function encodeRowPlanarTileset(message: PixelsAvailableMessage, content: BlockP
     });
     return concatArrays(tileset.tiles.map((_, tile) => {
         let block = firstBlock.get(tile)!;
-        let x0 = (block % columns) * content.block.w;
-        let y0 = Math.floor(block / columns) * content.block.h;
-        return encodeRowPlanarTile((x, y) => message.indexed[(y0 + y) * content.width + x0 + x], content, planes, planeMajor);
+        let orient = tileset.orient[block];
+        let x0 = (block % columns) * w;
+        let y0 = Math.floor(block / columns) * h;
+        return encodeRowPlanarTile((x, y) => {
+            let bx = (orient & TILE_FLIP_X) ? w - 1 - x : x;
+            let by = (orient & TILE_FLIP_Y) ? h - 1 - y : y;
+            return message.indexed[(y0 + by) * content.width + x0 + bx];
+        }, content, planes, planeMajor);
     }));
 }
 
+// The shared tile (and flip bits) shown by `block`. Without a tile set every
+// block is its own tile.
+function blockTile(content: BlockParamDitherCanvasContent, block: number): { tile: number, orient: number } {
+    let tileset = content.tileset;
+    return tileset ? { tile: tileset.assign[block], orient: tileset.orient[block] } : { tile: block, orient: 0 };
+}
+
+// Where the hardware keeps the flip flags of a tile map entry (as bit numbers).
+interface FlipBits { x: number, y: number }
+
+function flipFlags(orient: number, flips?: FlipBits): number {
+    if (!flips) {
+        if (orient !== 0)
+            throw new Error('this system cannot flip tiles');
+        return 0;
+    }
+    return ((orient & TILE_FLIP_X) ? 1 << flips.x : 0) | ((orient & TILE_FLIP_Y) ? 1 << flips.y : 0);
+}
+
+// the distinct tiles of the image, or one tile per block if tiles were not shared
+function encodeTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent, planes: number): Uint8Array {
+    return content.tileset ? encodeRowPlanarTileset(message, content, planes) : encodeRowPlanarTiles(message, content, planes);
+}
+
+// One tile-number byte per block.
+function encodeTileMap(content: BlockParamDitherCanvasContent): Uint8Array {
+    let blocks = content.block.columns * content.block.rows;
+    let map = new Uint8Array(blocks);
+    for (let block = 0; block < blocks; ++block) {
+        let { tile, orient } = blockTile(content, block);
+        if (tile > 255)
+            throw new Error('tile number does not fit in a byte');
+        flipFlags(orient);
+        map[block] = tile;
+    }
+    return map;
+}
+
 function encodeGameBoyTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent): Uint8Array {
-    return encodeRowPlanarTiles(message, content, 2);
+    return encodeTiles(message, content, 2);
 }
 
 // Game Boy Classic (DMG) tile export:
 //   [tile data] [BG map tile-index bytes]
 // The DMG has no per-tile palette, so all 2bpp pixels index one global BGP
-// palette. Map tile-indices are 0..tiles-1 (row-major), so they only fit in a
-// single byte when there are at most 256 tiles (hence the 128x128 source).
+// palette. The tile data holds each distinct tile once and the map has one byte
+// per block (row-major), so at most 256 tiles fit. The DMG cannot flip BG tiles.
 // A DMG ROM would load BGP with the preferred shade order (e.g. 0xE4); the
 // actual shades are not stored in VRAM, so no palette bytes are emitted.
 export function exportGBTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     let content: BlockParamDitherCanvasContent = message.content;
-    let columns = content.block.columns;
-    let tiles = columns * content.block.rows;
-
-    let tileData = encodeGameBoyTiles(message, content);
-
-    // BG map: one tile-index byte per map cell (identity mapping 0..tiles-1)
-    let mapData = new Uint8Array(tiles);
-    for (let i = 0; i < tiles; ++i)
-        mapData[i] = i & 0xff;
-
-    return concatArrays([tileData, mapData]);
+    return concatArrays([encodeGameBoyTiles(message, content), encodeTileMap(content)]);
 }
 
-// One palette-number byte per tile for a shared sub-palette system.
-function encodeSubPaletteAttributes(content: SubPaletteContent): Uint8Array {
-    let tiles = content.block.columns * content.block.rows;
+// The sub-palette number chosen for each block.
+function subPaletteNumbers(content: SubPaletteContent): number[] {
+    let blocks = content.block.columns * content.block.rows;
     let bits = content.paletteIndexBits ?? Math.max(1, Math.ceil(Math.log2(content.palettesCount || 1)));
     let filter = content.paletteIndexFilter ?? ((1 << bits) - 1);
-    let attrData = new Uint8Array(tiles);
-    for (let i = 0; i < tiles; ++i) {
-        let palette = extractColorsFromParam(content.blockParams[i], 1, filter, bits)[0] ?? 0;
-        attrData[i] = palette & 0xff;
-    }
-    return attrData;
+    return Array.from({ length: blocks }, (_, i) => extractColorsFromParam(content.blockParams[i], 1, filter, bits)[0] ?? 0);
+}
+
+// One attribute byte per block for a shared sub-palette system: the palette
+// number, plus the block's tile flip flags where the hardware has them.
+function encodeSubPaletteAttributes(content: SubPaletteContent, flips?: FlipBits): Uint8Array {
+    return Uint8Array.from(subPaletteNumbers(content), (palette, i) =>
+        (palette | flipFlags(blockTile(content, i).orient, flips)) & 0xff);
 }
 
 // Encode the palette RAM for a sub-palette system. The working palette is in
@@ -1904,51 +1941,55 @@ function encodeSubPaletteRAM(message: PixelsAvailableMessage, content: SubPalett
 }
 
 // Game Boy Color native export:
-//   [tile data] [BG map attribute bytes] [BG palette RAM]
-// Tile data is Game Boy 2bpp (16 bytes/tile, two bytes per pixel row).
-// Tiles are emitted one-per-map-cell in row-major order, so the tile index for
-// map cell (row, column) is (row * columns + column); the BG map tile-index
-// bytes are therefore the implicit sequence 0..tiles-1 and are not re-emitted.
-// Each attribute byte is the 3-bit BG palette number for that tile (bits 0-2;
-// the VRAM-bank / flip / priority bits are left clear).
+//   [tile data] [BG map tile-index bytes] [BG map attribute bytes] [BG palette RAM]
+// Tile data is Game Boy 2bpp (16 bytes/tile, two bytes per pixel row) and holds
+// each distinct tile once. The map and attribute bytes have one entry per block
+// in row-major order, so at most 256 tiles fit. Each attribute byte is the 3-bit
+// BG palette number (bits 0-2) with the X and Y flip flags in bits 5 and 6; the
+// VRAM-bank and priority bits are left clear.
 // Palette RAM is 8 palettes x 4 entries x RGB555, little-endian.
 export function exportGBC(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     let content = message.content as SubPaletteContent;
     return concatArrays([
         encodeGameBoyTiles(message, content),
-        encodeSubPaletteAttributes(content),
+        encodeTileMap(content),
+        encodeSubPaletteAttributes(content, { x: 5, y: 6 }),
         encodeSubPaletteRAM(message, content, settings),
     ]);
 }
 
 // 16-bit tilemap entries for a sub-palette system (little-endian unless
-// `bigEndian`): identity tile index (one unique tile per map cell, row-major)
-// in the low bits and the tile's palette number at bit `paletteShift`.
-function encodeSubPaletteNameTable(content: SubPaletteContent, paletteShift: number, bigEndian: boolean = false): Uint8Array {
-    let tiles = content.block.columns * content.block.rows;
-    let paletteNumbers = encodeSubPaletteAttributes(content);
-    let nameTable = new Uint8Array(tiles * 2);
-    for (let i = 0; i < tiles; ++i) {
-        let entry = i | (paletteNumbers[i] << paletteShift);
+// `bigEndian`): the block's tile index in the low bits, its palette number at
+// bit `paletteShift`, and its flip flags at `flips` where the hardware has them.
+function encodeSubPaletteNameTable(content: SubPaletteContent, paletteShift: number, bigEndian: boolean = false, flips?: FlipBits): Uint8Array {
+    let paletteNumbers = subPaletteNumbers(content);
+    let nameTable = new Uint8Array(paletteNumbers.length * 2);
+    paletteNumbers.forEach((palette, i) => {
+        let { tile, orient } = blockTile(content, i);
+        let entry = tile | (palette << paletteShift) | flipFlags(orient, flips);
         nameTable[i * 2 + (bigEndian ? 1 : 0)] = entry & 0xff;
         nameTable[i * 2 + (bigEndian ? 0 : 1)] = (entry >> 8) & 0xff;
-    }
+    });
     return nameTable;
 }
 
 // Sega Game Gear native export (shared sub-palette tiles):
 //   [tile data] [name table] [CRAM]
 // Tile data is 4bpp SMS format (32 bytes/tile, four plane bytes per pixel row).
-// The name table has one 16-bit little-endian entry per tile: tile index in
-// bits 0-8 (identity mapping, so at most 512 tiles) and the sprite/BG palette
-// select in bit 11. CRAM is 2 palettes x 16 entries of 12-bit 0000BBBBGGGGRRRR.
+// The tile data holds each distinct tile once. The name table has one 16-bit
+// little-endian entry per block: tile index in bits 0-8 (at most 512 tiles, 448
+// fit in VRAM next to the name table and sprites), flip X and Y in bits 9 and
+// 10, and the sprite/BG palette select in bit 11. CRAM is 2 palettes x 16
+// entries of 12-bit 0000BBBBGGGGRRRR.
 export function exportGameGearTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     let content = message.content as SubPaletteContent;
-    runtime_assert(content.block.columns * content.block.rows <= 512);
+    let tiles = content.tileset ? content.tileset.tiles.length : content.block.columns * content.block.rows;
+    if (tiles > 448)
+        throw new Error('the VDP can address 448 tiles, got ' + tiles);
 
     return concatArrays([
-        encodeRowPlanarTiles(message, content, 4),
-        encodeSubPaletteNameTable(content, 11),
+        encodeTiles(message, content, 4),
+        encodeSubPaletteNameTable(content, 11, false, { x: 9, y: 10 }),
         encodeSubPaletteRAM(message, content, settings),
     ]);
 }

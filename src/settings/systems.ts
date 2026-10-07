@@ -701,12 +701,14 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportSticColorStack'
     },
     {
-        // 128x128 = 16x16 tiles = 256 unique tiles. Each tile selects one of
-        // the two shared 16-color BG palettes (32 CRAM entries of 4096 colors).
+        // The 160x144 window is 360 tiles, within the 448 the VDP can address;
+        // identical tiles are shared, optionally flipped.
+        // Each tile selects one of the two shared 16-color BG palettes
+        // (32 CRAM entries of 4096 colors).
         id: 'sms-gg.tiles',
         name: 'Sega Game Gear (Tile Palettes)',
-        width: 128,
-        height: 128,
+        width: 160,
+        height: 144,
         scaleX: 1.2,
         conv: 'SubPalette_Canvas',
         pal: palettes.GAMEGEAR_COLOR_RGB,
@@ -716,14 +718,35 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         paletteChoices: { colorsRange: { min: 0, max: 31 } },
         reduce: 32,
         customize: { subPalettePaletteFormat: 'rgb444' },
+        tiles: { max: 448, flipX: true, flipY: true },
         toNative: 'exportGameGearTiles',
     },
     {
-        // 176x144 = 22x18 = 396 tiles, within the 448 the VDP can address.
+        // The 256x192 screen is 768 tiles; the 448 the VDP can address are shared
+        // between them, optionally flipped.
         // Each tile selects one of the two shared 16-color BG palettes
         // (32 CRAM entries of 64 colors).
         id: 'sms.tiles',
-        name: 'Sega Master System (Tile Palettes)',
+        name: 'Sega Master System (shared tiles)',
+        width: 256,
+        height: 192,
+        scaleX: 8 / 7,
+        conv: 'SubPalette_Canvas',
+        pal: palettes.SMS_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 2, colors: 16 },
+        paletteChoices: { colorsRange: { min: 0, max: 31 } },
+        reduce: 32,
+        customize: { subPalettePaletteFormat: 'rgb222' },
+        tiles: { max: 448, flipX: true, flipY: true },
+        toNative: 'exportMasterSystemTiles',
+    },
+    {
+        // 176x144 = 22x18 = 396 tiles, within the 448 the VDP can address.
+        // For drawing a tile map: nothing is shared, so every tile can be edited.
+        id: 'sms.tiles.unique',
+        name: 'Sega Master System (396 unique tiles)',
         width: 176,
         height: 144,
         scaleX: 8 / 7,
@@ -850,10 +873,27 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportSNES'
     },
     {
-        // 128x128 = 16x16 tiles = 256 unique tiles, one base DMG tile area.
+        // The 160x144 screen is 360 tiles; the 256 of one DMG tile area are shared
+        // between them. The BG cannot flip tiles.
         // All tiles share the single global 4-shade BGP palette.
         id: 'gb.tiles',
-        name: 'Game Boy Classic (Tiles)',
+        name: 'Game Boy Classic (shared tiles)',
+        width: 160,
+        height: 144,
+        scaleX: 1,
+        conv: 'SNES_Canvas',
+        pal: palettes.GAMEBOY_GREEN_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        reduce: 4,
+        tiles: { max: 256 },
+        toNative: 'exportGBTiles',
+    },
+    {
+        // 128x128 = 16x16 tiles = 256 unique tiles, one base DMG tile area.
+        // For drawing a tile map: nothing is shared, so every tile can be edited.
+        id: 'gb.tiles.unique',
+        name: 'Game Boy Classic (256 unique tiles)',
         width: 128,
         height: 128,
         scaleX: 1,
@@ -865,10 +905,28 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportGBTiles',
     },
     {
-        // 128x128 = 16x16 tiles = 256 unique tiles, exactly one GBC VRAM tile bank.
+        // The 160x144 screen is 360 tiles; the 256 of one tile area are shared
+        // between them, optionally flipped.
         // Each tile selects one of eight shared 4-color BG palettes.
         id: 'gb.color.tiles',
-        name: 'Game Boy Color (Tile Palettes)',
+        name: 'Game Boy Color (shared tiles)',
+        width: 160,
+        height: 144,
+        scaleX: 1,
+        conv: 'GBC_Canvas',
+        pal: palettes.GAMEBOY_COLOR_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        paletteChoices: { colorsRange: { min: 0, max: 31 } },
+        reduce: 32,
+        tiles: { max: 256, flipX: true, flipY: true },
+        toNative: 'exportGBC',
+    },
+    {
+        // 128x128 = 16x16 tiles = 256 unique tiles, exactly one GBC VRAM tile bank.
+        // For drawing a tile map: nothing is shared, so every tile can be edited.
+        id: 'gb.color.tiles.unique',
+        name: 'Game Boy Color (256 unique tiles)',
         width: 128,
         height: 128,
         scaleX: 1,

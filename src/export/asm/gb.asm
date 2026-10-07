@@ -1,14 +1,15 @@
 
 ; Game Boy / Game Boy Color tile viewer (shared by both systems), SDAS syntax.
-; Data file layout: [tiles: 16 bytes each] and for CGB also
-; [BG attributes: 1 byte per tile] [BG palette RAM: 64 bytes]
+; Data file layout: [tiles: 16 bytes each, shared between map cells]
+; [BG map: 1 tile number byte per cell] and for CGB also
+; [BG attributes: 1 byte per cell: palette, flips] [BG palette RAM: 64 bytes]
 
 CGB         = $CGB              ; 1 = Game Boy Color
 IMG_COLS    = $IMG_COLS         ; image size in tiles
 IMG_ROWS    = $IMG_ROWS
 IMG_COL0    = $IMG_COL0         ; first map column/row used on screen
 IMG_ROW0    = $IMG_ROW0
-TILES       = IMG_COLS*IMG_ROWS
+TILE_BYTES  = $TILE_BYTES       ; size of the tile data
 
 rLCDC       = 0xff40
 rLY         = 0xff44
@@ -50,7 +51,7 @@ vblank:
     ; tile patterns at $8000 (unsigned indices 0..255)
     ld hl,#0x8000
     ld de,#ImageData
-    ld bc,#(TILES*16)
+    ld bc,#TILE_BYTES
 copytiles:
     ld a,(de)
     inc de
@@ -60,16 +61,15 @@ copytiles:
     or c
     jr nz,copytiles
 
-    ; BG map: identity tile indices, one image row per 32-entry map row
+    ; BG map: tile numbers (de points at them), one image row per 32-entry map row
     ld hl,#(0x9800+IMG_ROW0*32+IMG_COL0)
-    ld c,#0
-    ld d,#IMG_ROWS
+    ld c,#IMG_ROWS
 maprow:
     ld b,#IMG_COLS
 mapcol:
-    ld a,c
+    ld a,(de)
+    inc de
     ld (hl+),a
-    inc c
     dec b
     jr nz,mapcol
     ld a,l
@@ -78,15 +78,15 @@ mapcol:
     jr nc,mapnc
     inc h
 mapnc:
-    dec d
+    dec c
     jr nz,maprow
 
 .if CGB
-    ; BG attributes (palette number per tile) in VRAM bank 1, same map layout
+    ; BG attributes (palette number and flips per cell) in VRAM bank 1, same
+    ; map layout (de points at them)
     ld a,#1
     ldh (rVBK),a
     ld hl,#(0x9800+IMG_ROW0*32+IMG_COL0)
-    ld de,#(ImageData+TILES*16)
     ld c,#IMG_ROWS
 attrrow:
     ld b,#IMG_COLS

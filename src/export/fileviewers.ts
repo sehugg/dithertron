@@ -223,9 +223,15 @@ function getTileViewerParams(screenCols: number, screenRows: number, mapCol: num
     };
 }
 
+// Size in bytes of the distinct tiles at the start of the data file.
+function getTileBytes(bytesPerTile: number) {
+    return dithertron.lastPixels.content.tileset.tiles.length * bytesPerTile;
+}
+
 export function getFileViewerCode_sms_tiles(): string {
     return fillTemplate(asm_sms, {
         ...getTileViewerParams(32, 24, 0, 0),
+        TILE_BYTES: getTileBytes(32),
         CRAM_BYTES: 32,
         REGION: '0x4c', // SMS export, 32KB
     });
@@ -234,6 +240,7 @@ export function getFileViewerCode_sms_tiles(): string {
 export function getFileViewerCode_sms_gg_tiles(): string {
     return fillTemplate(asm_sms, {
         ...getTileViewerParams(20, 18, 6, 3), // GG window is 20x18 tiles at (6,3)
+        TILE_BYTES: getTileBytes(32),
         CRAM_BYTES: 64,
         REGION: '0x6c', // GG export, 32KB
     });
@@ -242,6 +249,7 @@ export function getFileViewerCode_sms_gg_tiles(): string {
 export function getFileViewerCode_gb_tiles(): string {
     return fillTemplate(asm_gb, {
         ...getTileViewerParams(20, 18, 0, 0),
+        TILE_BYTES: getTileBytes(16),
         CGB: 0,
     });
 }
@@ -249,6 +257,7 @@ export function getFileViewerCode_gb_tiles(): string {
 export function getFileViewerCode_gb_color_tiles(): string {
     return fillTemplate(asm_gb, {
         ...getTileViewerParams(20, 18, 0, 0),
+        TILE_BYTES: getTileBytes(16),
         CGB: 1,
     });
 }

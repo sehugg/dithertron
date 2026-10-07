@@ -1,13 +1,14 @@
 
 ; Master System / Game Gear tile viewer (shared by both systems).
-; Data file layout: [tiles: 32 bytes each] [name table: 2 bytes each] [CRAM]
+; Data file layout: [tiles: 32 bytes each, shared between cells]
+; [name table: 2 bytes per cell: tile, flips, palette] [CRAM]
 
 IMG_COLS    = $IMG_COLS       ; image size in tiles
 IMG_ROWS    = $IMG_ROWS
 IMG_COL0    = $IMG_COL0       ; first map column/row used on screen
 IMG_ROW0    = $IMG_ROW0
 CRAM_BYTES  = $CRAM_BYTES     ; 32 (SMS, 1 byte/color) or 64 (GG, 2 bytes/color)
-TILES       = IMG_COLS*IMG_ROWS
+TILE_BYTES  = $TILE_BYTES     ; size of the tile data
 
 VDPDATA     = 0x0be
 VDPCTRL     = 0x0bf
@@ -67,7 +68,7 @@ FillLoop:
     ld hl,#ImageData
     ld de,#0x4000
     call SetAddr
-    ld bc,#(TILES*32)
+    ld bc,#TILE_BYTES
     call CopyVram
 
     ; name table: one row of the image at a time (32 entries per map row)
