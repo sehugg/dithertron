@@ -568,6 +568,24 @@ function updateURL() {
     window.location.hash = '#' + $.param(qs);
 }
 
+// Apply system/image from the URL hash if they differ from the current state
+// (also fires for our own updateURL, which then finds nothing to change).
+function applyURL() {
+    const qs = decodeQueryString(window.location.hash.substring(1));
+    const system = SYSTEM_LOOKUP[qs['sys'] || SYSTEMS[0]!.id];
+    const image = qs['image']; // empty for uploaded images, which we can't reload
+    const imageChanged = !!image && image != presetLoaded;
+    if (imageChanged) {
+        // set first, so updateURL() inside setTargetSystem() keeps the new image
+        filenameLoaded = presetLoaded = image;
+        setSourceName(image);
+    }
+    if (system && system.id != dithertron.settings.id)
+        setTargetSystem(system);
+    if (imageChanged)
+        loadSourceImage("images/" + image);
+}
+
 function decodeQueryString(qs: string) {
     if (qs.startsWith('?')) qs = qs.substr(1);
     var a = qs.split('&');
@@ -672,6 +690,9 @@ export function startUI() {
         filenameLoaded = presetLoaded = qs['image'] || "seurat.jpg";
         setSourceName(filenameLoaded);
         loadSourceImage("images/" + filenameLoaded);
+
+        // back/forward buttons only change the hash
+        window.addEventListener('hashchange', applyURL);
 
         $("#diffuseSlider").on('change', resetImage);
         $("#orderedSlider").on('change', resetImage);
