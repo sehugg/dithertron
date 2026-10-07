@@ -560,30 +560,105 @@ function setupDragDropPaste() {
     });
 }
 
-function updateURL() {
-    let qs = {
+// Controls saved in the URL hash when they differ from their default.
+// Tile systems default to ordered dithering (see applyTileDitherSliders).
+const URL_CONTROLS: { key: string, id: string, tileDefault?: string }[] = [
+    { key: 'diffuse', id: 'diffuseSlider', tileDefault: '0' },
+    { key: 'ordered', id: 'orderedSlider', tileDefault: '50' },
+    { key: 'noise', id: 'noiseSlider' },
+    { key: 'diversity', id: 'diversitySlider' },
+    { key: 'bright', id: 'brightSlider' },
+    { key: 'contrast', id: 'contrastSlider' },
+    { key: 'saturation', id: 'saturationSlider' },
+    { key: 'dither', id: 'diffuseTypeSelect' },
+    { key: 'errfn', id: 'errorFuncSelect' },
+];
+const urlControlDefaults: { [key: string]: string } = {}; // filled by initURLControls()
+
+function initURLControls() {
+    for (const c of URL_CONTROLS) {
+        const el = document.getElementById(c.id) as HTMLInputElement | HTMLSelectElement;
+        urlControlDefaults[c.key] = el instanceof HTMLSelectElement
+            ? (el.options[0]?.value ?? '')
+            : (el.getAttribute('data-slider-value') ?? el.value);
+    }
+}
+
+function urlControlDefault(c: { key: string, tileDefault?: string }, sys: DithertronSettings) {
+    return (sys.tiles && c.tileDefault) || urlControlDefaults[c.key];
+}
+
+// Set the controls from the hash (missing ones go back to default).
+// Returns true if any control changed.
+function applyURLControls(qs: { [name: string]: string }, sys: DithertronSettings): boolean {
+    let changed = false;
+    for (const c of URL_CONTROLS) {
+        const el = document.getElementById(c.id) as HTMLInputElement | HTMLSelectElement;
+        const value = qs[c.key] ?? urlControlDefault(c, sys);
+        if (el instanceof HTMLSelectElement) {
+            if (el.value != value && Array.from(el.options).some((o) => o.value == value)) {
+                el.value = value;
+                changed = true;
+            }
+        } else if (parseFloat(el.value) != parseFloat(value)) {
+            setSliderValue(el, value);
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+// Suppresses updateURL() while the URL is being applied, so half-applied state
+// doesn't overwrite the hash we are reading.
+var applyingURL = false;
+
+// replace: change the current history entry (for sliders) instead of adding one
+function updateURL(replace: boolean = false) {
+    if (applyingURL) return;
+    let qs: { [name: string]: string } = {
         sys: dithertron.settings.id,
         image: presetLoaded,
     };
-    window.location.hash = '#' + $.param(qs);
+    for (const c of URL_CONTROLS) {
+        const el = document.getElementById(c.id) as HTMLInputElement | HTMLSelectElement;
+        const dflt = urlControlDefault(c, dithertron.settings);
+        const differs = el instanceof HTMLSelectElement ? el.value != dflt : parseFloat(el.value) != parseFloat(dflt);
+        if (differs) qs[c.key] = el.value;
+    }
+    const hash = '#' + $.param(qs);
+    if (hash == window.location.hash) return;
+    if (replace)
+        history.replaceState(null, '', hash);
+    else
+        window.location.hash = hash;
 }
 
-// Apply system/image from the URL hash if they differ from the current state
-// (also fires for our own updateURL, which then finds nothing to change).
-function applyURL() {
+// Apply the URL hash if it differs from the current state (also fires for our
+// own updateURL, which then finds nothing to change).
+function applyURL(initial: boolean = false) {
     const qs = decodeQueryString(window.location.hash.substring(1));
-    const system = SYSTEM_LOOKUP[qs['sys'] || SYSTEMS[0]!.id];
-    const image = qs['image']; // empty for uploaded images, which we can't reload
+    const system = SYSTEM_LOOKUP[qs['sys'] || SYSTEMS[0]!.id] || SYSTEMS[0]!;
+    const image = initial ? (qs['image'] || "seurat.jpg") : qs['image']; // empty for uploaded images, which we can't reload
     const imageChanged = !!image && image != presetLoaded;
-    if (imageChanged) {
-        // set first, so updateURL() inside setTargetSystem() keeps the new image
-        filenameLoaded = presetLoaded = image;
-        setSourceName(image);
+    applyingURL = true;
+    try {
+        if (imageChanged) {
+            filenameLoaded = presetLoaded = image;
+            setSourceName(image);
+        }
+        const systemChanged = initial || system.id != dithertron.settings.id;
+        if (systemChanged)
+            setTargetSystem(system);
+        const controlsChanged = applyURLControls(qs, system);
+        if (imageChanged)
+            loadSourceImage("images/" + image);
+        else if (controlsChanged)
+            reprocessImage();
+    } finally {
+        applyingURL = false;
     }
-    if (system && system.id != dithertron.settings.id)
-        setTargetSystem(system);
-    if (imageChanged)
-        loadSourceImage("images/" + image);
+    if (initial)
+        updateURL(true);
 }
 
 function decodeQueryString(qs: string) {
@@ -682,17 +757,10 @@ export function startUI() {
             */
         }
 
-        const qs = decodeQueryString(window.location.hash.substring(1));
-        const currentSystemId = qs['sys'] || SYSTEMS[0]!.id;
-        const currentSystem = SYSTEM_LOOKUP[currentSystemId];
-        setTargetSystem(currentSystem);
-
-        filenameLoaded = presetLoaded = qs['image'] || "seurat.jpg";
-        setSourceName(filenameLoaded);
-        loadSourceImage("images/" + filenameLoaded);
-
+        initURLControls();
+        applyURL(true);
         // back/forward buttons only change the hash
-        window.addEventListener('hashchange', applyURL);
+        window.addEventListener('hashchange', () => applyURL());
 
         $("#diffuseSlider").on('change', resetImage);
         $("#orderedSlider").on('change', resetImage);
@@ -710,6 +778,8 @@ export function startUI() {
             }
         });
         $("#errorFuncSelect").on('change', resetImage);
+        for (const c of URL_CONTROLS)
+            $("#" + c.id).on('change', () => updateURL(true));
         $("#openImageBtn").click(() => imageUpload.click());
         $("#downloadImageBtn").click(downloadImageFormat);
         $("#downloadNativeBtn").click(downloadNativeFormat);
