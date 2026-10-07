@@ -16,26 +16,25 @@ NAMETABLE   = 0x3800
 SPRITETABLE = 0x3f00
 BLANKTILE   = 0x1ff            ; unused tile (VRAM is cleared) for the margins
 
-    .area _ROM (ABS)
-    .org 0x0000
+    org 0x0000
     di
     im 1
-    ld sp,#0x0dff0
+    ld sp,0x0dff0
     jp Start
 
-    .org 0x66
+    org 0x66
     retn                        ; NMI (Game Gear start button)
 
 Start:
-    ld hl,#VdpRegs
-    ld b,#(VdpRegsEnd-VdpRegs)
-    ld c,#VDPCTRL
+    ld hl,VdpRegs
+    ld b,VdpRegsEnd-VdpRegs
+    ld c,VDPCTRL
     otir                        ; set up VDP registers, display still off
 
     ; clear all 16K of VRAM
-    ld de,#0x4000
+    ld de,0x4000
     call SetAddr
-    ld bc,#0x4000
+    ld bc,0x4000
 ClearLoop:
     xor a
     out (VDPDATA),a
@@ -45,19 +44,19 @@ ClearLoop:
     jr nz,ClearLoop
 
     ; hide all sprites
-    ld de,#(0x4000+SPRITETABLE)
+    ld de,0x4000+SPRITETABLE
     call SetAddr
-    ld a,#0x0d0
+    ld a,0x0d0
     out (VDPDATA),a
 
     ; fill name table with the blank tile
-    ld de,#(0x4000+NAMETABLE)
+    ld de,0x4000+NAMETABLE
     call SetAddr
-    ld bc,#(32*28)
+    ld bc,32*28
 FillLoop:
-    ld a,#(BLANKTILE & 0x0ff)
+    ld a,BLANKTILE & 0x0ff
     out (VDPDATA),a
-    ld a,#(BLANKTILE >> 8)
+    ld a,BLANKTILE >> 8
     out (VDPDATA),a
     dec bc
     ld a,b
@@ -65,24 +64,24 @@ FillLoop:
     jr nz,FillLoop
 
     ; tile patterns at VRAM $0000
-    ld hl,#ImageData
-    ld de,#0x4000
+    ld hl,ImageData
+    ld de,0x4000
     call SetAddr
-    ld bc,#TILE_BYTES
+    ld bc,TILE_BYTES
     call CopyVram
 
     ; name table: one row of the image at a time (32 entries per map row)
-    ld de,#(0x4000+NAMETABLE+IMG_ROW0*64+IMG_COL0*2)
-    ld b,#IMG_ROWS
+    ld de,0x4000+NAMETABLE+IMG_ROW0*64+IMG_COL0*2
+    ld b,IMG_ROWS
 RowLoop:
     push bc
     push de
     call SetAddr
-    ld bc,#(IMG_COLS*2)
+    ld bc,IMG_COLS*2
     call CopyVram
     pop de
     push hl
-    ld hl,#64
+    ld hl,64
     add hl,de
     ex de,hl
     pop hl
@@ -90,15 +89,15 @@ RowLoop:
     djnz RowLoop
 
     ; palette (HL now points at the CRAM data)
-    ld de,#0x0c000
+    ld de,0x0c000
     call SetAddr
-    ld bc,#CRAM_BYTES
+    ld bc,CRAM_BYTES
     call CopyVram
 
     ; display on
-    ld a,#0x0c0
+    ld a,0x0c0
     out (VDPCTRL),a
-    ld a,#0x81
+    ld a,0x81
     out (VDPCTRL),a
 Forever:
     jr Forever
@@ -123,23 +122,23 @@ CopyVram:
     ret
 
 VdpRegs:
-    .db 0x04,0x80                  ; mode 4
-    .db 0x80,0x81                  ; display off for now
-    .db 0x0ff,0x82                 ; name table at $3800
-    .db 0x0ff,0x85                 ; sprite table at $3f00
-    .db 0x0ff,0x86                 ; sprite tiles at $2000
-    .db 0x00,0x87                  ; backdrop = palette entry 0
-    .db 0x00,0x88                  ; scroll X
-    .db 0x00,0x89                  ; scroll Y
-    .db 0x0ff,0x8a                 ; no line interrupts
+    db 0x04,0x80                  ; mode 4
+    db 0x80,0x81                  ; display off for now
+    db 0x0ff,0x82                 ; name table at $3800
+    db 0x0ff,0x85                 ; sprite table at $3f00
+    db 0x0ff,0x86                 ; sprite tiles at $2000
+    db 0x00,0x87                  ; backdrop = palette entry 0
+    db 0x00,0x88                  ; scroll X
+    db 0x00,0x89                  ; scroll Y
+    db 0x0ff,0x8a                 ; no line interrupts
 VdpRegsEnd:
 
 ImageData:
-    .incbin "$DATAFILE"
+    incbin "$DATAFILE"
 
 ; ROM header (data must end below $7ff0; 32KB ROM)
-    .org 0x7ff0
-    .ascii "TMR SEGA"
-    .dw 0,0                      ; checksum (unchecked by emulators)
-    .db 0,0,0                    ; product code, version
-    .db $REGION                  ; region (high nibble) and ROM size (low nibble)
+    org 0x7ff0
+    db "TMR SEGA"
+    dw 0,0                      ; checksum (unchecked by emulators)
+    db 0,0,0                    ; product code, version
+    db $REGION                  ; region (high nibble) and ROM size (low nibble)
