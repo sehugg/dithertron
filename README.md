@@ -1,6 +1,6 @@
 # Dithertron
 
-[![Dithertron CI](https://github.com/sehugg/dithertron/actions/workflows/node.js.yml/badge.svg)](https://github.com/sehugg/dithertron/actions/workflows/node.js.yml)
+[![Dithertron CI](https://github.com/8bitworkshop/dithertron/actions/workflows/node.js.yml/badge.svg)](https://github.com/8bitworkshop/dithertron/actions/workflows/node.js.yml)
 [![Try it online](https://img.shields.io/badge/try%20it-online-blue)](https://8bitworkshop.com/dithertron/)
 
 Dithertron is an interactive, browser-based tool that converts full-color images into
@@ -9,7 +9,7 @@ reduction, and dithering entirely in your browser.
 
 **Try it online:** <https://8bitworkshop.com/dithertron/>
 
-**Latest dev version:** <https://sehugg.github.io/dithertron>
+**Latest dev version:** <https://8bitworkshop.github.io/dithertron>
 
 ## How To Use
 
@@ -59,7 +59,7 @@ accumulate and create blocky splotches.
 Clone the main branch:
 
 ```sh
-git clone -b master --single-branch https://github.com/sehugg/dithertron.git
+git clone -b master --single-branch https://github.com/8bitworkshop/dithertron.git
 cd dithertron
 ```
 
@@ -110,9 +110,9 @@ npm run test-web    # Nightwatch headless browser tests
 
 ## License
 
-Copyright © 2016-2026 [Steven Hugg](https://github.com/sehugg).
+Copyright © 2016-2026 [Steven Hugg](https://github.com/8bitworkshop).
 
-This project is [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) licensed.
+This project is [GPL-3.0](https://github.com/8bitworkshop/8bitworkshop/blob/master/LICENSE) licensed.
 
 Dependencies retain their original licenses.
 
