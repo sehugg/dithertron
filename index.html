@@ -95,6 +95,19 @@
         #sourcePane {
             position: relative;
         }
+        #cropSize {
+            display: none;
+            position: absolute;
+            top: 0.2em;
+            right: 0.2em;
+            z-index: 1040;
+            background: rgba(0, 0, 0, 0.25);
+            color: #ccc;
+            padding: 0.15em 0.25em;
+            border-radius: 0.25em;
+            font-size: 0.65em;
+            pointer-events: none;
+        }
         #dropOverlay {
             display: none;
             position: absolute;
@@ -248,6 +261,7 @@
         <div class="responsive-row">
             <div class="col-md-6 responsive-col" id="sourcePane">
                 <img class="crop" id="srcimage">
+                <div id="cropSize"></div>
                 <div id="dropOverlay">Drop image here</div>
             </div>
             <div class="col-md-6 responsive-col">

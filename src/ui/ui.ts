@@ -246,6 +246,16 @@ function updatePaletteSwatches(pal: Uint32Array) {
     }
 }
 
+function updateCropSize(data?: Cropper.Data) {
+    const el = document.getElementById('cropSize');
+    if (!el) return;
+    data = data || cropper?.getData();
+    const w = Math.round(data?.width) || 0;
+    const h = Math.round(data?.height) || 0;
+    el.textContent = w + " \u00d7 " + h;
+    el.style.display = (w && h) ? 'block' : 'none';
+}
+
 function isExactMatch(imageData: Cropper.ImageData) {
     const settings = dithertron.settings;
     return imageData?.naturalWidth == settings.width
@@ -272,6 +282,7 @@ function loadSourceImage(url: string) {
         autoCropArea: 1.0,
         initialAspectRatio: aspect,
         crop(event) {
+            updateCropSize(event.detail);
             if (isExactMatch(cropper.getImageData())) {
                 processImageDirectly();
             } else {
