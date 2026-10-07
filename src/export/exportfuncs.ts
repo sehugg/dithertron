@@ -2,6 +2,7 @@ import { DithertronSettings, PixelEditorImageFormat, PixelsAvailableMessage } fr
 import { ParamsContent, BlockParamDitherCanvasContent, extractColorsFromParams, extractColorsFromParamContent, extractColorsFromParamsContent, extractColorsFromParam } from "../dither/basecanvas";
 
 import { runtime_assert } from "../common/util";
+import { convertToSystemPalette } from "../common/color";
 
 import { hex } from "../common/util";
 
@@ -1778,30 +1779,51 @@ interface SubPaletteContent extends BlockParamDitherCanvasContent {
 // cell in row-major order (tile index = row * columns + column). The Game Boy
 // uses 2 planes (16 bytes per tile) and the Master System / Game Gear uses 4
 // (32 bytes per tile). Only the low `planes` bits of each pixel are written.
+// One tile as planar bytes. By default each pixel row is `planes` bytes, one per
+// bit plane (Game Boy style); `planeMajor` stores each whole plane in turn (NES style).
+function encodeRowPlanarTile(pixel: (x: number, y: number) => number, content: BlockParamDitherCanvasContent, planes: number, planeMajor: boolean = false): Uint8Array {
+    let tile = new Uint8Array(content.block.h * planes);
+    for (let y = 0; y < content.block.h; ++y) {
+        for (let x = 0; x < content.block.w; ++x) {
+            let shift = content.cell.msbToLsb ? (content.block.w - x - 1) : x;
+            let idx = pixel(x, y);
+            for (let plane = 0; plane < planes; ++plane)
+                tile[planeMajor ? plane * content.block.h + y : y * planes + plane] |= ((idx >> plane) & 1) << shift;
+        }
+    }
+    return tile;
+}
+
+// every block of the image as its own tile, row-major
 function encodeRowPlanarTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent, planes: number): Uint8Array {
     let columns = content.block.columns;
     let tiles = columns * content.block.rows;
-    let bytesPerTile = content.block.h * planes;
-    let tileData = new Uint8Array(tiles * bytesPerTile);
+    return concatArrays(Array.from({ length: tiles }, (_, tileIndex) => {
+        let x0 = (tileIndex % columns) * content.block.w;
+        let y0 = Math.floor(tileIndex / columns) * content.block.h;
+        return encodeRowPlanarTile((x, y) => message.indexed[(y0 + y) * content.width + x0 + x], content, planes);
+    }));
+}
 
-    for (let y = 0; y < content.height; ++y) {
-        for (let x = 0; x < content.width; ++x) {
-            let column = Math.floor(x / content.block.w);
-            let row = Math.floor(y / content.block.h);
-            let tileIndex = row * columns + column;
-            let pixelColumn = x % content.block.w;
-            let pixelRow = y % content.block.h;
-
-            let ofs = tileIndex * bytesPerTile + pixelRow * planes;
-            let shift = content.cell.msbToLsb ? (content.block.w - pixelColumn - 1) : pixelColumn;
-            let idx = message.indexed[y * content.width + x];
-
-            for (let plane = 0; plane < planes; ++plane)
-                tileData[ofs + plane] |= ((idx >> plane) & 1) << shift;
-        }
-    }
-
-    return tileData;
+// Only the distinct tiles of an image that shares tiles between blocks. Each
+// tile is read from the first block that uses it, so this assumes all blocks
+// see the same palette.
+function encodeRowPlanarTileset(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent, planes: number, planeMajor: boolean = false): Uint8Array {
+    let tileset = content.tileset;
+    if (!tileset)
+        throw new Error('image was not fitted to a tile set');
+    let columns = content.block.columns;
+    let firstBlock = new Map<number, number>();
+    tileset.assign.forEach((tile, block) => {
+        if (!firstBlock.has(tile))
+            firstBlock.set(tile, block);
+    });
+    return concatArrays(tileset.tiles.map((_, tile) => {
+        let block = firstBlock.get(tile)!;
+        let x0 = (block % columns) * content.block.w;
+        let y0 = Math.floor(block / columns) * content.block.h;
+        return encodeRowPlanarTile((x, y) => message.indexed[(y0 + y) * content.width + x0 + x], content, planes, planeMajor);
+    }));
 }
 
 function encodeGameBoyTiles(message: PixelsAvailableMessage, content: BlockParamDitherCanvasContent): Uint8Array {
@@ -2058,13 +2080,37 @@ export function exportNES(img: PixelsAvailableMessage, settings: DithertronSetti
     return char;
 }
 
-export function exportNES5Color(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
-    if (!settings.block) throw "No block size";
-    var char = exportFrameBuffer(img, settings);
-    // TODO: attr block format
-    var fmt = { w: settings.block.w, h: settings.block.h, bpp: 2 };
-    var attr = new Uint8Array(convertImagesToWords([img.indexed], fmt));
-    return concatArrays([char, attr]);
+// NES full-screen export for images that share tiles (one 4-color palette):
+//   [CHR: 256 tiles x 16 bytes] [name table: 32x30] [attribute table: 64] [palette: 4]
+// The name table and attribute table are 1024 contiguous bytes, the same layout
+// as PPU VRAM, so they can be copied to $2000 as they are. The attribute table
+// selects palette 0 everywhere. The palette bytes are NES color numbers.
+// Unused CHR tiles are left blank. Background tiles cannot be flipped on the NES.
+export function exportNESTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
+    let content: BlockParamDitherCanvasContent = message.content;
+    let tileset = content.tileset;
+    if (!tileset)
+        throw new Error('image was not fitted to a tile set');
+    if (tileset.tiles.length > 256)
+        throw new Error('a pattern table holds 256 tiles');
+    if (tileset.orient.some((o) => o !== 0))
+        throw new Error('NES background tiles cannot be flipped');
+    if (content.block.columns > 32 || content.block.rows > 30)
+        throw new Error('image is larger than a name table');
+
+    let chr = new Uint8Array(256 * 16);
+    chr.set(encodeRowPlanarTileset(message, content, 2, true));
+
+    // name table rows are 32 wide, the image may be narrower
+    let nameTable = new Uint8Array(32 * 30 + 64);
+    for (let block = 0; block < tileset.assign.length; ++block) {
+        let column = block % content.block.columns;
+        let row = Math.floor(block / content.block.columns);
+        nameTable[row * 32 + column] = tileset.assign[block];
+    }
+
+    let palette = Uint8Array.from(convertToSystemPalette(message.pal, settings.pal));
+    return concatArrays([chr, nameTable, palette]);
 }
 
 export function exportVCSPlayfield(img: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {

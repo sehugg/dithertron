@@ -294,8 +294,32 @@ function loadSourceImage(url: string) {
     updateURL();
 }
 
+// Tile systems share tiles best with ordered dithering (error diffusion makes
+// nearly every tile unique), so switch to it while such a system is selected
+// and put the user's own settings back afterwards.
+var savedDitherSliders: { diffuse: string, ordered: string } | null = null;
+
+function setSliderValue(slider: HTMLInputElement, value: string) {
+    ($(slider) as any).slider('setValue', parseFloat(value));
+    slider.value = value;
+}
+
+function applyTileDitherSliders(sys: DithertronSettings) {
+    if (sys.tiles) {
+        if (!savedDitherSliders)
+            savedDitherSliders = { diffuse: diffuseSlider.value, ordered: orderedSlider.value };
+        setSliderValue(diffuseSlider, '0');
+        setSliderValue(orderedSlider, '100');
+    } else if (savedDitherSliders) {
+        setSliderValue(diffuseSlider, savedDitherSliders.diffuse);
+        setSliderValue(orderedSlider, savedDitherSliders.ordered);
+        savedDitherSliders = null;
+    }
+}
+
 function setTargetSystem(sys: DithertronSettings) {
     var showNoise = sys.conv != 'DitheringCanvas';
+    applyTileDitherSliders(sys);
     dithertron.newWorker();
     dithertron.setSettings(sys);
     dithertron.restart();

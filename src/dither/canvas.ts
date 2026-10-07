@@ -1187,15 +1187,19 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
         return extracted[0] ?? 0;
     }
 
-    override getValidColors(imageIndex: number): number[] {
+    override tileSlotColors(blockOffset: number): number[] {
         if (this.fullPaletteMode)
             return this.pixelPaletteChoices;
-        const p = this.paletteForImageIndex(imageIndex);
+        const p = this.extractColorsFromBlockParams(blockOffset, 1, this.getPaletteFilter(), this.getPaletteBits())[0] ?? 0;
         const C = this.paletteColors;
         let valid: number[] = [];
         for (let s = 0; s < C; ++s)
             valid.push(p * C + s);
         return valid;
+    }
+
+    override getValidColors(imageIndex: number): number[] {
+        return this.tileValidColors(imageIndex) ?? this.tileSlotColors(this.imageIndexToBlockOffset(imageIndex));
     }
 
     override guessBlockParam(offset: number): void {
@@ -1276,60 +1280,6 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
 export class GBC_Canvas extends SubPalette_Canvas {
     palettesCount = 8;
     paletteColors = 4;
-}
-
-export class NES_Canvas extends BasicParamDitherCanvas {
-    w = 16;
-    h = 16;
-    allColors = [0, 1, 2, 3, 4];
-    init() {
-        this.params = new Uint32Array(this.width / this.w * this.height / this.h);
-        for (var i = 0; i < this.params.length; i++) {
-            this.guessParam(i);
-        }
-    }
-    getValidColors(offset: number) {
-        var ncols = this.width / this.w;
-        var col = Math.floor(offset / this.w) % ncols;
-        var row = Math.floor(offset / (this.width * this.h));
-        var i = col + row * ncols;
-        var c1 = this.params[i];
-        // param specified which color to leave out
-        switch (c1 & 3) {
-            case 0: return [0, 2, 3, 4];
-            case 1: return [0, 1, 3, 4];
-            case 2: return [0, 1, 2, 4];
-            case 3: return [0, 1, 2, 3];
-        }
-        throw new Error("invalid param " + c1);
-    }
-    guessParam(p: number) {
-        var ncols = this.width / this.w;
-        var col = p % ncols;
-        var row = Math.floor(p / ncols);
-        var offset = col * this.w + row * this.width * this.h;
-        var colors = [1, 2, 3, 4];
-        // rank all colors
-        var histo = new Uint32Array(16);
-        var b = 8; // border (TODO: param)
-        for (var y = -b; y < this.h + b; y++) {
-            var o = offset + y * this.width;
-            for (var x = -b; x < this.w + b; x++) {
-                // get current color (or reference for 1st time)
-                var c1 = this.indexed[o + x] | 0;
-                histo[c1] += 100;
-                // get error color (TODO: why ref works better?)
-                var rgbcomp = this.alt[o + x] | 0;
-                var c2 = this.getClosest(rgbcomp, colors);
-                histo[c2] += 1 + this.noise;
-            }
-        }
-        var choices = getChoices(histo);
-        // leave out last color, least frequent
-        choices.forEach((ch) => {
-            if (ch.ind >= 1 && ch.ind <= 4) this.params[p] = ch.ind - 1;
-        });
-    }
 }
 
 // Amiga Hold-And-Modify: pixels 0-15 pick a base palette entry, and pixels

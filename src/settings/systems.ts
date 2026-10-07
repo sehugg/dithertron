@@ -364,33 +364,13 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative:'exportVicMulti',
     },
     {
-        id: 'nes.1bpp',
-        name: 'NES (1bpp tiles)',
+        id: 'nes.tiles',
+        name: 'NES (full screen, 240 tiles)',
         width: 32*8,
-        height: 32*8,
-        scaleX: 1,
+        height: 30*8,
+        scaleX: 8 / 7,
         conv: 'SNES_Canvas',
-        pal: palettes.SNES_B5G5R5_RGB,
-        block: { w: 8, h: 8, colors: 2, msbToLsb: false },  // bit plane colors are stored LSB to MSB
-        cell: { w: 8, h: 8, msbToLsb: true },                // cell pixels are stored MSB to LSB
-        paletteChoices: {
-            backgroundRange: { min: 0, max: 1 },
-            auxRange: { min: 0, max: 1 },
-            borderRange: { min: 0, max: 1 },
-            colorsRange: { min: 0, max: 1 }
-        },
-        reduce: 2,
-        customize: { outputTileset: false, outputPalette: true },
-        toNative:'exportSNES'
-    },
-    {
-        id: 'nes.2bpp',
-        name: 'NES (2bpp tiles)',
-        width: 32*8,
-        height: 32*8,
-        scaleX: 1,
-        conv: 'SNES_Canvas',
-        pal: palettes.SNES_B5G5R5_RGB,
+        pal: palettes.NES_RGB,
         block: { w: 8, h: 8, colors: 4, msbToLsb: false },
         cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: {
@@ -400,8 +380,8 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
             colorsRange: { min: 0, max: 3 }
         },
         reduce: 4,
-        customize: { outputTileset: false, outputPalette: true },
-        toNative:'exportSNES'
+        tiles: { max: 240 },
+        toNative: 'exportNESTiles',
     },
     {
         id: 'snes.2bpp',
@@ -719,30 +699,6 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         paletteChoices: { colors: 1, backgroundRange: { min: 0, max: 15 }, colorsRange: { min: 0, max: 7 } },
         customize: { singleColor: true },
         toNative: 'exportSticColorStack'
-    },
-    {
-        id: 'nes4f',
-        caveat: "960 unique tiles; a plain NES holds 256 background tiles, so this needs CHR bank switching or a mapper like MMC5",
-        name: 'NES (4 color, full screen)',
-        width: 256,
-        height: 240,
-        scaleX: 8 / 7,
-        conv: 'DitheringCanvas',
-        pal: palettes.NES_RGB,
-        reduce: 4,
-        toNative: 'exportNES',
-    },
-    {
-        id: 'nes5f',
-        caveat: "960 unique tiles (needs CHR bank switching or MMC5), and the export omits the attribute table that carries the 5th color",
-        name: 'NES (5 color, full screen)',
-        width: 256,
-        height: 240,
-        scaleX: 8 / 7,
-        conv: 'NES_Canvas',
-        pal: palettes.NES_RGB,
-        reduce: 5,
-        toNative: 'exportNES',
     },
     {
         // 128x128 = 16x16 tiles = 256 unique tiles. Each tile selects one of

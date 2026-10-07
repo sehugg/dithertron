@@ -101,6 +101,10 @@ export interface DithertronSettings {
     // `sharedFirstColor`: slot 0 is the same color in every sub-palette (e.g. the
     // Genesis, where index 0 of every palette shows the backdrop color).
     subPalettes?: { count: number; colors?: number; sharedFirstColor?: boolean };
+    // Limit how many distinct tiles (blocks) the image may use. Blocks share
+    // tiles, optionally mirrored (`flipX`/`flipY`), to fit within `max`.
+    // Needs every block to see the same slots, as with a full palette or sub-palettes.
+    tiles?: { max: number; flipX?: boolean; flipY?: boolean };
     fli?: Fli;
     customize?: any;
     toNative?: string;

@@ -14,6 +14,7 @@ import {
     Param
 } from "../common/types";
 import { range, runtime_assert } from "../common/util";
+import { TileCodebook } from "./tilecodebook";
 
 const THRESHOLD_MAP_4X4 = [
     0, 8, 2, 10,
@@ -289,6 +290,13 @@ export interface BlockParamDitherCanvasContent {
     cbParams: Uint32Array;
     cellParams: Uint32Array;
     extraParams: Uint32Array;
+
+    // present when the system limits the number of distinct tiles
+    tileset?: {
+        tiles: Uint8Array[];        // palette slot per pixel of each tile
+        assign: Uint16Array;        // tile index per block
+        orient: Uint8Array;         // TILE_FLIP_* bits per block
+    };
 }
 
 export type AddToHistogramFromCurrentColorAtHandler = (x: number, y: number, color: number | undefined, histogram: Uint32Array) => void;
@@ -303,6 +311,8 @@ export abstract class BlockParamDitherCanvas extends BaseDitheringCanvas {
     block: BlockBasics & BlockColors & BlockSizing & BlockColorBleed & BlockBitOrder;
     cb: BlockBasics & BlockSizing & BlockColorBleed & BlockBitOrder;
     cell: BlockBasics & BlockSizing  & BlockColorBleed & BlockBitOrder;
+
+    tileCodebook?: TileCodebook;    // only when the system sets `tiles`
 
     fliMode: boolean = false;
     fullPaletteMode: boolean = false;
@@ -350,6 +360,12 @@ export abstract class BlockParamDitherCanvas extends BaseDitheringCanvas {
             cbParams: this.cbParams,
             cellParams: this.cellParams,
             extraParams: this.extraParams,
+
+            tileset: this.tileCodebook && {
+                tiles: this.tileCodebook.tiles,
+                assign: this.tileCodebook.assign,
+                orient: this.tileCodebook.orient,
+            },
         }
     }
 
@@ -1077,7 +1093,73 @@ export abstract class CommonBlockParamDitherCanvas extends BlockParamDitherCanva
         this.firstCommit = false;
     }
 
+    // Tiles are chosen once the unconstrained dither has settled, so the
+    // tiles capture the dither pattern instead of the flat nearest colors.
+    override iterate(): void {
+        super.iterate();
+        if (this.sys.tiles && !this.tileCodebook && this.changes === 0) {
+            this.fitTiles();
+            this.changes = 1;   // the pixels have yet to follow the tiles
+        }
+    }
+
+    // The palette indices a block's tile pixels choose between, by slot. Tile
+    // sharing needs the slots to mean the same thing to every block that uses
+    // the tile, so only a full palette qualifies unless a subclass says more.
+    tileSlotColors(blockOffset: number): number[] {
+        if (!this.fullPaletteMode)
+            throw new Error('tiles need a full palette or a tileSlotColors override');
+        return this.pixelPaletteChoices;
+    }
+
+    // Choose the shared tiles to match the dithered image, given each block's slots.
+    fitTiles(): void {
+        const tiles = this.sys.tiles;
+        if (!tiles)
+            return;
+        const { w, h, columns, size } = this.block;
+        const slots = this.tileSlotColors(0).length;
+        if (slots > 16)
+            throw new Error('tile cost table is too big for ' + slots + ' slots');
+        if (!this.tileCodebook)
+            this.tileCodebook = new TileCodebook(w, h, slots, tiles);
+
+        const pixels = w * h;
+        const costs = new Float32Array(size * pixels * slots);
+        for (let c = 0; c < size; ++c) {
+            const colors = this.tileSlotColors(c).map((i) => this.pal[i]);
+            const x0 = (c % columns) * w;
+            const y0 = Math.floor(c / columns) * h;
+            for (let y = 0; y < h; ++y) {
+                for (let x = 0; x < w; ++x) {
+                    const index = this.xyToImageIndex(x0 + x, y0 + y);
+                    if (index === undefined)
+                        continue;   // off the image: any slot will do
+                    const base = ((c * h + y) * w + x) * slots;
+                    for (let s = 0; s < slots; ++s)
+                        costs[base + s] = this.errfn(this.alt[index], colors[s]);
+                }
+            }
+        }
+        this.tileCodebook.fit(costs, size);
+    }
+
+    // the one color a tile allows at this pixel, once tiles have been chosen
+    tileValidColors(imageIndex: number): number[] | undefined {
+        const codebook = this.tileCodebook;
+        if (!codebook || codebook.assign.length !== this.block.size)
+            return undefined;
+        const offset = this.imageIndexToBlockOffset(imageIndex);
+        const { x, y } = this.imageIndexToXY(imageIndex);
+        const slot = codebook.slotAt(offset, x % this.block.w, y % this.block.h);
+        return [this.tileSlotColors(offset)[slot]];
+    }
+
     override getValidColors(imageIndex: number): number[] {
+        const tileColors = this.tileValidColors(imageIndex);
+        if (tileColors)
+            return tileColors;
+
         let offset = this.imageIndexToBlockOffset(imageIndex);
 
         if (this.fullPaletteMode)
