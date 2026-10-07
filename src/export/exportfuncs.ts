@@ -1857,15 +1857,16 @@ function encodeTiles(message: PixelsAvailableMessage, content: BlockParamDitherC
     return content.tileset ? encodeRowPlanarTileset(message, content, planes) : encodeRowPlanarTiles(message, content, planes);
 }
 
-// One tile-number byte per block.
-function encodeTileMap(content: BlockParamDitherCanvasContent): Uint8Array {
+// One tile-number byte per block. Flipped tiles need `flips`, which says where
+// the hardware keeps the flags (the map itself only holds the tile number).
+function encodeTileMap(content: BlockParamDitherCanvasContent, flips?: FlipBits): Uint8Array {
     let blocks = content.block.columns * content.block.rows;
     let map = new Uint8Array(blocks);
     for (let block = 0; block < blocks; ++block) {
         let { tile, orient } = blockTile(content, block);
         if (tile > 255)
             throw new Error('tile number does not fit in a byte');
-        flipFlags(orient);
+        flipFlags(orient, flips);
         map[block] = tile;
     }
     return map;
@@ -1952,7 +1953,7 @@ export function exportGBC(message: PixelsAvailableMessage, settings: DithertronS
     let content = message.content as SubPaletteContent;
     return concatArrays([
         encodeGameBoyTiles(message, content),
-        encodeTileMap(content),
+        encodeTileMap(content, { x: 5, y: 6 }),
         encodeSubPaletteAttributes(content, { x: 5, y: 6 }),
         encodeSubPaletteRAM(message, content, settings),
     ]);
@@ -2121,11 +2122,12 @@ export function exportNES(img: PixelsAvailableMessage, settings: DithertronSetti
     return char;
 }
 
-// NES full-screen export for images that share tiles (one 4-color palette):
-//   [CHR: 256 tiles x 16 bytes] [name table: 32x30] [attribute table: 64] [palette: 4]
+// NES full-screen export for images that share tiles (one or four 4-color palettes):
+//   [CHR: 256 tiles x 16 bytes] [name table: 32x30] [attribute table: 64] [palette: 4 or 16]
 // The name table and attribute table are 1024 contiguous bytes, the same layout
 // as PPU VRAM, so they can be copied to $2000 as they are. The attribute table
-// selects palette 0 everywhere. The palette bytes are NES color numbers.
+// selects palette 0 everywhere, or with sub-palettes the BG palette of every
+// 16x16 area. The palette bytes are NES color numbers, one 4-color palette after another.
 // Unused CHR tiles are left blank. Background tiles cannot be flipped on the NES.
 export function exportNESTiles(message: PixelsAvailableMessage, settings: DithertronSettings): Uint8Array {
     let content: BlockParamDitherCanvasContent = message.content;
@@ -2150,7 +2152,22 @@ export function exportNESTiles(message: PixelsAvailableMessage, settings: Dither
         nameTable[row * 32 + column] = tileset.assign[block];
     }
 
-    let palette = Uint8Array.from(convertToSystemPalette(message.pal, settings.pal));
+    // with sub-palettes, each 16x16 area (2x2 tiles) picks one of the four BG
+    // palettes: two bits per area, four areas to a byte, 8 bytes per row of 32x32
+    let sub = content as SubPaletteContent;
+    let palettes = sub.palettesCount ?? 1;
+    if (palettes > 1) {
+        let attrs = subPaletteNumbers(sub);
+        for (let block = 0; block < attrs.length; ++block) {
+            let column = block % content.block.columns;
+            let row = Math.floor(block / content.block.columns);
+            let shift = ((row >> 1) & 1) * 4 + ((column >> 1) & 1) * 2;
+            let at = 32 * 30 + (row >> 2) * 8 + (column >> 2);
+            nameTable[at] = (nameTable[at] & ~(3 << shift)) | (attrs[block] << shift);
+        }
+    }
+
+    let palette = Uint8Array.from(convertToSystemPalette(message.pal.slice(0, palettes * (sub.paletteColors ?? 4)), settings.pal));
     return concatArrays([chr, nameTable, palette]);
 }
 

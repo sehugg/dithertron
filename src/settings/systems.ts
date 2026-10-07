@@ -365,7 +365,7 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
     },
     {
         id: 'nes.tiles',
-        name: 'NES (full screen, 240 tiles)',
+        name: 'NES (full screen, 4 colors)',
         width: 32*8,
         height: 30*8,
         scaleX: 8 / 7,
@@ -380,6 +380,26 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
             colorsRange: { min: 0, max: 3 }
         },
         reduce: 4,
+        tiles: { max: 240 },
+        toNative: 'exportNESTiles',
+    },
+    {
+        // Like nes.tiles, but each 16x16 area (2x2 tiles) picks one of four BG
+        // palettes through the attribute table. Slot 0 of every palette is the
+        // shared backdrop color, so the screen shows up to 13 colors. Palettes
+        // lean away from colors another palette already holds (reuseWeight).
+        id: 'nes.tiles.attr',
+        name: 'NES (full screen, attributes)',
+        width: 32*8,
+        height: 30*8,
+        scaleX: 8 / 7,
+        conv: 'SubPalette_Canvas',
+        pal: palettes.NES_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 4, colors: 4, sharedFirstColor: true, area: { w: 16, h: 16 }, reuseWeight: 0.8 },
+        paletteChoices: { colorsRange: { min: 0, max: 63 } },
+        reduce: 64,
         tiles: { max: 240 },
         toNative: 'exportNESTiles',
     },
@@ -581,6 +601,23 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportGenesisTiles',
     },
     {
+        // Like genesis.tiles, but the whole screen uses a single 16-color palette line.
+        id: 'genesis.tiles.1pal',
+        name: 'Genesis (1 palette)',
+        width: 320,
+        height: 224,
+        scaleX: 1,
+        conv: 'SubPalette_Canvas',
+        pal: palettes.GENESIS_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 1, colors: 16 },
+        paletteChoices: { colorsRange: { min: 0, max: 15 } },
+        reduce: 16,
+        customize: { subPalettePaletteFormat: 'genesis' },
+        toNative: 'exportGenesisTiles',
+    },
+    {
         id: 'snes.8bpp.direct',
         name: 'SNES (Direct Color)',
         width: 32*8,
@@ -722,6 +759,25 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         toNative: 'exportGameGearTiles',
     },
     {
+        // Like sms-gg.tiles, but the whole screen uses a single 16-color palette,
+        // so the tile map needs no per-tile palette choice.
+        id: 'sms-gg.tiles.1pal',
+        name: 'Sega Game Gear (1 palette)',
+        width: 160,
+        height: 144,
+        scaleX: 1.2,
+        conv: 'SubPalette_Canvas',
+        pal: palettes.GAMEGEAR_COLOR_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 1, colors: 16 },
+        paletteChoices: { colorsRange: { min: 0, max: 15 } },
+        reduce: 16,
+        customize: { subPalettePaletteFormat: 'rgb444' },
+        tiles: { max: 448, flipX: true, flipY: true },
+        toNative: 'exportGameGearTiles',
+    },
+    {
         // The 256x192 screen is 768 tiles; the 448 the VDP can address are shared
         // between them, optionally flipped.
         // Each tile selects one of the two shared 16-color BG palettes
@@ -758,6 +814,25 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         paletteChoices: { colorsRange: { min: 0, max: 31 } },
         reduce: 32,
         customize: { subPalettePaletteFormat: 'rgb222' },
+        toNative: 'exportMasterSystemTiles',
+    },
+    {
+        // Like sms.tiles, but the whole screen uses a single 16-color palette,
+        // so the tile map needs no per-tile palette choice.
+        id: 'sms.tiles.1pal',
+        name: 'Sega Master System (1 palette)',
+        width: 256,
+        height: 192,
+        scaleX: 8 / 7,
+        conv: 'SubPalette_Canvas',
+        pal: palettes.SMS_RGB,
+        block: { w: 8, h: 8, colors: 16, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 1, colors: 16 },
+        paletteChoices: { colorsRange: { min: 0, max: 15 } },
+        reduce: 16,
+        customize: { subPalettePaletteFormat: 'rgb222' },
+        tiles: { max: 448, flipX: true, flipY: true },
         toNative: 'exportMasterSystemTiles',
     },
     {
@@ -936,6 +1011,23 @@ export const SYSTEMS: (DithertronSettings | null)[] = [
         cell: { w: 8, h: 8, msbToLsb: true },
         paletteChoices: { colorsRange: { min: 0, max: 31 } },
         reduce: 32,
+        toNative: 'exportGBC',
+    },
+    {
+        // Like gb.color.tiles, but the whole screen uses a single 4-color palette.
+        id: 'gb.color.tiles.1pal',
+        name: 'Game Boy Color (1 palette)',
+        width: 160,
+        height: 144,
+        scaleX: 1,
+        conv: 'GBC_Canvas',
+        pal: palettes.GAMEBOY_COLOR_RGB,
+        block: { w: 8, h: 8, colors: 4, msbToLsb: false },
+        cell: { w: 8, h: 8, msbToLsb: true },
+        subPalettes: { count: 1, colors: 4 },
+        paletteChoices: { colorsRange: { min: 0, max: 3 } },
+        reduce: 4,
+        tiles: { max: 256, flipX: true, flipY: true },
         toNative: 'exportGBC',
     },
     {

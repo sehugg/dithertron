@@ -309,7 +309,7 @@ function applyTileDitherSliders(sys: DithertronSettings) {
         if (!savedDitherSliders)
             savedDitherSliders = { diffuse: diffuseSlider.value, ordered: orderedSlider.value };
         setSliderValue(diffuseSlider, '0');
-        setSliderValue(orderedSlider, '100');
+        setSliderValue(orderedSlider, '50');
     } else if (savedDitherSliders) {
         setSliderValue(diffuseSlider, savedDitherSliders.diffuse);
         setSliderValue(orderedSlider, savedDitherSliders.ordered);

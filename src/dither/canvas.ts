@@ -922,6 +922,14 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
     // slot 0 holds the same color in every sub-palette
     sharedFirstColor: boolean = false;
 
+    // weight of a color another palette already holds when a palette picks its
+    // entries: below 1 spreads the colors over the palettes
+    reuseWeight: number = 1;
+
+    // blocks per palette selection, across and down (1x1: every block picks its own)
+    areaColumns: number = 1;
+    areaRows: number = 1;
+
     // the original reduced-palette indices that make up each sub-palette
     palettes: number[][] = [];
 
@@ -942,6 +950,9 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
         this.palettesCount = sp?.count ?? (this.palettesCount || 8);
         this.paletteColors = sp?.colors ?? (this.paletteColors || this.block.colors);
         this.sharedFirstColor = sp?.sharedFirstColor ?? this.sharedFirstColor;
+        this.reuseWeight = sp?.reuseWeight ?? this.reuseWeight;
+        this.areaColumns = sp?.area ? Math.max(1, Math.round(sp.area.w / this.block.w)) : 1;
+        this.areaRows = sp?.area ? Math.max(1, Math.round(sp.area.h / this.block.h)) : 1;
 
         this.buildPalettes();
     }
@@ -1047,6 +1058,12 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
         this.applyPalettes();
     }
 
+    // does `colors` already hold base color `s`, or another entry with the same RGB?
+    holdsColor(colors: number[], s: number): boolean {
+        const N = this.basePal.length;
+        return colors.some((c) => c === s || this.colorDist[c * N + s] === 0);
+    }
+
     // Re-pick each palette's `paletteColors` entries to best cover the tiles
     // that selected it last commit. Greedy set-cover over the per-palette pixel
     // histogram, minimizing summed distance to the nearest chosen color.
@@ -1056,14 +1073,29 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
         const N = this.pal.length;
 
         for (let p = 0; p < P; ++p) {
-            const hist = this.paletteHist.subarray(p * N, (p + 1) * N);
+            let hist = this.paletteHist.subarray(p * N, (p + 1) * N);
             let total = 0;
             for (let c = 0; c < N; ++c) total += hist[c];
-            if (total === 0)
-                continue;   // no tiles assigned to this palette; leave it alone
 
             const chosen: number[] = [];
             const minDist = new Float64Array(N).fill(Infinity);
+
+            // A palette no tile selected would never be used again. Re-seed it
+            // with the colors the other palettes cover worst in the whole image.
+            if (total === 0) {
+                hist = new Uint32Array(N);
+                for (let q = 0; q < P; ++q) {
+                    for (let c = 0; c < N; ++c) hist[c] += this.paletteHist[q * N + c];
+                    if (q === p) continue;
+                    for (const color of this.palettes[q]) {
+                        for (let c = 0; c < N; ++c)
+                            minDist[c] = Math.min(minDist[c], this.colorDist[c * N + color]);
+                    }
+                }
+                for (let c = 0; c < N; ++c) total += hist[c];
+                if (total === 0)
+                    continue;   // nothing to cover yet
+            }
 
             // later palettes start from the shared color in slot 0
             let first = 0;
@@ -1071,30 +1103,34 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
                 const shared = this.palettes[0][0];
                 chosen.push(shared);
                 for (let c = 0; c < N; ++c)
-                    minDist[c] = this.colorDist[c * N + shared];
+                    minDist[c] = Math.min(minDist[c], this.colorDist[c * N + shared]);
                 first = 1;
             }
 
+            // the first pick has nothing to improve on unless colors are already covered
+            const covered = minDist.some((d) => d < Infinity);
+
             for (let k = first; k < C; ++k) {
                 let bestS = -1;
-                let bestVal = Infinity;     // k=0: minimize total distance
-                let bestGain = -1;          // k>0: maximize error reduction
+                let bestVal = Infinity;     // nothing covered yet: minimize total distance
+                let bestGain = -1;          // otherwise: maximize error reduction
 
                 for (let s = 0; s < N; ++s) {
-                    if (chosen.includes(s))
+                    if (this.holdsColor(chosen, s))
                         continue;
                     let val = 0;
                     let gain = 0;
+                    const weight = this.palettes.some((q, i) => i !== p && this.holdsColor(q, s)) ? this.reuseWeight : 1;
                     for (let c = 0; c < N; ++c) {
                         if (hist[c] === 0)
                             continue;
                         const d = this.colorDist[c * N + s];
-                        if (k === 0)
+                        if (k === 0 && !covered)
                             val += hist[c] * d;
                         else if (d < minDist[c])
-                            gain += hist[c] * (minDist[c] - d);
+                            gain += weight * hist[c] * (minDist[c] - d);
                     }
-                    if (k === 0) {
+                    if (k === 0 && !covered) {
                         if (val < bestVal) { bestVal = val; bestS = s; }
                     } else {
                         if (gain > bestGain) { bestGain = gain; bestS = s; }
@@ -1115,7 +1151,7 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
                 let bestS = -1;
                 let bestH = -1;
                 for (let s = 0; s < N; ++s) {
-                    if (chosen.includes(s)) continue;
+                    if (this.holdsColor(chosen, s)) continue;
                     if (hist[s] > bestH) { bestH = hist[s]; bestS = s; }
                 }
                 if (bestS < 0) break;
@@ -1213,24 +1249,36 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
         // depends on neighboring tiles' choices and makes palettes flip-flop
         const from = this.ref;
 
-        // cost of each sub-palette = sum over the tile's pixels of the distance
+        // the blocks that share this palette choice; the first one decides for all
+        const columns = this.block.columns;
+        const members: number[] = [];
+        if (offset % columns % this.areaColumns !== 0 || Math.floor(offset / columns) % this.areaRows !== 0)
+            return;
+        for (let r = 0; r < this.areaRows && offset + r * columns < this.block.size; ++r) {
+            for (let c = 0; c < this.areaColumns && (offset % columns) + c < columns; ++c)
+                members.push(offset + r * columns + c);
+        }
+
+        // cost of each sub-palette = sum over the area's pixels of the distance
         // to that pixel's nearest color within the sub-palette
         const cost = new Float64Array(P);
-        const imageIndex = this.offsetToImageIndex(offset, this.block);
-        const start = this.imageIndexToXY(imageIndex);
         const pixels: number[] = [];
-        for (let y = start.y; y < start.y + this.block.h; ++y) {
-            for (let x = start.x; x < start.x + this.block.w; ++x) {
-                const i = this.xyToImageIndex(x, y);
-                if (i === undefined)
-                    continue;
-                const rgb = from[i];
-                pixels.push(rgb);
-                for (let p = 0; p < P; ++p) {
-                    let nearest = Infinity;
-                    for (let s = 0; s < C; ++s)
-                        nearest = Math.min(nearest, this.errfn(rgb, this.pal[p * C + s]));
-                    cost[p] += nearest;
+        for (const member of members) {
+            const imageIndex = this.offsetToImageIndex(member, this.block);
+            const start = this.imageIndexToXY(imageIndex);
+            for (let y = start.y; y < start.y + this.block.h; ++y) {
+                for (let x = start.x; x < start.x + this.block.w; ++x) {
+                    const i = this.xyToImageIndex(x, y);
+                    if (i === undefined)
+                        continue;
+                    const rgb = from[i];
+                    pixels.push(rgb);
+                    for (let p = 0; p < P; ++p) {
+                        let nearest = Infinity;
+                        for (let s = 0; s < C; ++s)
+                            nearest = Math.min(nearest, this.errfn(rgb, this.pal[p * C + s]));
+                        cost[p] += nearest;
+                    }
                 }
             }
         }
@@ -1241,7 +1289,7 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
                 best = p;
         }
 
-        // hysteresis: keep the tile's current palette unless the new one is
+        // hysteresis: keep the area's current palette unless the new one is
         // clearly better, otherwise near-ties flip back and forth every pass
         if (!this.firstCommit) {
             const current = this.extractColorsFromBlockParams(offset, 1, this.getPaletteFilter(), this.getPaletteBits())[0] ?? 0;
@@ -1249,9 +1297,10 @@ export class SubPalette_Canvas extends CommonBlockParamDitherCanvas {
                 best = current;
         }
 
-        this.updateBlockColorParam(offset, [best], this.getPaletteFilter(), this.getPaletteBits());
+        for (const member of members)
+            this.updateBlockColorParam(member, [best], this.getPaletteFilter(), this.getPaletteBits());
 
-        // accumulate the tile's target colors (nearest base-palette color per
+        // accumulate the area's target colors (nearest base-palette color per
         // pixel) for the palette refinement; independent of slot order
         for (const rgb of pixels) {
             let nearest = 0;

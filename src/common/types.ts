@@ -97,10 +97,15 @@ export interface DithertronSettings {
     // For systems where each block/tile selects one of a fixed number of shared
     // sub-palettes (e.g. GBC, Genesis, Game Gear). `count` sub-palettes are each
     // made of `colors` entries; `colors` defaults to block.colors. The reduced
-    // palette length should be count * colors.
+    // palette length must be at least count * colors; a longer one gives the
+    // palettes more colors to choose from.
     // `sharedFirstColor`: slot 0 is the same color in every sub-palette (e.g. the
     // Genesis, where index 0 of every palette shows the backdrop color).
-    subPalettes?: { count: number; colors?: number; sharedFirstColor?: boolean };
+    // `reuseWeight`: below 1, a palette values a color another palette already holds
+    // less, so the palettes cover more distinct colors (default 1).
+    // `area`: pixels that share one palette choice, a multiple of the block size
+    // (e.g. the NES picks a palette for every 16x16 pixels, a 2x2 block of tiles).
+    subPalettes?: { count: number; colors?: number; sharedFirstColor?: boolean; area?: { w: number; h: number }; reuseWeight?: number };
     // Limit how many distinct tiles (blocks) the image may use. Blocks share
     // tiles, optionally mirrored (`flipX`/`flipY`), to fit within `max`.
     // Needs every block to see the same slots, as with a full palette or sub-palettes.

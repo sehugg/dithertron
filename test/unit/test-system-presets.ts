@@ -56,8 +56,8 @@ function problems(s: DithertronSettings): string[] {
     const sub = s.subPalettes;
     if (sub) {
         const colors = sub.colors ?? blockColors!;
-        if (sub.count * colors !== eff)
-            bad.push(`subPalettes ${sub.count}x${colors} does not equal the palette (${eff})`);
+        if (sub.count * colors > eff)
+            bad.push(`subPalettes ${sub.count}x${colors} does not fit in the palette (${eff})`);
         if (blockColors !== colors)
             bad.push(`block.colors ${blockColors} differs from subPalettes.colors ${colors}`);
     }
